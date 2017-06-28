@@ -34,6 +34,7 @@ import valon_synth
 from socket import *
 from scipy import signal
 import find_kids_superspec as fk 
+import datetime
 
 class roachInterface(object):
     
@@ -659,31 +660,68 @@ class roachInterface(object):
 	#self.find_kids_olimpo.main(path)
 	return 
     
+    
+    '''last edited 20170628'''
+    def tune_KIDs(self,LOfreq,sweepspan,tonelistpath,sweepdir,measurename=None):
+        #import given frequencies in tonelist
+        KIDfreqs = fk.read_tonelist(tonelistpath)
+        #Do target sweep with given frequencies
+        #first generate path/name by timestamp for rough sweep dir
+        if measurename=='':
+            nowstr = datetime.datetime.now().strftime('%Y%m%d_%Hh%Mm%Ss')
+            roughsweepdir = os.path.join(sweepdir,nowstr+'rough')
+            finesweepdir = os.path.join(sweepdir,nowstr+'fine')
+        else:
+            roughsweepdir = os.path.join(sweepdir,measurename+'rough')
+            finesweepdir = os.path.join(sweepdir,measurename+'fine')
+        self.target_sweep(LOfreq, KIDfreqs, span=sweepspan,save_path=roughsweepdir,interactive=False,sweep=True,write=True)
+        #import I,Q and slice for resonators, import sweepfreqs
+        I_array,Q_array = fk.ImportIQsweep(roughsweepdir)
+        sweepfreqs = np.load(os.path.join(roughsweepdir,'/sweep_freqs.npy')
+        numres = dI_array[:,0]
+        new_freqs=[]
+        for i in range(numres):
+            #compute dI , dQ and plot
+            I=I_array[i,:] ; Q=Q_array[i,:]
+            dI,dQ=fk.compute_dI_and_dQ(I,Q,freq=sweepfreqs,filterstr=None,do_deriv=True)
+            plt.figure()
+            plt.plot(sweepfreqs,dI,'r',label='dI')
+            plt.plot(sweepfreqs,dQ,'b',label='dQ')
+            #find new f0
+            fnew = sweepfreqs[np.argmax(dI**2 + dQ**2)]
+            new_freqs.appen(fnew)
+        plt.show()
+        new_freqs=np.array(new_freqs)
+        #do second target sweep with updated f0s, save in finesweepdir
+        target_sweep(LOfreq,newfreqs,span=sweepspan,save_path=finesweepdir,interactive=False,sweep=True,write=True)
+        return None
 
-    def target_sweep(self, center_freq, target_freqs, save_path = './sweeps/target', write = True, sweep = False):
+    def target_sweep(self, center_freq, target_freqs, span=100.e3, save_path='./sweeps/target', interactive=True, write=True, sweep=False):
         #vna_path = raw_input('Absolute path to VNA sweep dir (e.g. /home/lazarus/sam_git/blast_readout/sweeps/vna/0805_1) ? ')
 	#self.target_freqs = np.load(vna_path + '/target_freqs.npy')
+    #note if interactive==False, then save_path must be full path to dir to be created
 	assert type(target_freqs) in [np.ndarray, list] and len(target_freqs)>0
 	# target frequencies are the rf frequencies in MHz
-	
-	sweep_dir = raw_input('Insert new target sweep dir (e.g. 0805_1): ')
+	if interactive==True:
+        sweep_dir = raw_input('Insert new target sweep dir (e.g. 0805_1): ')
         save_path = os.path.join(save_path, sweep_dir)
+    else:
+        pass
 	os.mkdir(save_path)
 	np.save(save_path + '/target_freqs.npy', self.target_freqs)
 	#center_freq = (np.max(self.target_freqs) + np.min(self.target_freqs))/2.
-        self.bb_target_freqs = ((self.target_freqs*1.0e6) - center_freq)
-        #self.bb_target_freqs = (self.target_freqs - center_freq/2)
-        self.bb_target_freqs = np.roll(self.bb_target_freqs, - np.argmin(np.abs(self.bb_target_freqs)) - 1)
+    self.bb_target_freqs = ((self.target_freqs*1.0e6) - center_freq)
+    #self.bb_target_freqs = (self.target_freqs - center_freq/2)
+    self.bb_target_freqs = np.roll(self.bb_target_freqs, - np.argmin(np.abs(self.bb_target_freqs)) - 1)
 	upconvert = np.sort((self.bb_target_freqs + center_freq)/1.0e6)
-        print "RF tones =", upconvert
+    print "RF tones =", upconvert
 	self.v1.set_frequency(0,center_freq / (1.0e6), 0.01) # LO
 	print '\nTarget baseband freqs (MHz) =', self.bb_target_freqs/1.0e6
-	span = 100.0e3
 	start = center_freq - (span/2.)
-        stop = center_freq + (span/2.) 
-        sweep_freqs = np.arange(start, stop, self.lo_step)
-        step=self.lo_step
-        sweep_freqs = np.round(sweep_freqs/step)*step
+    stop = center_freq + (span/2.) 
+    sweep_freqs = np.arange(start, stop, self.lo_step)
+    step=self.lo_step
+    sweep_freqs = np.round(sweep_freqs/step)*step
 	print "LO freqs =", sweep_freqs
 	np.save(save_path + '/bb_freqs.npy',self.bb_target_freqs)
 	np.save(save_path + '/sweep_freqs.npy',sweep_freqs)
@@ -1129,6 +1167,14 @@ class roachInterface(object):
 		except KeyboardInterrupt:
 			pass 
         
+        if opt==13:
+            mstr = raw_input('Name of measurement: ')
+            LOf = input('LO Frequency [MHz] : ')*(1.e6))
+            tonelistpath = './data/tonelists/TonesList_SS_L170213-1_R6C3_20170604_80mK.txt'
+            sweepdir = './sweeps/target'
+            sweepspan = 100.0e3
+            try:
+                self.tune_KIDs(self,LOfreq,sweepspan,tonelistpath,sweepdir,measurename=mstr)
         #self.main_opts= ['Initialize','Write test comb', 'Write saved bb freqs','Print packet info to screen (UDP)',
         #4'VNA sweep and plot','Locate resonances','Target sweep and plot', 'Plot channel phase PSD (quick look)',
         #8'Plot channel amp PSD (quick look)', 'Save dirfile for all channels (I, Q, phase)', 
