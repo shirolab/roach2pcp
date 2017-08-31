@@ -1,4 +1,4 @@
-import numpy as np
+miport numpy as np
 import matplotlib.pyplot as plt
 import os
 # read in files

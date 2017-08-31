@@ -24,6 +24,7 @@ class FirmwareSnaps(object):
 	def plotADC(self):
 		# Plots the ADC timestream
 		# Peak to peak should be 900 mV (from DAC)
+		#plt.ion()
 		fig = plt.figure(figsize=(20,12))
 		#ax = fig.add_subplot(211)    
 		#ax.tick_params(labelcolor='w', top='off', bottom='off', left='off', right='off')
@@ -50,26 +51,36 @@ class FirmwareSnaps(object):
 		plt.ylim(-1200,1200)
 		plt.yticks(np.arange(-1200, 1200, 100))
 		plt.grid()
-		plt.tight_layout()
-		plt.show(block = False)
+		fig.tight_layout()
+		#plt.show(block = False)
+		plt.ion()
+		#plt.show()
 		count = 0
 		stop = 1.0e8
-		while count < stop:    
+		while count < stop:
+                        print 'start sleep'
 			time.sleep(0.1)
+			print 'stop sleep'
+			print 'writing to fpga'
 			self.fpga.write_int('adc_snap_ctrl',0)
 			self.fpga.write_int('adc_snap_ctrl',1)
 			self.fpga.write_int('adc_snap_trig',0)    
 			self.fpga.write_int('adc_snap_trig',1)    
 			self.fpga.write_int('adc_snap_trig',0)
+			print 'wrote to fpga; getting snap from fpga'
 			adc = (np.fromstring(self.fpga.read('adc_snap_bram',(2**10)*8),dtype='>i2')).astype('float')
+			print 'received from adc'
 			adc /= (2**16)
 			adc *= 1100
+			print adc
 			# ADC full scale is 2.2 V
 			I = np.hstack(zip(adc[0::4],adc[1::4]))
 			Q = np.hstack(zip(adc[2::4],adc[3::4]))
+			print I
+			print Q
 			line1.set_ydata(I)
 			line2.set_ydata(Q)
-			plt.draw()
+			plt.pause(0.1)
 			count += 1
 		return
 
