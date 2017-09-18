@@ -5,12 +5,14 @@ import matplotlib.pyplot as plt
 import matplotlib.lines
 matplotlib.use("TkAgg")
 import casperfpga
+import utils
 
 class FirmwareSnaps(object):
     
     	def __init__(self):
-		self.fpga = casperfpga.katcp_fpga.KatcpFpga("192.168.40.64",timeout=120.)
-		self.dds_shift = 305
+		self.config = utils.read_config()
+		self.fpga = casperfpga.katcp_fpga.KatcpFpga(self.config['roach_ip'],timeout=120.)
+		self.dds_shift = 330
 		self.accum_len = 2**19 
 		self.fft_len = 1024
 	
@@ -58,26 +60,26 @@ class FirmwareSnaps(object):
 		count = 0
 		stop = 1.0e8
 		while count < stop:
-                        print 'start sleep'
+                        #print 'start sleep'
 			time.sleep(0.1)
-			print 'stop sleep'
-			print 'writing to fpga'
-			self.fpga.write_int('adc_snap_ctrl',0)
-			self.fpga.write_int('adc_snap_ctrl',1)
-			self.fpga.write_int('adc_snap_trig',0)    
-			self.fpga.write_int('adc_snap_trig',1)    
-			self.fpga.write_int('adc_snap_trig',0)
-			print 'wrote to fpga; getting snap from fpga'
-			adc = (np.fromstring(self.fpga.read('adc_snap_bram',(2**10)*8),dtype='>i2')).astype('float')
-			print 'received from adc'
+			#print 'stop sleep'
+			#print 'writing to fpga'
+			self.fpga.write_int('adc_snap_adc_snap_ctrl',0)
+			self.fpga.write_int('adc_snap_adc_snap_ctrl',1)
+			self.fpga.write_int('adc_snap_adc_snap_trig',0)    
+			self.fpga.write_int('adc_snap_adc_snap_trig',1)    
+			self.fpga.write_int('adc_snap_adc_snap_trig',0)
+			#print 'wrote to fpga; getting snap from fpga'
+			adc = (np.fromstring(self.fpga.read('adc_snap_adc_snap_bram',(2**10)*8),dtype='>i2')).astype('float')
+			#print 'received from adc'
 			adc /= (2**16)
 			adc *= 1100
-			print adc
+			#print adc
 			# ADC full scale is 2.2 V
-			I = np.hstack(zip(adc[0::4],adc[1::4]))
-			Q = np.hstack(zip(adc[2::4],adc[3::4]))
-			print I
-			print Q
+			I = np.hstack(zip(adc[0::4],adc[2::4]))
+			Q = np.hstack(zip(adc[1::4],adc[3::4]))
+			#print I
+			#print Q
 			line1.set_ydata(I)
 			line2.set_ydata(Q)
 			plt.pause(0.1)
@@ -91,9 +93,9 @@ class FirmwareSnaps(object):
 
 	def read_accum_snap(self):
 		# Reads the avgIQ buffer. Returns I and Q as 32-b signed integers     
-		self.fpga.write_int('accum_snap_ctrl', 0)
-		self.fpga.write_int('accum_snap_ctrl', 1)
-		accum_data = np.fromstring(self.fpga.read('accum_snap_bram', 16*2**9), dtype = '>i').astype('float')
+		self.fpga.write_int('accum_snap_accum_snap_ctrl', 0)
+		self.fpga.write_int('accum_snap_accum_snap_ctrl', 1)
+		accum_data = np.fromstring(self.fpga.read('accum_snap_accum_snap_bram', 16*2**9), dtype = '>i').astype('float')
 		I = accum_data[0::2]    
 		Q = accum_data[1::2]    
 		return I, Q    
@@ -101,7 +103,7 @@ class FirmwareSnaps(object):
 	def plotAccum(self):
 		# Generates a plot stream from read_avgIQ_snap(). To view, run plotAvgIQ.py in a separate terminal
 		freqlen = 1000
-		fig = plt.figure(num= None, figsize=(20,12))
+		fig = plt.figure(figsize=(20,12))
 		#plt.suptitle('Averaged FFT, Accum. Frequency = ' + str(self.accum_freq), fontsize=20)
 		plot1 = fig.add_subplot(111)
 		line1, = plot1.semilogy(np.arange(0,freqlen),np.ones(freqlen), '#FF4500')
@@ -115,6 +117,8 @@ class FirmwareSnaps(object):
 		plt.ylim(top = 1.0e3)
 		plt.tight_layout()
 		plt.show(block = False)
+		#plt.ion()
+		#plt.show()
 		count = 0 
 		stop = 10000
 		while(count < stop):
@@ -127,7 +131,8 @@ class FirmwareSnaps(object):
 			mags *= 1000
 			#plt.ylim((np.min(mags) - 0.001,np.max(mags) + 0.001))
 			line1.set_ydata(mags)
-			plt.draw()
+			plt.pause(.1)
+			#plt.draw()
 			count += 1
 			#    plt.savefig('/home/user1/blastfirmware/images/' + 'accum' + str(int(count)) + '.png', dpi=fig.dpi)
 		return
@@ -157,11 +162,11 @@ class FirmwareSnaps(object):
 		count = 0 
 		stop = 1.0e6
 		while(count < stop):
-			overflow = np.fromstring(self.fpga.read('overflow', 4), dtype = '<B')
-			print overflow
-			self.fpga.write_int('fft_snap_ctrl',0)
-			self.fpga.write_int('fft_snap_ctrl',1)
-			fft_snap = (np.fromstring(self.fpga.read('fft_snap_bram',(2**9)*8),dtype='>i2')).astype('float')
+			#o0verflow = np.fromstring(self.fpga.read('overflow', 4), dtype = '<B')
+			#print overflow
+			self.fpga.write_int('fft_snap_fft_snap_ctrl',0)
+			self.fpga.write_int('fft_snap_fft_snap_ctrl',1)
+			fft_snap = (np.fromstring(self.fpga.read('fft_snap_fft_snap_bram',(2**9)*8),dtype='>i2')).astype('float')
 			I0 = fft_snap[0::4]
 			Q0 = fft_snap[1::4]
 			I1 = fft_snap[2::4]
@@ -182,9 +187,9 @@ class FirmwareSnaps(object):
 		# returns snap data for the dds mixer inputs and outputs
 		self.fpga.write_int('dds_shift', shift)
 		if (chan % 2) > 0: # if chan is odd
-			self.fpga.write_int('chan_select', (chan - 1) / 2)
+			self.fpga.write_int('DDC_snap_chan_select', (chan - 1) / 2)
 		else:
-			self.fpga.write_int('chan_select', chan/2)
+			self.fpga.write_int('DDC_snap_chan_select', chan/2)
 		self.fpga.write_int('rawfftbin_ctrl', 0)
 		self.fpga.write_int('mixerout_ctrl', 0)
 		self.fpga.write_int('lpf_ctrl', 0)
@@ -264,6 +269,7 @@ class FirmwareSnaps(object):
 		plt.grid()
 		plt.tight_layout()
 		plt.show(block = False)
+		#plt.ion()
 		count = 0
 		stop = 10000
 		while (count < stop):
@@ -284,7 +290,8 @@ class FirmwareSnaps(object):
 			#line7.set_ydata((I_lpf/(2**19 - 1))*1000)
 			#line8.set_ydata((Q_lpf/(2**19 - 1))*1000)
 			line7.set_ydata((np.sqrt(I_lpf**2 + Q_lpf**2)/(2**19 - 1))*1000)
-			plt.draw()
+			#plt.draw()
+			plt.pause(0.1)
 			#plt.savefig('/home/user1/blastfirmware/images/' + 'mixer0' + str(int(count)) + '.png', dpi=fig.dpi)
 			count += 1
 		return
@@ -319,7 +326,8 @@ class FirmwareSnaps(object):
 				plot1.set_ylim((np.min(chan_phase) - 0.001,np.max(chan_phase) + 0.001))
 				line2.set_ydata(chan_mag)
 				plot2.set_ylim((np.min(chan_mag) - 0.001,np.max(chan_mag) + 0.001))
-				plt.draw()	
+				plt.pause(0.1)				
+				#plt.draw()	
 				#print 'Phase =', np.round(phase,10), I[chan], Q[chan]
 				count += 1
 		return 

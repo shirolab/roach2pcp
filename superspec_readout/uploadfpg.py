@@ -2,9 +2,12 @@ import numpy as np
 import casperfpga
 import sys 
 import time 
+import utils
 
 bitstream = sys.argv[1]
-ip = "192.168.40.64"
+config = utils.read_config()
+#ip = "192.168.40.64"
+ip = config['roach_ip']
 
 def openClient():
 	print 'Connecting...'
