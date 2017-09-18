@@ -7,7 +7,4 @@
 # Temp files
 *~
 
-/data/
 superspec_readout/blastfirmwave_main_samrowe_cardiff.py
-/superspec_readout/last_transfunc.npy
-/superspec_readout/config.txt
