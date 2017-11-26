@@ -8,3 +8,9 @@
 *~
 
 superspec_readout/blastfirmwave_main_samrowe_cardiff.py
+
+superspec_readout/daemon_testing/daemon_test.py
+
+superspec_readout/daemon_testing/new_shell_spawn.py
+
+superspec_readout/getdata_test_script.py
