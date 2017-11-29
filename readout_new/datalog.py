@@ -12,7 +12,8 @@
 # - multiple instances can be run in parallel (currently, run, change the hardcoded pid file manually, save and rerun to get second instance)
 
 # TODO
-# read in command line arugments
+# read in command line arugments to remove hard coded filenames and generalise
+# intended command line arguments required would be
 #   - udpip, local ip, roachid
 # set up socket to udp and use select.select to monitor network interface
 # save file
@@ -31,14 +32,14 @@ import os
 
 class datalogDaemon(object):
     def __init__(self):
-        self.pidf = daemon.pidfile.TimeoutPIDLockFile("run/mydaemon1.pid") # this will have to modified when running multiple instances
+        # need a test/check to handle if the pid file is locked
+        self.pidf = daemon.pidfile.TimeoutPIDLockFile("run/mydaemon.pid") # this will have to modified when running multiple instances
 
     def data_log(self, text):
         while True:
-            with open("run/current_time1.txt", "w") as f:
+            with open("run/current_time.txt", "w") as f:
                 f.write("The time is now " + time.ctime()+". Text string: " + str(text) + "\n")
             time.sleep(5)
-            #print "The time is now " + time.ctime()+"\n"
 
     def run(self, text):
         context = daemon.DaemonContext(
@@ -53,14 +54,14 @@ class datalogDaemon(object):
                 }
 
         with context:
-            print "Running with PID {pid}\n".format(pid = self.pidf.read_pid())
+            print "Running with PID {pid}\r".format(pid = self.pidf.read_pid())
             sys.stdout.flush()
             self.data_log(text)
 
     def daemon_stop(self, signum, frame):
         print "Stopped Daemon\n"
-        with open("run/current_time1.txt", "w") as f:
-            f.write("Logger stopped\r\n")
+        with open("run/current_time.txt", "w") as f:
+            f.write("Logger stopped\r")
         os.kill(self.pidf.read_pid(), signal.SIGINT) # SIGINT appears to handle closing of the pid file correctly
 
 
