@@ -7,10 +7,12 @@ New architecture specific
 - sweeping implementation 
 	- if data is being saved to file continuously, how should we identify packets when sweeping, streaming, nodding…etc. 
 	- one simple way would be to have a status.live file which contains the current state of each roach that is updated by the control script, and when each packet is saved by the logger, a flag is saved along with the packet (e.g. time, flag, I0, Q0, I1, Q1…etc). Flag could be a simple string with values: idle, sweep, stream, calibration, sky-nod…etc).
+According to Sam this should be pretty easy and he does use "feature bits" on his own
 
 - Readout power optimisation (does that exist anywhere?)
 - Sweeping with multiple roaches (simultaneously)
 	- this could be achieved with a simple asynchronous multiprocessing function quite easily.
 
 - LMT interfacing (see lmt_interface.py).
-	- this (sh)could be borrowed from Sam R’s remote control interface written to interface to Labview. 
+	- this (sh)could be borrowed from Sam R’s remote control interface written to interface to Labview.
+
