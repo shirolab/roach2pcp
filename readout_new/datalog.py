@@ -36,11 +36,19 @@ class datalogDaemon(object):
         self.pidf = daemon.pidfile.TimeoutPIDLockFile("run/mydaemon.pid") # this will have to modified when running multiple instances
 
     def data_log(self, text):
+        logname = find_logfile()
         while True:
-            with open("run/current_time.txt", "w") as f:
-                f.write("The time is now " + time.ctime()+". Text string: " + str(text) + "\n")
+            with open(logname, "w") as f:
+                f.write("The time is now " + time.gmtime()+". Text string: " + str(text) + "\n")
             time.sleep(5)
 
+    def write_log(self, text):
+        logname = find_logfile()
+        with open(logname, "a") as f:
+            f.write(str(time.strftime("%Y%m%d_%H%M%S",time.gmtime()) + ': ' + text))
+            f.write('\n')
+            f.close # does this work here?
+            
     def run(self, text):
         context = daemon.DaemonContext(
                             working_directory=".",
@@ -60,9 +68,17 @@ class datalogDaemon(object):
 
     def daemon_stop(self, signum, frame):
         print "Stopped Daemon\n"
-        with open("run/current_time.txt", "w") as f:
+        logname = find_logfile()
+        with open(logname, "a") as f:
             f.write("Logger stopped\r")
         os.kill(self.pidf.read_pid(), signal.SIGINT) # SIGINT appears to handle closing of the pid file correctly
+
+    def find_logfile():
+        # Define location/name of logfile here
+        # One logfile per day (YYYYMMDD.log)
+        # logname = "run/current_time.txt"
+        logname = str(time.strftime("%Y%m%d",time.gmtime()) + '.log')
+        return logname
 
 
 if __name__ == "__main__":
