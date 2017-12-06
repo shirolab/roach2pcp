@@ -1,1 +1,11 @@
 # Configuration file for general hardware options (e.g. Synths, Attenuators, PSUs...etc)
+
+synthesizer:
+  synth1:
+    synthmake: valon
+    synthport: 101
+    valon_comm_port: /dev/ttyUSB0
+  synth2:
+    synthmake: valon
+    synthport: 101
+    valon_comm_port: /dev/ttyUSB0
