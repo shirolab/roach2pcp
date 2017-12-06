@@ -29,5 +29,6 @@ def plot_mount():
     p2.add(c2)
     return mount
 
-    
 
+if __name__ == '__main__':
+    plot_mount()

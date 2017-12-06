@@ -14,3 +14,9 @@ superspec_readout/daemon_testing/daemon_test.py
 superspec_readout/daemon_testing/new_shell_spawn.py
 
 superspec_readout/getdata_test_script.py
+
+toltec/AAREADME
+
+toltec/GbE_init.py
+
+toltec/Toltec.py
