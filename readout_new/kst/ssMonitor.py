@@ -9,8 +9,8 @@
 import pykst as kst
 import netCDF4 as nc
 
-def plot_mount():
-    mount = kst.Client("Mount Position")
+def plot_mount(client_name="Mount Position"):
+    mount = kst.Client(client_name)
     # mount datafile should be passed in here...
     datafile = './test_timestream.txt'
     T = mount.new_data_vector(datafile,
@@ -31,17 +31,27 @@ def plot_mount():
     return mount
 
 # Test netcdf file, downloaded from
-#http://www.unidata.ucar.edu/software/netcdf/examples/GOTEX.C130_N130AR.LRT.RF06.PNI.nc
-def plot_netcdf():
-    client = kst.Client("Test netCDF")
+# http://www.unidata.ucar.edu/software/netcdf/examples/...
+# GOTEX.C130_N130AR.LRT.RF06.PNI.nc
+def plot_netcdf(client_name = "Test netCDF",
+                x_axis = "time_offset",
+                y_axis = "INFLOW",
+                frame_start = -1,
+                frame_num = -1,
+                frame_skip = 0):
+    client = kst.Client(client_name)
     datafile = './GOTEX.C130_N130AR.LRT.RF06.PNI.nc'
-    T = client.new_data_vector(datafile,
-                               field="time_offset",
-                               start=-1,num_frames=-1)
-    I = client.new_data_vector(datafile,
-                               field="INFLOW",
-                               start=-1,num_frames=-1)
-    c1 = client.new_curve(T,I)
+    X = client.new_data_vector(datafile,
+                               field = x_axis,
+                               start = frame_start,
+                               num_frames = frame_num,
+                               skip = frame_skip)
+    Y = client.new_data_vector(datafile,
+                               field=y_axis,
+                               start = frame_start,
+                               num_frames = frame_num,
+                               skip = frame_skip)
+    c1 = client.new_curve(X,Y)
     p1 = client.new_plot()
     p1.add(c1)
     return client
