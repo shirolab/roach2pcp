@@ -7,6 +7,7 @@
 #
 
 import pykst as kst
+import netCDF4 as nc
 
 def plot_mount():
     mount = kst.Client("Mount Position")
@@ -29,6 +30,19 @@ def plot_mount():
     p2.add(c2)
     return mount
 
+def plot_netcdf():
+    client = kst.Client("Test netCDF")
+    datafile = '../simple.nc'
+    I = client.new_data_vector(datafile,
+                               field="INDEX",
+                               start=-1,num_frames=1000)
+    T = client.new_data_vector(datafile,
+                               field="times",
+                               start=-1,num_frames=1000)
+    c1 = client.new_curve(I,T)
+    p1 = client.new_plot()
+    p1.add(c1)
+    return client
 
 if __name__ == '__main__':
     plot_mount()
