@@ -30,16 +30,18 @@ def plot_mount():
     p2.add(c2)
     return mount
 
+# Test netcdf file, downloaded from
+#http://www.unidata.ucar.edu/software/netcdf/examples/GOTEX.C130_N130AR.LRT.RF06.PNI.nc
 def plot_netcdf():
     client = kst.Client("Test netCDF")
-    datafile = '../simple.nc'
-    I = client.new_data_vector(datafile,
-                               field="INDEX",
-                               start=-1,num_frames=1000)
+    datafile = './GOTEX.C130_N130AR.LRT.RF06.PNI.nc'
     T = client.new_data_vector(datafile,
-                               field="times",
-                               start=-1,num_frames=1000)
-    c1 = client.new_curve(I,T)
+                               field="time_offset",
+                               start=-1,num_frames=-1)
+    I = client.new_data_vector(datafile,
+                               field="INFLOW",
+                               start=-1,num_frames=-1)
+    c1 = client.new_curve(T,I)
     p1 = client.new_plot()
     p1.add(c1)
     return client
