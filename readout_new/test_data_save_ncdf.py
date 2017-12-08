@@ -18,7 +18,7 @@ def gen_fake_roach_packet(ndata):
 
 # now to read while writing?
 # testing appending in real time
-filename = 'testdatawrite_ncdf3.nc'
+filename = os.path.join('run', 'testdatawrite_ncdf3.nc')
 
 ntones = 1024
 
