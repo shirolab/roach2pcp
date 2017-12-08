@@ -70,10 +70,10 @@ if __name__ == '__main__':
             while True:
 
                 time.sleep(0.1)
+                fakedata = gen_fake_roach_packet(ntones)
+                print cnt, fakedata
 
-                print cnt, gen_fake_roach_packet(ntones)
-
-                timevar[cnt], datavar[cnt, :] = gen_fake_roach_packet(ntones)
+                timevar[cnt], datavar[cnt, :] = fakedata
                 #datavar[cnt,:] = gen_fake_roach_packet(ntones)[1]
 
                 if np.mod(cnt, chunksize)==0:
