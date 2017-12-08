@@ -92,6 +92,7 @@ class LogRecordSocketReceiver(SocketServer.ThreadingTCPServer):
                 self.handle_request() # is a method in ThreadingTCPServer that uses the handler to process the request
             abort = self.abort
 
+
 def main():
     logging.basicConfig(
         filename = 'example.log',
