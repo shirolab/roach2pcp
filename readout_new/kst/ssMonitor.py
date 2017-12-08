@@ -56,5 +56,35 @@ def plot_netcdf(client_name = "Test netCDF",
     p1.add(c1)
     return client
 
+def plot_fakeroach(client_name = "Test fakeroach",
+                x_axis = "timestamps",
+                y_axis = "iqdata",
+                frame_start = -1,
+                frame_num = -1,
+                frame_skip = 0):
+    client = kst.Client(client_name)
+    datafile = '../run/testdatawrite_ncdf3.nc'
+#    X = client.new_data_vector(datafile,
+#                               field = x_axis,
+#                               start = frame_start,
+#                               num_frames = frame_num,
+#                               skip = frame_skip)
+    M = client.new_data_matrix(datafile,
+                               field=y_axis,
+                               start_x=0,
+                               start_y=0,
+                               num_x=-1,
+                               num_y=-1,
+                               min_x=0,
+                               min_y=0,
+                               dx=1,
+                               dy=1
+                               )
+
+    I = client.new_image(M)
+    p1 = client.new_plot()
+    p1.add(I)
+    return client, M
+
 if __name__ == '__main__':
     plot_mount()
