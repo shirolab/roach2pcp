@@ -25,5 +25,6 @@ ri = roachInterface()
 # - This should then return a list of the roach interface objects, with everything initalised and running, to be used
 # for subsequent tasks (e.g. biasing, streaming...etc)
 
-
+from configuration import network_config
+print network_config.config_file
 # logging

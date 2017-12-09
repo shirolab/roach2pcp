@@ -38,6 +38,9 @@ rootgrp.createVariable( varname = "iqdata" ,\
                         datatype = np.dtype(np.float).char ,\
                         dimensions = ("time", "ntones") )
 
+# Write a version that instead of creating single variable for all I and Q data,
+# have individual dimension for 
+
 rootgrp.description = "example script"
 rootgrp.history = "Created " + time.ctime(time.time())
 
