@@ -12,22 +12,34 @@ import netCDF4 as nc
 def plot_mount(client_name="Mount Position"):
     mount = kst.Client(client_name)
     # mount datafile should be passed in here...
-    datafile = './test_timestream.txt'
-    T = mount.new_data_vector(datafile,
+    datafile1 = './test_timestream1.txt'
+    T1 = mount.new_data_vector(datafile1,
                               field="Column 1",
                               start=-1,num_frames=1000)
-    V1 = mount.new_data_vector(datafile,
+    V1a = mount.new_data_vector(datafile1,
                                field="Column 2",
                                start=-1,num_frames=1000)
-    V2 = mount.new_data_vector(datafile,
+    V1b = mount.new_data_vector(datafile1,
                                field="Column 3",
                                start=-1,num_frames=1000)
-    c1 = mount.new_curve(T,V1)
-    c2 = mount.new_curve(T,V2)
-    p1 = mount.new_plot(font_size = 12)
-    p2 = mount.new_plot(font_size = 12)
+    datafile2 = './test_timestream2.txt'
+    T2 = mount.new_data_vector(datafile2,
+                              field="Column 1",
+                              start=-1,num_frames=1000)
+    V2a = mount.new_data_vector(datafile2,
+                               field="Column 2",
+                               start=-1,num_frames=1000)
+    V2b = mount.new_data_vector(datafile2,
+                               field="Column 3",
+                               start=-1,num_frames=1000)
+    c1 = mount.new_curve(T1,V1a)
+    c2 = mount.new_curve(T2,V2a)
+    p1 = mount.new_plot()
+    p2 = mount.new_plot()
     p1.add(c1)
+    p1.set_x_axis_interpretation(interp='ctime')
     p2.add(c2)
+    p2.set_x_axis_interpretation(interp='ctime')
     return mount
 
 # Test netcdf file, downloaded from
