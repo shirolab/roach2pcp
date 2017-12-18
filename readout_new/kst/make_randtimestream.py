@@ -1,6 +1,7 @@
 import random
 import time
 import struct
+import os
 import pygetdata as gd
 
 def write_ascii(filename = 'test_timestream'):
@@ -26,17 +27,20 @@ def write_ascii(filename = 'test_timestream'):
         pass
 
 # Jankily taken from Sam Gordon (roachInterface.py)
-def write_dirfile(filename = 'test_dirfile',nchannel = 3, ntime = 100):
+def write_dirfile(filename = 'test_dirfile',nchannel = 3, nsec = 100):
     channels = range(nchannel)
-    # Create dirfile
-    d = gd.dirfile(filename,gd.CREAT|gd.RDWR|gd.UNENCODED)
-    # Write format file
-    fields = []
-    for chan in range(nchannel):
-        fields.append('chP_' + str(chan))
-        d.add_spec('chP_' + str(chan) + ' RAW FLOAT64 1')
-    d.add_spec('time RAW FLOAT64 1')
-    d.close()
+
+    # If dirfile does not exist, create it
+    if not os.path.exists(filename):
+        # Create dirfile
+        d = gd.dirfile(filename,gd.CREAT|gd.RDWR|gd.UNENCODED)
+        # Write format file
+        fields = []
+        for chan in range(nchannel):
+            fields.append('chP_' + str(chan))
+            d.add_spec('chP_' + str(chan) + ' RAW FLOAT64 1')
+        d.add_spec('time RAW FLOAT64 1')
+        d.close()
     
     # Open it again to start writing
     d = gd.dirfile(filename,gd.RDWR|gd.UNENCODED)
@@ -47,15 +51,17 @@ def write_dirfile(filename = 'test_dirfile',nchannel = 3, ntime = 100):
     fo_time = open(filename + "/time", "ab")
 
     count = 0
-    while count < ntime:
+    # sample at 10 Hz for nsec
+    while count < (nsec*10):
         for chan in channels:
             ts = time.time()
-            fo_phase[chan].write(struct.pack('d',random.gauss(3,1)))
+            fo_phase[chan].write(struct.pack('d',random.gauss(chan,1)))
             fo_phase[chan].flush()
         count += 1
         fo_time.write(struct.pack('d',ts))
         fo_time.flush()
         time.sleep(0.1)
+        
     for chan in channels:
         fo_phase[chan].close()
     fo_time.close()
