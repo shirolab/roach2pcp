@@ -9,29 +9,61 @@
 import pykst as kst
 import netCDF4 as nc
 
+def plot_dirfile(client_name = "Test dirfile",
+                 datafile = "./test_dirfile/",
+                 x_axis = "time",
+                 y_axis = "chP_0",
+                 frame_start = -1,
+                 frame_num = -1,
+                 frame_skip = 0):
+                 
+    client = kst.Client(client_name)
+    X = client.new_data_vector(datafile,
+                               field = x_axis,
+                               start = frame_start,
+                               num_frames = frame_num,
+                               skip = frame_skip)
+    Y = client.new_data_vector(datafile,
+                               field = y_axis,
+                               start = frame_start,
+                               num_frames = frame_num,
+                               skip = frame_skip)
+    c1 = client.new_curve(X,Y)
+    p1 = client.new_plot()
+    p1.add(c1)
+    p1.set_x_axis_interpretation(interp = 'ctime')
+    return client
+
+    
 def plot_mount(client_name="Mount Position"):
     mount = kst.Client(client_name)
     # mount datafile should be passed in here...
     datafile1 = './test_timestream1.txt'
     T1 = mount.new_data_vector(datafile1,
-                              field="Column 1",
-                              start=-1,num_frames=1000)
+                               field = "Column 1",
+                               start = -1,
+                               num_frames=1000)
     V1a = mount.new_data_vector(datafile1,
-                               field="Column 2",
-                               start=-1,num_frames=1000)
+                                field = "Column 2",
+                                start = -1,
+                                num_frames = 1000)
     V1b = mount.new_data_vector(datafile1,
-                               field="Column 3",
-                               start=-1,num_frames=1000)
+                                field = "Column 3",
+                                start = -1,
+                                num_frames = 1000)
     datafile2 = './test_timestream2.txt'
     T2 = mount.new_data_vector(datafile2,
-                              field="Column 1",
-                              start=-1,num_frames=1000)
+                               field = "Column 1",
+                               start = -1,
+                               num_frames = 1000)
     V2a = mount.new_data_vector(datafile2,
-                               field="Column 2",
-                               start=-1,num_frames=1000)
+                                field = "Column 2",
+                                start = -1,
+                                num_frames = 1000)
     V2b = mount.new_data_vector(datafile2,
-                               field="Column 3",
-                               start=-1,num_frames=1000)
+                                field = "Column 3",
+                                start = -1,
+                                num_frames = 1000)
     c1 = mount.new_curve(T1,V1a)
     c2 = mount.new_curve(T2,V2a)
     p1 = mount.new_plot()
