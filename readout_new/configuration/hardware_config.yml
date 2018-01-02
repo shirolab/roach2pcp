@@ -1,6 +1,7 @@
 # Configuration file for general hardware options (e.g. Synths, Attenuators, PSUs...etc)
 
 synthesizer:
+  single_synth: False
   synth1:
     synthmake: valon
     synthport: 101
