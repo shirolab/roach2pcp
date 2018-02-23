@@ -1,0 +1,57 @@
+The time is now 01:26:36. Text string: test_log
+The time is now 01:26:41. Text string: test_log
+The time is now 01:26:46. Text string: test_log
+The time is now 01:26:51. Text string: test_log
+The time is now 01:26:56. Text string: test_log
+The time is now 01:27:01. Text string: test_log
+The time is now 01:27:06. Text string: test_log
+The time is now 01:27:11. Text string: test_log
+The time is now 01:27:16. Text string: test_log
+The time is now 01:27:21. Text string: test_log
+The time is now 01:27:26. Text string: test_log
+Logger paused
+Logger currently paused...
+Logger currently paused...
+Logger currently paused...
+Logger currently paused...
+Logger currently paused...
+Logger currently paused...
+Logger stopped
+The time is now 01:28:36. Text string: test_log1
+The time is now 01:28:41. Text string: test_log1
+The time is now 01:28:46. Text string: test_log1
+The time is now 01:28:51. Text string: test_log1
+The time is now 01:28:56. Text string: test_log1
+Logger stopped
+The time is now 01:29:30. Text string: test_log1
+The time is now 01:29:35. Text string: test_log1
+The time is now 01:29:40. Text string: test_log1
+The time is now 01:29:45. Text string: test_log1
+The time is now 01:29:51. Text string: test_log1
+The time is now 01:29:56. Text string: test_log1
+The time is now 01:30:01. Text string: test_log1
+The time is now 01:30:17. Text string: test_log1
+The time is now 01:30:22. Text string: test_log1
+The time is now 01:30:27. Text string: test_log1
+The time is now 01:30:32. Text string: test_log1
+The time is now 01:30:37. Text string: test_log1
+The time is now 01:30:42. Text string: test_log1
+The time is now 01:30:47. Text string: test_log1
+The time is now 01:30:52. Text string: test_log1
+Logger stopped
+The time is now 01:31:07. Text string: test_log1
+The time is now 01:31:12. Text string: test_log1
+The time is now 01:31:17. Text string: test_log1
+Logger resumed from continued
+The time is now 01:31:30. Text string: test_log1
+The time is now 01:31:35. Text string: test_log1
+The time is now 01:31:40. Text string: test_log1
+Logger resumed from continued
+The time is now 01:31:41. Text string: test_log1
+The time is now 01:31:46. Text string: test_log1
+The time is now 01:31:51. Text string: test_log1
+Logger resumed from continued
+The time is now 01:31:55. Text string: test_log1
+The time is now 01:32:00. Text string: test_log1
+The time is now 01:32:05. Text string: test_log1
+Logger stopped

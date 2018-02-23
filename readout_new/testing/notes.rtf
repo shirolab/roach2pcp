@@ -1,0 +1,85 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1348\cocoasubrtf170
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww21080\viewh10380\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural
+
+\f0\fs24 \cf0 Roach2 Readout Development Rationale\
+\
+- Main script running a TUI similar to before\
+\
+- run sudo ipython from command line\
+- run initalise.py\
+	- initialise logging\
+	- initialise hardware\
+	- check hardware is connected \
+\
+-\
+\
+- how to control all Roachs at the same time?\
+\
+- plan is to have an instance of the \
+\
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural
+\cf0 - for example sweeping? \
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural
+\cf0 \
+\
+Path to testing with Roach\
+\
+- logging rationale\
+	- basics is in place; have a TCP server that handles all logging. In principle, this c/should listen on a network port so that non-local messages can be logged. \
+	- question: determine the best way to get the log name\
+	- need to tidy how this closes\
+	- need to format log entries appropriately (see typical unix logs)\
+	- {\field{\*\fldinst{HYPERLINK "https://www.internalpointers.com/post/logging-python-sub-modules-and-configuration-files"}}{\fldrslt https://www.internalpointers.com/post/logging-python-sub-modules-and-configuration-files}}\
+	- {\field{\*\fldinst{HYPERLINK "http://antonym.org/2005/03/a-real-python-logging-example.html"}}{\fldrslt http://antonym.org/2005/03/a-real-python-logging-example.html}}\
+	- YAML config files can be read explicitly by logging module (logging.config)\
+\
+- config file parser\
+	- decide to look into YAML\
+	- nice to import settings using with statement where needed\
+	- include a check that all config files contain same number of roaches + synths\
+\
+- datalogging\
+	- netcdf4-ython seems to be working well\
+	- {\field{\*\fldinst{HYPERLINK "http://cfconventions.org/"}}{\fldrslt http://cfconventions.org/}} for convention tips on metadata to include\
+	- use xarray for reading large datasets back in - more useful for subsequent data analysis {\field{\*\fldinst{HYPERLINK "http://xarray.pydata.org/en/stable/dask.html"}}{\fldrslt http://xarray.pydata.org/en/stable/dask.html}}\
+	- nice example of the above advantages {\field{\*\fldinst{HYPERLINK "https://stackoverflow.com/questions/35422862/speeding-up-reading-of-very-large-netcdf-file-in-python"}}{\fldrslt https://stackoverflow.com/questions/35422862/speeding-up-reading-of-very-large-netcdf-file-in-python}}\
+	- dirfiles are the solution\
+\
+\
+=== Path to data logger v1 ===\
+	- daemon configuration\
+		- argparse for command line args\
+			- file to save data\
+			- roach info (read from config file)\
+\
+		- signal handling\
+			- stop/pause data saving\
+			- kill + terminate\
+			- read fifo (for future extensions)\
+		- network configuration\
+			- connect to udp\
+			- select.select for packet receiving\
+	\
+	- data saving\
+	- logging\
+	-\
+\
+\
+hardware\
+how many Us required?\
+\
+6 1U roaches\
+6 1U converter boards\
+1 1U cryostat interface\
+1 4U PC housing + switch\
+\
+= 17U\
+\
+\
+\
+\
+\
+}

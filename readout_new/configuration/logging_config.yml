@@ -1,1 +1,9 @@
 # Configuration file for logging
+
+
+logname: 'roachreadout.logdaemon'
+
+logformat: 
+serverconfig:
+  host: 'localhost'
+  port: 'default'

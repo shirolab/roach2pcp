@@ -11,6 +11,7 @@ Eater way, this code should run in a separate, possibly daemon, process.
 20180101 
 	- implemented first version of daemon logging program using rationale 1 as described above. 
 	- critical point was to add files_preserve argument to preserve logging handles alive when daemonising the process!
+	- also, run the logging daemon as sudo, to make sure that the /var/ directory is writable
 
 
 

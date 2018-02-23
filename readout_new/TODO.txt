@@ -16,3 +16,23 @@ According to Sam this should be pretty easy and he does use "feature bits" on hi
 - LMT interfacing (see lmt_interface.py).
 	- this (sh)could be borrowed from Sam R’s remote control interface written to interface to Labview.
 
+
+
+
+Logging framework/pseudo-code
+
+# 20180219 - start to bring all the elements of code together. Plan should be to test individual parts of code
+# interactively. Then the script will be run using the if __name__ == "__main__" construct at the end of this file
+
+# -- pseudocode --
+
+# initialise from configuration files
+# set up process-id lockfile
+# configure threading for producer consumer loop
+# dirfile generation - when to do this?
+#   - this should be handled with the start/stop of data saving
+# configure network stuff (separate script?)
+# start/stop data saving
+# functions to parse data from packet (separate script )
+
+

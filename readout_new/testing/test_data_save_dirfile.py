@@ -48,7 +48,6 @@ def create_format_file(filename, ntones):
 
         dirf.close()
 
-
 def append_to_dirfile(dirf, queue, maxchunksize=1000):
     """Function to act as the consumer, that will be given a 2d array of data
     comprising multiple packets, and will write the data to disk.
@@ -95,8 +94,7 @@ if __name__ == '__main__':
     dq = deque()
 
     from threading import Thread
-    filewritethread = Thread(name = 'WriterThread', target = append_to_dirfile, args=(dirf, dq,) )
-    filewritethread.setDaemon(True)
+
     filewritethread.start()
 
     try:

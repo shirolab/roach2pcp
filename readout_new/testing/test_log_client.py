@@ -7,7 +7,6 @@ socketHandler = logging.handlers.SocketHandler('localhost',
 # don't bother with a formatter, since a socket handler sends the event as
 # an unformatted pickle
 
-
 rootLogger.addHandler(socketHandler)
 
 print rootLogger.handlers

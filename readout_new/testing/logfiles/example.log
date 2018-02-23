@@ -1,0 +1,73 @@
+   90 roachreadout.logdaemon INFO     starting loggingDaemon
+   90 roachreadout.logdaemon DEBUG    instantiated loggingDaemon succesfully
+   90 roachreadout.logdaemon DEBUG    Entered run
+   90 roachreadout.logdaemon DEBUG    starting context
+  102 roachreadout.logdaemon INFO     Running with PID 33404
+  103 roachreadout.logdaemon DEBUG    cwd = /Users/PeteBarry/Documents/AnalysisCode/multitone
+  103 roachreadout.logdaemon DEBUG    Configured sockethandler correctly
+  104 roachreadout.logdaemon DEBUG    About to start TCP server...
+213302 roachreadout.logdaemon INFO     Logging daemon terminated
+   87 roachreadout.logdaemon INFO     starting loggingDaemon
+   87 roachreadout.logdaemon DEBUG    instantiated loggingDaemon succesfully
+   87 roachreadout.logdaemon DEBUG    Entered run
+   87 roachreadout.logdaemon DEBUG    starting context
+  101 roachreadout.logdaemon INFO     Running with PID 33432
+  102 roachreadout.logdaemon DEBUG    cwd = /Users/PeteBarry/Documents/AnalysisCode/multitone
+  103 roachreadout.logdaemon DEBUG    About to start TCP server...
+74043 roachreadout.interactivetest INFO     does this work?
+78160 roachreadout.interactivetest INFO     does this work?
+132962 roachreadout.interactivetest INFO     does this work?
+140925 roachreadout.interactivetest INFO     YES!
+36183 roachreadout.interactivetest1 INFO     does this work too?
+288427 roachreadout.interactivetest INFO     YES!
+   84 roachreadout.logdaemon INFO     starting loggingDaemon
+   84 roachreadout.logdaemon WARNING  logging pid file was locked by another process
+   84 roachreadout.logdaemon DEBUG    broke existing lock
+   87 roachreadout.logdaemon DEBUG    Lock transferred and is being held by me: True
+   87 roachreadout.logdaemon DEBUG    instantiated loggingDaemon succesfully
+   88 roachreadout.logdaemon DEBUG    Entered run
+   88 roachreadout.logdaemon DEBUG    starting context
+302461 roachreadout.interactivetest INFO     YES!
+304157 roachreadout.interactivetest INFO     YES!
+304903 roachreadout.interactivetest INFO     YES!
+389095 roachreadout.interactivetest INFO     YES!
+218793 root            INFO     does this work too?
+250008 roachreadout.interactivetest1 INFO     does this work too?
+250008 roachreadout.interactivetest1 INFO     does this work too?
+252976 roachreadout.interactivetest1 INFO     does this work too?
+252976 roachreadout.interactivetest1 INFO     does this work too?
+17710 roachreadout.interactivetest1 INFO     does this work too?
+20816 roachreadout.interactivetest1 INFO     does this work too?
+171836 root            INFO     does this work too?
+174821 root            INFO     does this work too?
+192758 roachreadout.interactivetest1 INFO     does this work too?
+192758 roachreadout.interactivetest1 INFO     does this work too?
+192758 roachreadout.interactivetest1 INFO     does this work too?
+1448297 roachreadout.logdaemon INFO     Logging daemon terminated
+   82 roachreadout.logdaemon INFO     starting loggingDaemon
+   82 roachreadout.logdaemon WARNING  logging pid file was locked by another process
+   82 roachreadout.logdaemon DEBUG    broke existing lock
+   85 roachreadout.logdaemon DEBUG    Lock transferred and is being held by me: True
+   86 roachreadout.logdaemon DEBUG    instantiated loggingDaemon succesfully
+   86 roachreadout.logdaemon DEBUG    Entered run
+   86 roachreadout.logdaemon DEBUG    starting context
+   91 roachreadout.logdaemon INFO     starting loggingDaemon
+   91 roachreadout.logdaemon WARNING  logging pid file was locked by another process
+   91 roachreadout.logdaemon DEBUG    broke existing lock
+   95 roachreadout.logdaemon DEBUG    Lock transferred and is being held by me: True
+   95 roachreadout.logdaemon DEBUG    instantiated loggingDaemon succesfully
+   95 roachreadout.logdaemon DEBUG    Entered run
+   95 roachreadout.logdaemon DEBUG    starting context
+84209 roachreadout.logdaemon INFO     starting loggingDaemon
+84209 roachreadout.logdaemon DEBUG    instantiated loggingDaemon succesfully
+84210 roachreadout.logdaemon DEBUG    Entered run
+84210 roachreadout.logdaemon DEBUG    starting context
+   91 roachreadout.logdaemon INFO     starting loggingDaemon
+   92 roachreadout.logdaemon DEBUG    instantiated loggingDaemon succesfully
+   92 roachreadout.logdaemon DEBUG    Entered run
+   92 roachreadout.logdaemon DEBUG    starting context
+  107 roachreadout.logdaemon INFO     Running with PID 33615
+  107 roachreadout.logdaemon DEBUG    cwd = /Users/PeteBarry/Documents/AnalysisCode/multitone
+  108 roachreadout.logdaemon DEBUG    About to start TCP server...
+62773 roachreadout.interactivetest1 INFO     does this work too?
+187705 roachreadout.interactivetest1 INFO     does this work too?

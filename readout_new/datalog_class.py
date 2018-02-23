@@ -64,27 +64,28 @@
 # no exception raised if pidfile is locked - therefore check for lock before running
 # no exceptions raised when there is an error in the code
 
+# -- pseudocode --
+# initialise from configuration files
+# set up process-id lockfile
+# configure threading for producer consumer loop
+# dirfile generation - when to do this?
+#   - this should be handled with the start/stop of data saving
+# start/stop data saving
 
-import os, sys, time, argparse, signal, threading, select   # import stdlibs
+import os, sys, time, argparse, signal, threading   # import stdlibs
 import numpy as np
-from collections import deque                               # fast queue for passing data between two threads
-import daemon, daemon.pidfile                               # python-daemon module for creating well behaved daemon process
-import pygetdata                                            # getdata/dirfile module
+from collections import deque                       # fast queue for passing data between two threads
+import daemon, daemon.pidfile                       # python-daemon module for creating well behaved daemon process
+import pygetdata                                    # getdata/dirfile module
 
-import funcs_dirfiles, funcs_datapackets, funcs_network # routines containing functions for dirfiles, packet handling, network
-
-# import and reload configuration module
-import configuration; reload(configuration)
 # read in relevant config files
-from configuration import general_config, filesys_config, network_config
+from ..configuration import general_config, filesys_config, network_config
 
 # get pid file location from config file (default is /var/run/roachreadout/)
 PIDFILEDIR = filesys_config.config['pidfiledir']
-print PIDFILEDIR # replace with log entry
 assert os.path.exists(PIDFILEDIR) # paranoia check, probably not required
 
 SAVEDATADIR = filesys_config.config['savedatadir']
-print SAVEDATADIR # replace with log entry
 assert os.path.exists(SAVEDATADIR) # paranoia check, probably not required
 
 NTONES = general_config.config['ntones']
@@ -114,7 +115,7 @@ class datalogDaemon(object):
         """
 
         self.roachid = roachid
-        self.cwd = os.getcwd()
+
         # check that the given rochid matches the configuration file
         try:
             assert roachid in network_config.config.keys()
@@ -123,22 +124,17 @@ class datalogDaemon(object):
 
         # configure logger with roachid as name
 
-        # generate pidfile and ensure that it is not already locked
+        # need a test/check to handle if the pid file is already locked?
         self.pidf = daemon.pidfile.TimeoutPIDLockFile( os.path.join( PIDFILEDIR, 'roach{0:}.pid'.format(roachid) ) )
         self._check_pidfile()
 
-        # configure the multi-threading for data writing. Uses the append_to_dirfile function from funcs_dirfiles
-        # self.threadqueue = deque()
-        # self.filewritethread = threading.Thread(name = 'writer_thread', target = funcs_dirfiles.append_to_dirfile )
-        # self.filewritethread.setDaemon(True) # setting daemon here ensures that the child thread ends with the main thread
+        # configure the multi-threading for data Saving
+        self.threadqueue = deque()
+        self.filewritethread = threading.Thread(name = 'writer_thread', target = self.append_to_dirfile )
+        self.filewritethread.setDaemon(True) # setting daemon here ensures that the child thread ends with the main thread
 
         # dirfile generation? need to create format file
-        # self.dirfilehandle = gen_dirfilehandle()
-
-        # for testing purposes only - remove when finished
-        self.logname = self.find_logfile()
-        print self.logname
-        self.RUNNING=1
+        self.dirfilehandle = self.gen_dirfilehandle()
 
     def _check_pidfile(self):
 
@@ -182,8 +178,8 @@ class datalogDaemon(object):
                             working_directory=".", # change this?
                             umask=0o002,
                             stdout = sys.stdout,\
-                            pidfile = self.pidf)
-                            #files_preserve = [self.logger.parent.handlers[0].stream] )
+                            pidfile = self.pidf,
+                            files_preserve = [self.logger.parent.handlers[0].stream] )
                             # Note that this is crucial to preserve the logging once the process is daemonised!
                             # The .parent seems hackish and not robust, and should probably be changed later
         context.signal_map = { \
@@ -192,44 +188,58 @@ class datalogDaemon(object):
                 }
         # The process becomes daemonised when this is run, and so the main function is located here
         with context:
-            sys.stdout.write( "pid:{pid}\n".format(pid = self.pidf.read_pid()) )
+            print "Running with PID {pid}\r".format(pid = self.pidf.read_pid())
 
-            self.data_log(text)
+            self.log_data(text)
 
-    def find_logfile(self):
-        # Define location/name of logfile here
-        # One logfile per day (YYYYMMDD.log)
-        # logname = "run/current_time.txt"
-        logname = str(time.strftime("%Y%m%d",time.gmtime()) + '.log')
-        print "finding logfile"
-        return os.path.join(self.cwd, "testing", "run", logname)
+    def log_data(self):
+        """ The main function that is run during the
+        """
+        while True:
 
-    def data_log(self, text):
-        with open(self.logname, "a") as f:
-            print "file opened"
-            while True:
-                timeout=0.1
-                rlist, _, _ = select.select([sys.stdin], [], [], timeout)
-                if rlist:
-                    s = sys.stdin.readline()
-                    print s
-                else:
-                    print "No input. Moving on..."
+    def gen_dirfilehandle(self, *dirfileflags):
+        """ Function to generate new dirfile with name , and return a handle to the new file.
+        """
+        # check to see if current handle is a valid open file, and close as appropriate
+        # TODO read from stdin to get a filename ID to add to
+        # test encodings to see if the data size can be reduced significantly
 
-                if self.RUNNING==1:
-                    f.write("The time is now " + time.strftime("%H:%M:%S", time.gmtime() ) + \
-                    ". Text string: " + str(text) + "\n")
-                    f.flush()
-                else:
-                    f.write("Logger currently paused...\r\n")
-                    f.flush()
-                time.sleep(5)
+        # create new file as appropriate, with file name format as YYYYMMDD_HHMMSS_OBS (can be redefined if required)
 
-    # def log_data(self):
-    #     """ The main function that is run during the
-    #     """
-    #     while True:
-    #
+        dirfilename = os.path.join(SAVEDATADIR, time.strftime("%Y%m%d-%H%M%S") + "OBS" )
+
+        dirfileflagint = np.bitwise_or.reduce(dirfileflags) if dirfileflags \
+                                                            else gd.CREAT|gd.RDWR|gd.UNENCODED|gd.EXCL
+        try:
+            dirfilehandle = gd.dirfile( dirfilename, dirfileflagint )
+            return dirfilehandle
+
+        except gd.ExistsError:
+            print "Dirfile exists somehow. We can deal with this later. For now returning None."
+            return None
+
+    def gen_formatfile(self):
+        """ create a dirfile and populate the format file """
+
+        #TODO  include dervied fields, constants, sweeps, metadata...etc
+        dirfilehandle = self.dirfilehandle if hasattr(self.dirfilehandle, "name") else self.gen_dirfilehandle()
+
+        dirfilehandle.add_spec('ctime' +  ' RAW FLOAT64 1')     # add fields (can use either add_spec or add)
+
+        kidlist = ["KID{kidnum:04d} RAW COMPLEX128 1".format(kidnum=i) for i in range(NTONES)]
+        l = map(dirf.add_spec, kidlist)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 if __name__ == "__main__":
@@ -257,5 +267,5 @@ if __name__ == "__main__":
 
     #start_daemon(pidf=args.pid_file, logf=args.log_file)
 
-    d = datalogDaemon("testroachid")
-    d._daemon_start(args.text)
+    d = datalogDaemon()
+    d.run(args.text)

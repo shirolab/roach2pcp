@@ -28,6 +28,13 @@ class roachConfig(object):
 
 ############# Hardware configuration #############
 
+general_config_file = os.path.join(config_dir, 'general_config.yml')
+
+assert os.path.exists(general_config_file)
+general_config = roachConfig(general_config_file)
+
+############# Hardware configuration #############
+
 hardware_config_file = os.path.join(config_dir, 'hardware_config.yml')
 
 assert os.path.exists(hardware_config_file)
