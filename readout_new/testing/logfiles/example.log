@@ -71,3 +71,29 @@
   108 roachreadout.logdaemon DEBUG    About to start TCP server...
 62773 roachreadout.interactivetest1 INFO     does this work too?
 187705 roachreadout.interactivetest1 INFO     does this work too?
+   83 roachreadout.logdaemon INFO     starting loggingDaemon
+   89 roachreadout.logdaemon WARNING  logging p-id file was locked by another process
+   90 roachreadout.logdaemon DEBUG    broke existing lock
+   90 roachreadout.logdaemon DEBUG    instantiated loggingDaemon succesfully
+   90 roachreadout.logdaemon DEBUG    Entered run
+   90 roachreadout.logdaemon DEBUG    starting context
+  102 roachreadout.logdaemon INFO     Running with PID 41252
+  102 roachreadout.logdaemon DEBUG    cwd = /Users/PeteBarry/Documents/AnalysisCode/multitone
+  103 roachreadout.logdaemon DEBUG    About to start TCP server...
+   79 roachreadout.logdaemon INFO     starting loggingDaemon
+   79 roachreadout.logdaemon DEBUG    instantiated loggingDaemon succesfully
+   79 roachreadout.logdaemon DEBUG    Entered run
+   80 roachreadout.logdaemon DEBUG    starting context
+   95 roachreadout.logdaemon INFO     Running with PID 41269
+   96 roachreadout.logdaemon DEBUG    cwd = /Users/PeteBarry/Documents/AnalysisCode/multitone
+   98 roachreadout.logdaemon DEBUG    About to start TCP server...
+209368 roachreadout.logdaemon INFO     Logging daemon terminated
+   89 roachreadout.logdaemon INFO     starting loggingDaemon
+   89 roachreadout.logdaemon DEBUG    instantiated loggingDaemon succesfully
+   89 roachreadout.logdaemon DEBUG    Entered run
+   90 roachreadout.logdaemon DEBUG    starting context
+  104 roachreadout.logdaemon INFO     Running with PID 41293
+  104 roachreadout.logdaemon DEBUG    cwd = /Users/PeteBarry/Documents/AnalysisCode/multitone
+  106 roachreadout.logdaemon DEBUG    About to start TCP server...
+25525 interactive     INFO     does this work too?
+33469 interactive     CRITICAL does this work too?

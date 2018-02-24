@@ -20,11 +20,15 @@ class roachConfig(object):
 
     def __init__(self, config_file):
         self.config_file = config_file
-        self._reload_config_file(config_file)
+        self._reload_config_file()
 
-    def _reload_config_file(self, config_file):
-        with open(config_file, "r") as f:
+    def _reload_config_file(self):
+        with open(self.config_file, "r") as f:
             self.config = yaml.safe_load(f)
+
+#def reload_all():
+#    """Function to reload all configuration files. The easiest way to this is to
+#    reload the module. How to do that?"""
 
 ############# Hardware configuration #############
 

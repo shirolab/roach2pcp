@@ -1,6 +1,6 @@
 #
 
-# Functions used to handle dirfile data saving 
+# Functions used to handle dirfile data saving
 
 def gen_dirfilehandle(self, *dirfileflags):
     """ Function to generate new dirfile with name , and return a handle to the new file.

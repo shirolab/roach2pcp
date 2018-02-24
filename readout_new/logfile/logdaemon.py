@@ -47,8 +47,7 @@ Comments
 #------------------------------------------------------------------------------------------------------------
 
 # imports for tcp socket server
-import os, sys, pickle, struct
-import logging; from logging import handlers
+import os, sys, pickle, struct, logging, logging.handlers
 import SocketServer
 
 # imports for daemon creation
@@ -56,15 +55,20 @@ import signal, daemon, daemon.pidfile
 
 # Get the pid file directory from the configuration file
 from ..configuration import filesys_config, logging_config
-logfiledir = filesys_config.config['logfiledir']
-pidfiledir = filesys_config.config['pidfiledir']
+LOGFILEDIR = filesys_config.config['logfiledir']
+PIDFILEDIR = filesys_config.config['pidfiledir']
 
 # Ensure that the paths exists
-if not os.path.exists(logfiledir): os.mkdir(logfiledir)
-if not os.path.exists(pidfiledir): os.mkdir(pidfiledir)
+if not os.path.exists(LOGFILEDIR): os.mkdir(LOGFILEDIR)
+if not os.path.exists(PIDFILEDIR): os.mkdir(PIDFILEDIR)
 
 # specify the logname for this script for easy modification later on if required
-LOGNAME = 'roachreadout.logdaemon'
+LOGNAME = logging_config.config["logname"]
+LOGFILENAME = logging_config.config["logfilename"]
+
+LOGHOST = logging_config.config["serverconfig"]["host"]
+LOGPORT = logging_config.config["serverconfig"]["port"]
+LOGPORT = logging.handlers.DEFAULT_TCP_LOGGING_PORT if LOGPORT == "default" else LOGPORT
 
 #  ------  Class definitions ------
 
@@ -123,9 +127,10 @@ class LogRecordSocketReceiver(SocketServer.ThreadingTCPServer):
 
     allow_reuse_address = 1
 
-    def __init__(self, host='localhost',
-                 port = logging.handlers.DEFAULT_TCP_LOGGING_PORT,
-                 handler = LogRecordStreamHandler):
+    def __init__(self, host= LOGHOST,
+                        port = LOGPORT,
+                        handler = LogRecordStreamHandler):
+#                       port = logging.handlers.DEFAULT_TCP_LOGGING_PORT,
 
         SocketServer.ThreadingTCPServer.__init__(self, (host, port), handler)
         self.abort = 0
@@ -156,7 +161,7 @@ class loggingDaemon(object):
         self.logger = logging.getLogger(LOGNAME)
         #self.logger = logger
         # need a test/check to handle if the pid file is already locked - as this is currently silent if it exisits
-        self.pidf = daemon.pidfile.TimeoutPIDLockFile( os.path.join( pidfiledir, 'roachlog.pid' ) )
+        self.pidf = daemon.pidfile.TimeoutPIDLockFile( os.path.join( PIDFILEDIR, 'roachlog.pid' ) )
 
         if self.pidf.is_locked() and not self.pidf.i_am_locking():
             # then the file is locked by another process - most likely an error from previous processes
@@ -164,9 +169,8 @@ class loggingDaemon(object):
             self.logger.warning("logging p-id file was locked by another process")
             self.pidf.break_lock()
             self.logger.debug("broke existing lock")
-            self.pidf.acquire()
-            self.logger.debug( "Lock transferred and is being held by me: {0}".format(self.pidf.i_am_locking()) )
-
+            #self.pidf.acquire()
+            #self.logger.debug( "Lock transferred and is being held by me: {0}".format(self.pidf.i_am_locking()) )
         # debugging of logging
 
     def run(self):
@@ -183,7 +187,7 @@ class loggingDaemon(object):
         context.signal_map = { signal.SIGTERM: self.daemon_terminate }
 
         self.logger.debug("starting context")
-        print self.logger.parent.handlers
+        #print self.logger.parent.handlers
 
         with context:
             #print self.logger.parent.handlers
@@ -201,13 +205,13 @@ class loggingDaemon(object):
 
             tcpserver.serve_until_stopped()
 
-    def configure_log(self):
-        filename = 'example.log'
-        self.filename = filename
-        print "Logging file created at {filename}".format( filename = os.path.abspath(filename) )
-        logging.basicConfig(
-            filename = filename,
-            format = '%(relativeCreated)5d %(name)-15s %(levelname)-8s %(message)s')
+    # def configure_log(self):
+    #     filename = 'example.log'
+    #     self.filename = filename
+    #     print "Logging file created at {filename}".format( filename = os.path.abspath(filename) )
+    #     logging.basicConfig(
+    #         filename = filename,
+    #         format = '%(relativeCreated)5d %(name)-15s %(levelname)-8s %(message)s')
 
     def daemon_stop(self, signum, frame):
         #print "Stopped Daemon\n"
@@ -252,9 +256,7 @@ def configure_sockethandler(logname = ""):
 
     logger = logging.getLogger(logname)
     logger.setLevel(logging.DEBUG)
-    socketHandler = logging.handlers.SocketHandler('localhost',
-                        logging.handlers.DEFAULT_TCP_LOGGING_PORT)  # this should get the ip address from the configuration file
-
+    socketHandler = logging.handlers.SocketHandler(LOGHOST, LOGPORT)
     logger.addHandler(socketHandler)
 
     return logger
@@ -281,7 +283,7 @@ def initialise_logger(verbosity=0):
     """
 
     # read logging configuration here
-    filename = os.path.join(logfiledir, 'example.log')
+    filename = os.path.join(LOGFILEDIR, LOGFILENAME)
 
     # creates a FileHandler object and adds it to the root logger
     logging.basicConfig(
