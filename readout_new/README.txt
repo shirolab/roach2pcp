@@ -4,7 +4,19 @@ This code is basically a re-factoring of the original python scripts written by 
 
 Most of the code of the individual functions is borrowed from the original code. The major difference is the structuring, and implementation of support for multiple roach subsystems. 
 
-Development begins…
+==================================================================================================
+Instructions for use:
+
+Logging:
+	- Logging from multiple parallel processes is dealt with using a simple TCP based logging server that handles requests from various parts of the application
+
+	- The logging configuration file in configuration/logging_config.cfg contains the details of the logging server and logging format. The location of the log-file is saved in configuration/file_sys.cfg.
+
+	- To test this module, you can run it as a standalone program by calling it from the mutltitone directory with "sudo python -m readout_new.logging.logdaemon" which will run the script with __name__ = __main__ . This should then start the logging daemon, and any messages should have been writen to the specified log file. In the near future, there will be higher-level caller functions that will be used instead, and will implement checks to verify that the logger started up correctly. In the meantime, this method works and will be used for debugging. 
+
+	- The code for the logging daemon is located in logfile/logdaemon.py. This script contains the function “configure_sockethandler”, which can be imported and from any other script and will configure and return a logger that can be used to write to the logging server, e.g. “from readout_new.logfile.logdaemon import configure_sockethandler”. Be sure to add an appropriate name when running this function so that the origin of the log messages is clear. For example, logger = configure_sockethandler(logname = “roachreadout.datalog.roach01” could be used for the data log daemon for a roach with id roach01. 
+
+
 
 ==================================================================================================
 20171207 Update

@@ -32,41 +32,41 @@ class roachConfig(object):
 
 ############# Hardware configuration #############
 
-general_config_file = os.path.join(config_dir, 'general_config.yml')
+general_config_file = os.path.join(config_dir, 'general_config.cfg')
 
 assert os.path.exists(general_config_file)
 general_config = roachConfig(general_config_file)
 
 ############# Hardware configuration #############
 
-hardware_config_file = os.path.join(config_dir, 'hardware_config.yml')
+hardware_config_file = os.path.join(config_dir, 'hardware_config.cfg')
 
 assert os.path.exists(hardware_config_file)
 hardware_config = roachConfig(hardware_config_file)
 
 ############# Filesystem configuration #############
 
-filesys_config_file = os.path.join(config_dir, 'filesys_config.yml')
+filesys_config_file = os.path.join(config_dir, 'filesys_config.cfg')
 
 assert os.path.exists(filesys_config_file)
 filesys_config = roachConfig(filesys_config_file)
 
 ############# Logging configuration #############
 
-logging_config_file = os.path.join(config_dir, 'logging_config.yml')
+logging_config_file = os.path.join(config_dir, 'logging_config.cfg')
 
 assert os.path.exists(logging_config_file)
 logging_config = roachConfig(logging_config_file)
 
 ############# Network configuration #############
 
-network_config_file = os.path.join(config_dir, 'network_config.yml')
+network_config_file = os.path.join(config_dir, 'network_config.cfg')
 
 assert os.path.exists(network_config_file)
 network_config = roachConfig(network_config_file)
 
 ############## Roach configuration ##############
 
-roach_config_file = os.path.join(config_dir, 'roach_config.yml')
+roach_config_file = os.path.join(config_dir, 'roach_config.cfg')
 assert os.path.exists(roach_config_file)
 roach_config = roachConfig(roach_config_file)

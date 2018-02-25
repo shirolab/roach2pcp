@@ -28,19 +28,18 @@ Comments
         https://www.python.org/dev/peps/pep-3143/
 
     - To test this module, you can run it as a standalone program by calling it from the mutltitone directory with
-    "sudo python -m readout_new.logging.logdaemon" which will run the script with __name__ = __main__ .
+    "sudo python -m readout_new.logfile.logdaemon" which will run the script with __name__ = __main__ .
 
 """
 
 # TODO
-# include configuration file reading to set up log
-#   - handle log files save desitination correctly
 # clean up socketserver on exit
-# implement rotating file handler for each day
+# implement rotating file handler for each day?
 
-# close logger corectly
 # implement control script for this?
-# use this a library for all things logging
+# include how to set level?
+# use this as a library for all things logging
+
 
 #------------------------------------------------------------------------------------------------------------
 #--------------------------------------------- Code begins here ---------------------------------------------
@@ -138,7 +137,6 @@ class LogRecordSocketReceiver(SocketServer.ThreadingTCPServer):
         self.logname = None
 
     def serve_until_stopped(self):
-        import select
         abort = 0
         while not abort:
             rd, wr, ex = select.select([self.socket.fileno()],
@@ -147,6 +145,7 @@ class LogRecordSocketReceiver(SocketServer.ThreadingTCPServer):
             if rd:
                 self.handle_request() # is a method in ThreadingTCPServer that uses the handler to process the request
             abort = self.abort
+            # this needs cleaning up to abort appropriately
 
 
 # Class to create the logging daemon process
@@ -159,39 +158,38 @@ class loggingDaemon(object):
         """
         # Configure logger for the log configuration ;-)
         self.logger = logging.getLogger(LOGNAME)
-        #self.logger = logger
+
         # need a test/check to handle if the pid file is already locked - as this is currently silent if it exisits
         self.pidf = daemon.pidfile.TimeoutPIDLockFile( os.path.join( PIDFILEDIR, 'roachlog.pid' ) )
 
         if self.pidf.is_locked() and not self.pidf.i_am_locking():
             # then the file is locked by another process - most likely an error from previous processes
             # send warning to log, and break the lock
-            self.logger.warning("logging p-id file was locked by another process")
+            self.logger.warning("Logging p-id file was locked by another process")
             self.pidf.break_lock()
-            self.logger.debug("broke existing lock")
+            self.logger.debug("Broke existing lock")
             #self.pidf.acquire()
             #self.logger.debug( "Lock transferred and is being held by me: {0}".format(self.pidf.i_am_locking()) )
         # debugging of logging
 
     def run(self):
-        self.logger.debug("Entered run")
+        self.logger.debug("Entered the run function. Configuring daemon context.")
 
         context = daemon.DaemonContext( working_directory=".",
                                         umask=0o002, # sets permissions - we might want to change later
                                         stdout = sys.stdout,
                                         pidfile = self.pidf,
                                         files_preserve = [self.logger.parent.handlers[0].stream] )
-                                        # Note that this is crucial to preserve the logging once the process is daemonised!
+                                        # Note that this last line is crucial to preserve the logging once the process is daemonised!
                                         # The .parent seems hackish and not robust, and should probably be changed later
 
         context.signal_map = { signal.SIGTERM: self.daemon_terminate }
 
-        self.logger.debug("starting context")
-        #print self.logger.parent.handlers
+        self.logger.debug("About to daemonise process...")
 
         with context:
             #print self.logger.parent.handlers
-            self.logger.info( "Running with PID {pid}\r".format(pid = self.pidf.read_pid()) )
+            self.logger.info( "Sucessfully daemonised. Running with PID {pid}\r".format(pid = self.pidf.read_pid()) )
             #print "Running with PID {pid}\r".format(pid = self.pidf.read_pid())
             sys.stdout.flush()
             self.logger.debug( "cwd = {0}".format( os.getcwd() ) )
@@ -281,15 +279,16 @@ def initialise_logger(verbosity=0):
 
 
     """
+    # add command line argument parsing to pass through level severity
+    #
 
-    # read logging configuration here
     filename = os.path.join(LOGFILEDIR, LOGFILENAME)
 
     # creates a FileHandler object and adds it to the root logger
     logging.basicConfig(
         filename = os.path.abspath(filename),
         format = '%(relativeCreated)5d %(name)-15s %(levelname)-8s %(message)s', # to be read from the logging configuration file
-        level=logging.DEBUG)
+        level=logging.DEBUG)# this needs to be changed to be more general
 
     print os.path.abspath(filename)
 

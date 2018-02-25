@@ -97,3 +97,7 @@
   106 roachreadout.logdaemon DEBUG    About to start TCP server...
 25525 interactive     INFO     does this work too?
 33469 interactive     CRITICAL does this work too?
+652485 interactive     DEBUG    does this work too?
+677053 interactive     DEBUG    does this work too?
+821491 interactive     DEBUG    does this work too?
+81959935 interactive     DEBUG    does this work too?
