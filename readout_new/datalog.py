@@ -64,6 +64,18 @@
 # no exception raised if pidfile is locked - therefore check for lock before running
 # no exceptions raised when there is an error in the code
 
+# Program flow
+# - configure socket
+# - bind to interface
+# - wait for packets - select on socket
+# - is there a way to check if the fpga is sending packets to close the loop?
+# - when packets are received
+# - pass data to queue (probably in chunks, depending on efficiencies)
+# - in queue, parse data into I, Q...etc
+# - write to dirfile
+
+
+
 
 import os, sys, time, argparse, signal, threading, select   # import stdlibs
 import numpy as np

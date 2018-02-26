@@ -79,6 +79,7 @@ def parse_datapacket(datapacket, numchannels=1021, headerlen = 42, timinglen = 2
     return header, iall, qall, timinginfo
 
 
+# ---- Function for generating fake roach packet - for testing purposes only
 def gen_fake_roach_packet():
     ROACHUDPADDR = "192.168.40.1" # this mimics the source address contained in the packet, used to filter received packets
 
