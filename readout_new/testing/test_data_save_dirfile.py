@@ -47,6 +47,7 @@ def create_format_file(filename, ntones):
         l = map(dirf.add_spec, kidlist)
 
         dirf.close()
+        return dirf
 
 def append_to_dirfile(dirf, queue, maxchunksize=1000):
     """Function to act as the consumer, that will be given a 2d array of data
@@ -78,34 +79,43 @@ def append_to_dirfile(dirf, queue, maxchunksize=1000):
             pass
 #--------------------------------------------------------------------------------
 
+import funcs_network
+from threading import Thread
 from collections import deque
 
-filename = os.path.join('run', 'testdatawrite_dirfile')
-
-ntones = 1024
-
-create_format_file(filename, ntones)
-
+bindaddress = 'x.x.x.x'
+bindport = 1234
+buffer_size = 8234 # int * length of roach packet
 
 if __name__ == '__main__':
+    # generate dirfile
+    filename = os.path.join('run', 'testdatawrite_dirfile')
+    dirf = create_format_file(filename, ntones)
 
-    dirf = gd.dirfile(filename, gd.CREAT|gd.RDWR|gd.UNENCODED) # add GD_EXCL to avoid accidental overwriting
+    # configure socket
+    s = funcs_network.generate_socket()
+    funcs_network.configure_socket_and_bind(s, bindaddress, bindport, buffer_size):
 
+    # create multi-threaded queue
     dq = deque()
-
-    from threading import Thread
+    filewritethread = threading.Thread(name = 'writer_thread', target = append_to_dirfile, args=(dirf, dq,) )
+    filewritethread.setDaemon(True) # setting daemon here ensures that the child thread ends with the main thread
 
     filewritethread.start()
 
     try:
         cnt = 0
-
         while True:
 
             time.sleep(0.001)
-            fakedata = gen_fake_roach_packet(ntones)
+            #fakedata = gen_fake_roach_packet(ntones)
+
+            # read data from socket
+			packet = s.recv(8192)
+			data = np.fromstring(packet,dtype = '<i').astype('float64')
+
             print "sending data to queue"
-            dq.appendleft(fakedata)
+            dq.appendleft(data)
 
     except KeyboardInterrupt:
 
@@ -114,20 +124,6 @@ if __name__ == '__main__':
         print 'dirfile closed'
         sys.exit(0)
 
-# want to time sync() call
 
 
-
-
-
-#https://docs.scipy.org/doc/scipy-0.15.1/reference/generated/scipy.io.netcdf.netcdf_file.html
-#from scipy.io import netcdf
-#import signal
-# f = netcdf.netcdf_file('simple.nc', 'w', version=2)
-#
-# f.history = 'Created for a test'
-# f.createDimension('time', None)
-# tnow = f.createVariable('time', 'f', ('time',))
-# tnow.units = 'days since 2008-01-01'
-# tnow[:] = np.arange(10)
-# f.close()
+# configure socket
