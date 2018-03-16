@@ -89,12 +89,13 @@ buffer_size = 8234 # int * length of roach packet
 
 if __name__ == '__main__':
     # generate dirfile
+    ntones = 1024
     filename = os.path.join('run', 'testdatawrite_dirfile')
     dirf = create_format_file(filename, ntones)
 
     # configure socket
     s = funcs_network.generate_socket()
-    funcs_network.configure_socket_and_bind(s, bindaddress, bindport, buffer_size):
+    funcs_network.configure_socket_and_bind(s, bindaddress, bindport, buffer_size)
 
     # create multi-threaded queue
     dq = deque()
@@ -111,8 +112,8 @@ if __name__ == '__main__':
             #fakedata = gen_fake_roach_packet(ntones)
 
             # read data from socket
-			packet = s.recv(8192)
-			data = np.fromstring(packet,dtype = '<i').astype('float64')
+            packet = s.recv(8192)
+            data = np.fromstring(packet,dtype = '<i').astype('float64')
 
             print "sending data to queue"
             dq.appendleft(data)

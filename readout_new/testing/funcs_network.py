@@ -38,9 +38,9 @@ def configure_socket_and_bind(socketinstance, bindaddress, bindport, buffer_size
 
         if socketinstance.proto == 0: # corresponding to AF_INET
     		socketinstance.bind((bindaddress, bindport))
-        elif socketinstance.proto == 768 # corresponding to AF_PACKET (i think)
+        elif socketinstance.proto == 768: # corresponding to AF_PACKET (i think)
             socketinstance.bind((bindaddress, 3))
-        else raise
+        else: raise
     except socket.error, v:
         errorcode = v[0]
         if errorcode == 19:
