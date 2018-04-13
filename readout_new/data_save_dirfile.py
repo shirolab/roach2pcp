@@ -241,21 +241,24 @@ bindaddress = 'x.x.x.x'
 bindport = 1234
 buffer_size = 8234 # int * length of roach packet
 
+NTONES = 1021
+filename = os.path.join('testing', 'run', '20180413_testdatawrite_dirfile')
+dirf = create_format_file(filename, NTONES)
+
+dq = deque()
+
 if __name__ == '__main__':
 #if False:
 
     # generate dirfile
-    NTONES = 1021
-    filename = os.path.join('testing', 'run', '20180413_testdatawrite_dirfile')
-    dirf = create_format_file(filename, NTONES)
-    #dirf = gd.dirfile(filename, gd.CREAT|gd.RDWR|gd.UNENCODED) # add GD_EXCL to stop accidental overwriting
+
+    dirf = gd.dirfile(filename, gd.CREAT|gd.RDWR|gd.UNENCODED) # add GD_EXCL to stop accidental overwriting
 
     # configure socket
     #s = funcs_network.generate_socket()
     #funcs_network.configure_socket_and_bind(s, bindaddress, bindport, buffer_size)
 
     # create multi-threaded queue
-    dq = deque()
     filewritethread = threading.Thread(name = 'writer_thread', target = append_to_dirfile, args=(dirf, dq, NTONES, ) )
     filewritethread.setDaemon(True) # setting daemon here ensures that the child thread ends with the main thread
 
