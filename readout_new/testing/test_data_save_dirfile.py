@@ -36,6 +36,7 @@ def test_write_to_dirfile(dirf, lenbuffer, dataset):
     #dirf.flush() # finally sync the data to file. Running this with no argument flushes the entire dirfile
 
 # --- create a dirfile and populate the format file ---
+ 
 def create_format_file(filename, ntones):
     # include dervied fields, constants, sweeps, metadata...etc
     if not os.path.exists(filename):
@@ -92,6 +93,7 @@ if __name__ == '__main__':
     ntones = 1024
     filename = os.path.join('run', 'testdatawrite_dirfile')
     dirf = create_format_file(filename, ntones)
+    dirf = gd.dirfile(filename, gd.CREAT|gd.RDWR|gd.UNENCODED) # add GD_EXCL to stop accidental overwriting
 
     # configure socket
     s = funcs_network.generate_socket()
