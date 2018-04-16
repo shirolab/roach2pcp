@@ -55,7 +55,6 @@ def create_format_file(filename, NTONES=1021):
         print "Dirfile exists. Passing reference to existing dirfile"
         return gd.dirfile(filename, gd.RDWR|gd.UNENCODED)
 
-
     dirf = gd.dirfile(filename, gd.CREAT|gd.RDWR|gd.UNENCODED) # add GD_EXCL to stop accidental overwriting
 
     # currently:
@@ -76,6 +75,7 @@ def create_format_file(filename, NTONES=1021):
     dirf.add_spec('FINETIME'    +  ' RAW UINT32 1') # Clock cycles elapsed since last PPS pulse
     dirf.add_spec('CHECKSUM'    +  ' RAW UINT32 1') # Currently a constant placeholder, 42 (in progress)
     dirf.add_spec('PACKETINFO'  +  ' RAW UINT32 1') # Register for arbitrary info to be saved into udp packet before transmission.
+    dirf.add_spec('GPIO'  +  ' RAW UINT8 1') # Register for arbitrary info to be saved into udp packet before transmission.
 
     # TODO add derived fields for amp, phase, df
 
@@ -108,19 +108,21 @@ def parse_packet_data(rawpacketdata, NTONES):
 
     # Convert raw packet data into array. Handles multiple packets in list/array
     # Convert the auxillary data contained in the packet. AS: "should be unpacked as BIG-endian, unsigned"
-    numauxbtyes = 5 # number of auxillary 4-byte numbers from the end of the packet - this should be read from .cfg file
+    numauxbtyes = 6 # number of auxillary 4-byte numbers from the end of the packet - this should be read from .cfg file
 
     rawiqdata = []
     auxdata   = []
+    gpiodata  = []
 
     rawpacketdata = [rawpacketdata] if isinstance(rawpacketdata, str) else rawpacketdata
 
     for packet in rawpacketdata:
         assert len(packet) == 8192
         rawiqdata.append( np.fromstring(packet, dtype = '<i4').astype('float64') )
-        auxdata.append(   np.fromstring(packet, dtype = '>u4')[-numauxbtyes:]    )
+        auxdata.append(   np.fromstring(packet[-21:-1], dtype = '>u4')    )
+        gpiodata.append(  np.fromstring(packet[-1:], dtype = '>u1')    )
 
-    rawiqdata = np.atleast_2d(rawiqdata); auxdata = np.array(auxdata)
+    rawiqdata = np.atleast_2d(rawiqdata); auxdata = np.array(auxdata); gpiodata = np.array(gpiodata)
 
     chidxs = np.arange(NTONES)
     odd_chan = chidxs[1::2]
@@ -141,7 +143,7 @@ def parse_packet_data(rawpacketdata, NTONES):
     zdata[:, 0::2] = ieven + 1j * qeven
     zdata[:, 1::2] = iodd  + 1j * qodd
 
-    return auxdata, zdata
+    return auxdata, gpiodata, zdata
 
     # this should be in a dictionary, or keyed object to ensure that the data is written correctly
     #for k, v in zip(dirf.field_list(gd.RAW_ENTRY), )
@@ -197,24 +199,24 @@ def parse_packet_data(rawpacketdata, NTONES):
 #         pass
 
 
-def append_to_dirfile(dirf, queue, NTONES, eventmonitor, maxchunksize=1000):
+def append_to_dirfile(dirf, queue, NTONES, eventmonitor, chunksize=100):
     """Function to act as the consumer, that will be given a 2d array of data
     comprising multiple packets, and will write the data to disk.
     """
 
     while eventmonitor.is_set():
 
-        sizetoread = min( len(queue), maxchunksize )
+        sizetoread = min( len(queue), chunksize )
         if sizetoread > 0:
         # currently not handling if queue is empty
             datafromqueue = [queue.pop() for i in range(sizetoread)] # could use numpy array with void to stop numpy stripping zeros from strings
 
-            ancdatatowrite, iqdatatowrite = parse_packet_data(datafromqueue, NTONES)
+            ancdatatowrite, gpiodatatowrite, iqdatatowrite = parse_packet_data(datafromqueue, NTONES)
 
             if ancdatatowrite.shape[0] > 0:
                 print "Read {numpackets} packets from queue".format(numpackets = ancdatatowrite.shape[0])
                 print dirf.nentries(type = gd.RAW_ENTRY), ancdatatowrite.shape[-1]
-                assert dirf.nentries(type = gd.RAW_ENTRY) == ancdatatowrite.shape[-1] + iqdatatowrite.shape[-1]# ensures that the data shape matches the dirfile fields
+                assert dirf.nentries(type = gd.RAW_ENTRY) == ancdatatowrite.shape[-1] + gpiodatatowrite.shape[-1] + iqdatatowrite.shape[-1]# ensures that the data shape matches the dirfile fields
 
                 #currentsize = dirf.tell('ctime')
                 currentsize = dirf.eof('PACKETCOUNT')
@@ -222,8 +224,9 @@ def append_to_dirfile(dirf, queue, NTONES, eventmonitor, maxchunksize=1000):
 
                 # loop over the field names and add the data to the corresponding field name
 
-                for fieldname, data in zip( dirf.field_list(gd.RAW_ENTRY), np.hstack((iqdatatowrite, ancdatatowrite)).T ): # loop over resonators
+                for fieldname, data in zip( dirf.field_list(gd.RAW_ENTRY), np.hstack((gpiodatatowrite, iqdatatowrite, ancdatatowrite)).T ): # loop over resonators
                     dirf.putdata(fieldname, np.ascontiguousarray( data ), first_sample = currentsize)
+                    #dirf.put_carray(fieldname,  np.ascontiguousarray( data ), start = currentsize)
 
                 print 'syncing'
                 dirf.flush()
@@ -246,7 +249,7 @@ bindport = 1234
 buffer_size = 8234 # int * length of roach packet
 
 NTONES = 1021
-filename = os.path.join('testing', 'run', '20180415_testdatawrite_dirfile')
+filename = os.path.join('testing', 'run', '20180416_testdatawrite_dirfile')
 
 dq = deque()
 
@@ -273,7 +276,7 @@ if __name__ == '__main__':
         cnt = 0
         while True:
 
-            time.sleep(1)
+            time.sleep(0.5)
             #fakedata = gen_fake_roach_packet(ntones)
 
             # read data from socket
