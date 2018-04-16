@@ -1,0 +1,9 @@
+# This is a dirfile format file.
+# It was written using version 0.10.0 of the GetData Library.
+# Written on Mon Apr 16 01:49:23 2018 UTC by PeteBarry.
+
+/VERSION 10
+/ENDIAN little
+/PROTECT none
+/ENCODING none
+PACKETCOUNT RAW UINT32 1

@@ -51,39 +51,41 @@ def test_write_to_dirfile(dirf, lenbuffer, dataset):
 
 def create_format_file(filename, NTONES=1021):
     # include dervied fields, constants, sweeps, metadata...etc
-    if not os.path.exists(filename):
-        dirf = gd.dirfile(filename, gd.CREAT|gd.RDWR|gd.UNENCODED) # add GD_EXCL to stop accidental overwriting
+    if os.path.exists(filename):
+        print "Dirfile exists. Passing reference to existing dirfile"
+        return gd.dirfile(filename, gd.RDWR|gd.UNENCODED)
 
-        # if dirf is None - file exists...
 
-        # currently:
-        # headerlen = 0-42 bytes
-        # iqdata:
-        # 1 - 512: Channels 0 - 512, I values
-        # 513 - 1024: Channels 0 - 512, Q values
-        # 1025 - 1536: Channels 513 - 1024, I values
-        # 1537 - 2048: Channels 513 - 1024, Q values
-        # each i,q data point is 4 bytes -> 8 bytes for each datachannel
+    dirf = gd.dirfile(filename, gd.CREAT|gd.RDWR|gd.UNENCODED) # add GD_EXCL to stop accidental overwriting
 
-        # additional information contained in the packet
-        # TODO add metadata specification for descirption of each field
-        # TODO currently I can't reopen a file without recreating it. I think we need to write format file appropriately
+    # currently:
+    # headerlen = 0-42 bytes
+    # iqdata:
+    # 1 - 512: Channels 0 - 512, I values
+    # 513 - 1024: Channels 0 - 512, Q values
+    # 1025 - 1536: Channels 513 - 1024, I values
+    # 1537 - 2048: Channels 513 - 1024, Q values
+    # each i,q data point is 4 bytes -> 8 bytes for each datachannel
 
-        dirf.add_spec('PACKETCOUNT' +  ' RAW UINT32 1') # Initialized to 0 with 'GbE_pps_start'
-        dirf.add_spec('COARSETIME'  +  ' RAW UINT32 1') # The number of PPS pulses elapsed since 'pps_start'
-        dirf.add_spec('FINETIME'    +  ' RAW UINT32 1') # Clock cycles elapsed since last PPS pulse
-        dirf.add_spec('CHECKSUM'    +  ' RAW UINT32 1') # Currently a constant placeholder, 42 (in progress)
-        dirf.add_spec('PACKETINFO'  +  ' RAW UINT32 1') # Register for arbitrary info to be saved into udp packet before transmission.
+    # additional information contained in the packet
+    # TODO add metadata specification for descirption of each field
+    # TODO currently I can't reopen a file without recreating it. I think we need to write format file appropriately
 
-        # TODO add derived fields for amp, phase, df
+    dirf.add_spec('PACKETCOUNT' +  ' RAW UINT32 1') # Initialized to 0 with 'GbE_pps_start'
+    dirf.add_spec('COARSETIME'  +  ' RAW UINT32 1') # The number of PPS pulses elapsed since 'pps_start'
+    dirf.add_spec('FINETIME'    +  ' RAW UINT32 1') # Clock cycles elapsed since last PPS pulse
+    dirf.add_spec('CHECKSUM'    +  ' RAW UINT32 1') # Currently a constant placeholder, 42 (in progress)
+    dirf.add_spec('PACKETINFO'  +  ' RAW UINT32 1') # Register for arbitrary info to be saved into udp packet before transmission.
 
-        # Add files for on resonance tones
-        kidlist = ["K{kidnum:04d} RAW COMPLEX128 1".format(kidnum=i) for i in range(NTONES)]
+    # TODO add derived fields for amp, phase, df
 
-        l = map(dirf.add_spec, kidlist)
-        print dirf
-        #dirf.close()
-        return dirf
+    # Add files for on resonance tones
+    kidlist = ["K{kidnum:04d} RAW COMPLEX128 1".format(kidnum=i) for i in range(NTONES)]
+
+    l = map(dirf.add_spec, kidlist)
+    print dirf
+    dirf.close()
+    return dirf
 
 # dataidxs = np.hstack((np.arange(NTONES/2), \
 #                         512 + np.arange(NTONES/2), \
@@ -195,12 +197,13 @@ def parse_packet_data(rawpacketdata, NTONES):
 #         pass
 
 
-def append_to_dirfile(dirf, queue, NTONES, maxchunksize=1000):
+def append_to_dirfile(dirf, queue, NTONES, eventmonitor, maxchunksize=1000):
     """Function to act as the consumer, that will be given a 2d array of data
     comprising multiple packets, and will write the data to disk.
     """
-    # choose how many samples to read from the queue - ideally this will be the entire queue
-    while True:
+
+    while eventmonitor.is_set():
+
         sizetoread = min( len(queue), maxchunksize )
         if sizetoread > 0:
         # currently not handling if queue is empty
@@ -230,9 +233,10 @@ def append_to_dirfile(dirf, queue, NTONES, maxchunksize=1000):
         else:
             print "Queue empty"
             time.sleep(0.1)
+
     #--------------------------------------------------------------------------------
 
-import funcs_network
+#import funcs_network
 import threading
 from collections import deque
 
@@ -242,8 +246,7 @@ bindport = 1234
 buffer_size = 8234 # int * length of roach packet
 
 NTONES = 1021
-filename = os.path.join('testing', 'run', '20180413_testdatawrite_dirfile')
-dirf = create_format_file(filename, NTONES)
+filename = os.path.join('testing', 'run', '20180415_testdatawrite_dirfile')
 
 dq = deque()
 
@@ -251,15 +254,17 @@ if __name__ == '__main__':
 #if False:
 
     # generate dirfile
+    dirf = create_format_file(filename, NTONES)
 
-    dirf = gd.dirfile(filename, gd.CREAT|gd.RDWR|gd.UNENCODED) # add GD_EXCL to stop accidental overwriting
+    dirf = gd.dirfile(filename, gd.RDWR|gd.UNENCODED) # add GD_EXCL to stop accidental overwriting
 
     # configure socket
     #s = funcs_network.generate_socket()
     #funcs_network.configure_socket_and_bind(s, bindaddress, bindport, buffer_size)
-
+    eventmonitor = threading.Event()
+    eventmonitor.set()
     # create multi-threaded queue
-    filewritethread = threading.Thread(name = 'writer_thread', target = append_to_dirfile, args=(dirf, dq, NTONES, ) )
+    filewritethread = threading.Thread(name = 'writer_thread', target = append_to_dirfile, args=(dirf, dq, NTONES, eventmonitor, ) )
     filewritethread.setDaemon(True) # setting daemon here ensures that the child thread ends with the main thread
 
     filewritethread.start()
@@ -282,9 +287,13 @@ if __name__ == '__main__':
 
     except KeyboardInterrupt:
 
-        print 'closing'
+        print 'closing thread'
+        eventmonitor.clear()
+        filewritethread.join()
+        print 'closing dirfile'
         dirf.close()
         print 'dirfile closed'
+
         sys.exit(0)
 
 
