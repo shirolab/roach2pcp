@@ -88,16 +88,19 @@ class roachInterface(object):
 	return 0
 
     def makeFreqComb(self):
-	neg_freqs, neg_delta = np.linspace(self.min_neg_freq + self.symm_offset, self.max_neg_freq + self.symm_offset, self.Nfreq/2, retstep = True)
-	pos_freqs, pos_delta = np.linspace(self.min_pos_freq, self.max_pos_freq, self.Nfreq/2, retstep = True)
+	neg_freqs, neg_delta = np.linspace(self.min_neg_freq + self.symm_offset,
+                                           self.max_neg_freq + self.symm_offset,
+                                           self.Nfreq/2, retstep = True)
+	pos_freqs, pos_delta = np.linspace(self.min_pos_freq, self.max_pos_freq,
+                                           self.Nfreq/2, retstep = True)
         freq_comb = np.concatenate((neg_freqs, pos_freqs))
 	freq_comb = freq_comb[freq_comb != 0]
 	freq_comb = np.roll(freq_comb, - np.argmin(np.abs(freq_comb)) - 1)
         if len(freq_comb) > 400:
-            self.fpga.write_int(self.regs[np.where(self.regs == 'fft_shift_reg')[0][0]][1], 2**5 -1)    
+            self.fpga.write_int(self.regs['fft_shift_reg'], 2**5 -1)    
             time.sleep(0.1)
         else:
-            self.fpga.write_int(self.regs[np.where(self.regs == 'fft_shift_reg')[0][0]][1], 2**9 -1)    
+            self.fpga.write_int(self.regs['fft_shift_reg'], 2**9 -1)    
             time.sleep(0.1)
 	self.freq_comb = freq_comb
 	return
@@ -107,18 +110,20 @@ class roachInterface(object):
 	for i in range(len(window)/2 + 1):
 		coeff = np.binary_repr(int(window[i]), 32)
 		coeff = int(coeff, 2)
-		#print 'h' + str(i), coeff	
-		self.fpga.write_int(self.regs[np.where(self.regs == 'fir_prefix_reg')[0][0]][1] + str(i),coeff)
+		#print 'h' + str(i), coeff
+	        print self.regs['fir_prefix_reg'] + str(i)
+                print coeff
+		self.fpga.write_int(self.regs['fir_prefix_reg'] + str(i),coeff)
 	return 
 
     def qdrCal(self):    
     # Calibrates the QDRs. Run after writing to QDR.      
-        self.fpga.write_int(self.regs[np.where(self.regs == 'dac_reset_reg')[0][0]][1],1)
+        self.fpga.write_int(self.regs['dac_reset_reg'], 1)
         print 'DAC on'
         bFailHard = False
         calVerbosity = 1
-        qdrMemName = self.regs[np.where(self.regs == 'qdr0_reg')[0][0]][1]
-        qdrNames = [self.regs[np.where(self.regs == 'qdr0_reg')[0][0]][1],self.regs[np.where(self.regs == 'qdr1_reg')[0][0]][1]]
+        qdrMemName = self.regs['qdr0_reg']
+        qdrNames = [self.regs['qdr0_reg'], self.regs['qdr1_reg']]
         print 'Fpga Clock Rate =', self.fpga.estimate_fpga_clock()
         self.fpga.get_system_information()
         results = {}
@@ -409,17 +414,15 @@ class roachInterface(object):
 		I_lut_packed, Q_lut_packed = self.pack_luts(freqs, transfunc = True, **kwargs)
 	else:
 		I_lut_packed, Q_lut_packed = self.pack_luts(freqs, transfunc = False)
-        self.fpga.write_int(self.regs[np.where(self.regs == 'dac_reset_reg')[0][0]][1],1)
-        self.fpga.write_int(self.regs[np.where(self.regs == 'dac_reset_reg')[0][0]][1],0)
-        self.fpga.write_int(self.regs[np.where(self.regs == 'start_dac_reg')[0][0]][1],0)
-        self.fpga.blindwrite(self.regs[np.where(self.regs == 'qdr0_reg')[0][0]][1],I_lut_packed,0)
-        self.fpga.blindwrite(self.regs[np.where(self.regs == 'qdr1_reg')[0][0]][1],Q_lut_packed,0)
-        self.fpga.write_int(self.regs[np.where(self.regs == 'start_dac_reg')[0][0]][1],1)
-        self.fpga.write_int(self.regs[np.where(self.regs == 'accum_reset_reg')[0][0]][1], 0)
-        self.fpga.write_int(self.regs[np.where(self.regs == 'accum_reset_reg')[0][0]][1], 1)
-	np.save("last_freq_comb.npy", self.freq_comb)
-	self.fpga.write_int(self.regs[np.where(self.regs == 'write_comb_len_reg')[0][0]][1], len(self.freq_comb))
-        print 'Done.'
+        self.fpga.write_int(self.regs['dac_reset_reg'], 1)
+        self.fpga.write_int(self.regs['dac_reset_reg'], 0)
+        self.fpga.write_int(self.regs['start_dac_reg'], 0)
+        self.fpga.blindwrite(self.regs['qdr0_reg'], I_lut_packed, 0)
+        self.fpga.blindwrite(self.regs['qdr1_reg'], Q_lut_packed, 0)
+        self.fpga.write_int(self.regs['start_dac_reg'], 1)
+        self.fpga.write_int(self.regs['accum_reset_reg'], 0)
+        self.fpga.write_int(self.regs['accum_reset_reg'], 1)
+	self.fpga.write_int(self.regs['write_comb_len_reg'], len(self.freq_comb))
         return 
 
     def read_accum_snap(self):
