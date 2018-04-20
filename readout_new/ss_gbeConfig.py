@@ -97,12 +97,13 @@ def writer(q, filename, start_chan, end_chan): #Haven't tested recently, but as
 
 class roachDownlink(object):
     """Object for handling Roach2 UDP downlink"""
-    def __init__(self, ri, fpga, gc, nc, regs, socket, data_rate):
+    def __init__(self, ri, fpga, gc, nc, regs, fs, socket, data_rate):
         self.ri = ri
         self.fpga = fpga
         self.gc = gc
         self.nc = nc
         self.regs = regs
+        self.fs = fs
         self.s = socket
         self.data_rate = data_rate
         self.data_len = 8192
@@ -201,9 +202,9 @@ class roachDownlink(object):
 
     def zeroPPS(self):
         """Sets the PPS counter to zero"""
-        self.fpga.write_int(self.regs[np.where(self.regs == 'pps_start_reg')[0][0]][1], 0)
+        self.fpga.write_int(self.regs['pps_start_reg'], 0)
         time.sleep(0.1)
-        self.fpga.write_int(self.regs[np.where(self.regs == 'pps_start_reg')[0][0]][1], 1)
+        self.fpga.write_int(self.regs['pps_start_reg'], 1)
         time.sleep(0.1)
         return
 
@@ -223,7 +224,7 @@ class roachDownlink(object):
         saddr = np.fromstring(header[26:30], dtype = "<I")
         saddr = sock.inet_ntoa(saddr) # source addr
         ### Filter on source IP ###
-        if (saddr != self.gc[np.where(self.gc == 'udp_src_ip')[0][0]][1]):
+        if (saddr != self.nc['udp_source_ip']):
             print "Non-Roach packet received"
             return
         return packet, data, header, saddr
@@ -248,7 +249,8 @@ class roachDownlink(object):
             if not packet:
                 continue
             else:
-                packet_count = (np.fromstring(packet[-4:],dtype = '>I'))
+                # CHECK ME WHENEVER PACKET STRUCTURE CHANGES
+                packet_count = (np.fromstring(packet[-9:-5],dtype = '>I'))
             count += 1
         if (packet_count - first_idx < 1):
             return -1
@@ -310,16 +312,17 @@ class roachDownlink(object):
             src = np.fromstring(header[34:36], dtype = ">H")[0]
             dst = np.fromstring(header[36:38], dtype = ">H")[0]
             ### Parse packet data ###
-            roach_checksum = (np.fromstring(packet[40:42],dtype = '>H'))
-            sec_ts = (np.fromstring(packet[-16:-12],dtype = '>I')) # seconds elapsed since 'pps_start'
-            fine_ts = np.round((np.fromstring(packet[-12:-8],dtype = '>I').astype('float')/256.0e6)*1.0e3,3) # milliseconds since last packet
-            packet_count = (np.fromstring(packet[-8:-4],dtype = '>I')) # raw packet count since 'pps_start'
-            packet_info_reg = (np.fromstring(packet[-4:],dtype = '>I'))
+            roach_checksum = (np.fromstring(packet[-21:-17],dtype = '>I'))
+            sec_ts = (np.fromstring(packet[-17:-13],dtype = '>I')) # seconds elapsed since 'pps_start'
+            fine_ts = np.round((np.fromstring(packet[-13:-9],dtype = '>I').astype('float')/256.0e6)*1.0e3,3) # milliseconds since PPS
+            packet_count = (np.fromstring(packet[-9:-5],dtype = '>I')) # raw packet count since 'pps_start'
+            packet_info_reg = (np.fromstring(packet[-5:-1],dtype = '>I'))
+            #gpio_reg = (np.fromstring(packet[-1:],dtype = '>I'))
 	    
 	    if count > 0:
                 if (packet_count - previous_idx != 1):
                     print "Warning: Packet index error"
-                __, __, phase = self.parseChanData(chan, data)
+                I, Q, phase = self.parseChanData(chan, data)
                 print
                 print "Roach chan =", chan
                 print "src MAC = %x:%x:%x:%x:%x:%x" % struct.unpack("BBBBBB", smac)
@@ -327,10 +330,12 @@ class roachDownlink(object):
                 print "src IP : src port =", saddr,":", src
                 print "dst IP : dst port  =", daddr,":", dst
                 print "Roach chksum =", roach_checksum[0]
-                print "PPS count =", sec_ts[0]
+                print "PPS count since last 'pps_start' =", sec_ts[0]
+                print "ms since last PPS =", fine_ts[0]
                 print "Packet count =", packet_count[0]
-                print "Chan phase (rad) =", phase[0]
-		print "Packet info reg =", packet_info_reg[0] 
+		print "Packet info reg =", packet_info_reg[0]
+                #print "GPIO reg =", gpio_reg[0]
+                print "I =", I, "| Q =", Q, "| Phase =", phase, "(rad)"
             count += 1
             previous_idx = packet_count
         return
@@ -492,7 +497,7 @@ class roachDownlink(object):
         start_chan = input("Start chan # ? ")
         end_chan = input("End chan # ? ")
         chan_range = range(start_chan, end_chan + 1)
-        data_path = self.gc[np.where(self.gc == 'DIRFILE_SAVEPATH')[0][0]][1] 
+        data_path = self.fs['savedatadir'] 
         sub_folder = raw_input("Insert subfolder name (e.g. single_tone): ")
         Npackets = int(np.ceil(time_interval * self.data_rate))
         self.zeroPPS()
@@ -519,7 +524,7 @@ class roachDownlink(object):
                 #### Add field for stage coords ####
                 except TypeError:
                     continue
-                packet_count = (np.fromstring(packet[-4:],dtype = '>I'))
+                packet_count = (np.fromstring(packet[-9:-5],dtype = '>I'))
                 write_Q.put((data, packet_count, ts))
                 count += 1
         except KeyboardInterrupt:

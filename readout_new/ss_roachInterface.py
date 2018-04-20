@@ -117,7 +117,7 @@ class roachInterface(object):
 	return 
 
     def qdrCal(self):    
-    # Calibrates the QDRs. Run after writing to QDR.      
+        # Calibrates the QDRs. Run after writing to QDR.      
         self.fpga.write_int(self.regs['dac_reset_reg'], 1)
         print 'DAC on'
         bFailHard = False
@@ -163,19 +163,21 @@ class roachInterface(object):
             return mixer_in
 
     def read_mixer_shift(self, shift, chan, mixer_out = True):
-    # returns snap data for the dds mixer inputs and outputs
-        self.fpga.write_int(self.regs[np.where(self.regs == 'dds_shift')[0][0]][1], shift)
+        # returns snap data for the dds mixer inputs and outputs
+        self.fpga.write_int(self.regs['dds_shift_reg'], shift)
         if (chan % 2) > 0: # if chan is odd
-            self.fpga.write_int(self.regs[np.where(self.regs == 'DDC_chan_sel_reg')[0][0]][1], (chan - 1) / 2)
+            self.fpga.write_int(self.regs['DDC_chan_sel_reg'], (chan - 1) / 2)
         else:
-            self.fpga.write_int(self.regs[np.where(self.regs == 'DDC_chan_sel_reg')[0][0]][1], chan/2)
-        self.fpga.write_int(self.regs[np.where(self.regs == 'DDC_fftbin_ctrl_reg')[0][0]][1], 0)
-        self.fpga.write_int(self.regs[np.where(self.regs == 'DDC_mixerout_ctrl_reg')[0][0]][1], 0)
-        self.fpga.write_int(self.regs[np.where(self.regs == 'DDC_fftbin_ctrl_reg')[0][0]][1], 1)
-        self.fpga.write_int(self.regs[np.where(self.regs == 'DDC_mixerout_ctrl_reg')[0][0]][1], 1)
-        mixer_in = np.fromstring(self.fpga.read(self.regs[np.where(self.regs == 'DDC_fftbin_bram_reg')[0][0]][1], 16*2**10),dtype='>i2').astype('float')
+            self.fpga.write_int(self.regs['DDC_chan_sel_reg'], chan/2)
+        self.fpga.write_int(self.regs['DDC_fftbin_ctrl_reg'], 0)
+        self.fpga.write_int(self.regs['DDC_mixerout_ctrl_reg'], 0)
+        self.fpga.write_int(self.regs['DDC_fftbin_ctrl_reg'], 1)
+        self.fpga.write_int(self.regs['DDC_mixerout_ctrl_reg'], 1)
+        mixer_in = np.fromstring(self.fpga.read(self.regs['DDC_fftbin_bram_reg'],
+                                                16*2**10),dtype='>i2').astype('float')
         if mixer_out:
-            mixer_out = np.fromstring(self.fpga.read(self.regs[np.where(self.regs == 'DDC_mixerout_bram_reg')[0][0]][1], 8*2**10),dtype='>i2').astype('float')
+            mixer_out = np.fromstring(self.fpga.read(self.regs['DDC_mixerout_bram_reg'],
+                                                     8*2**10),dtype='>i2').astype('float')
             return mixer_in, mixer_out
         else:
             return mixer_in
@@ -284,7 +286,7 @@ class roachInterface(object):
 	return
     
     def return_shift(self, chan):
-    # Returns the dds shift
+        # Returns the dds shift
         dds_spec = np.abs(np.fft.rfft(self.I_dds[chan::self.fft_len],self.fft_len))
         dds_index = np.where(np.abs(dds_spec) == np.max(np.abs(dds_spec)))[0][0]
         print 'Finding LUT shift...' 
@@ -317,8 +319,10 @@ class roachInterface(object):
 	print "Done"
 	return transfunc
 
-    def freqComb(self, freqs, samp_freq, resolution, random_phase = True, DAC_LUT = True, apply_transfunc = False, **kwargs):
-    # Generates a frequency comb for the DAC or DDS look-up-tables. DAC_LUT = True for the DAC LUT. Returns I and Q 
+    def freqComb(self, freqs, samp_freq, resolution, random_phase = True,
+                 DAC_LUT = True, apply_transfunc = False, **kwargs):
+        # Generates a frequency comb for the DAC or DDS look-up-tables.
+        # DAC_LUT = True for the DAC LUT. Returns I and Q 
         freqs = np.round(freqs/self.dac_freq_res)*self.dac_freq_res
 	amp_full_scale = (2**15 - 1)
         if DAC_LUT:
@@ -357,12 +361,13 @@ class roachInterface(object):
 	return I, Q    
     
     def fft_bin_index(self, freqs, fft_len, samp_freq):
-    # returns the fft bin index for a given frequency, fft length, and sample frequency
+        # Returns fft bin index for a given frequency, fft length, and sample frequency
         k = np.round((freqs/samp_freq)*fft_len).astype('int')
         return k
     
     def select_bins(self, freqs):
-    # Calculates the offset from each bin center, to be used as the DDS LUT frequencies, and writes bin numbers to RAM
+        # Calculates offset from each bin center, to be used as the DDS LUT frequencies,
+        # and writes bin numbers to RAM
         nyquist = 250.0e3
 	k = self.fft_bin_index(freqs, self.fft_len, 2*self.fpga_samp_freq)
         f_bin = k*self.dac_samp_freq/self.fft_len
@@ -371,28 +376,34 @@ class roachInterface(object):
         bin_freqs = np.unique(f_bin)
 	ch = 0
         for idx in k:
-	    self.fpga.write_int(self.regs[np.where(self.regs == 'bins_reg')[0][0]][1], idx)
-            self.fpga.write_int(self.regs[np.where(self.regs == 'load_bins_reg')[0][0]][1], 2*ch + 1)
-	    self.fpga.write_int(self.regs[np.where(self.regs == 'load_bins_reg')[0][0]][1], 0)
+	    self.fpga.write_int(self.regs['bins_reg'], idx)
+            self.fpga.write_int(self.regs['load_bins_reg'], 2*ch + 1)
+	    self.fpga.write_int(self.regs['load_bins_reg'], 0)
             ch += 1
         return freq_residuals
     
     def define_DDS_LUT(self, freqs):
-    # Builds the DDS look-up-table from I and Q given by freq_comb. freq_comb is called with the sample rate equal to the sample rate for a single FFT bin. There are two bins returned for every fpga clock, so the bin sample rate is 256 MHz / half the fft length  
+        # Builds the DDS look-up-table from I and Q given by freq_comb.
+        # freq_comb is called with the sample rate equal to the sample rate for a single FFT bin.
+        # Two bins returned for every fpga clock, so the bin sample rate is 256 MHz / half the fft length  
         freq_residuals = self.select_bins(freqs)
         I_dds, Q_dds = np.array([0.]*(self.LUTbuffer_len)), np.array([0.]*(self.LUTbuffer_len))
         for m in range(len(freq_residuals)):
-            I, Q = self.freqComb(np.array([freq_residuals[m]]), self.fpga_samp_freq/(self.fft_len/2.), self.dac_freq_res, random_phase = False, DAC_LUT = False)
+            I, Q = self.freqComb(np.array([freq_residuals[m]]), self.fpga_samp_freq/(self.fft_len/2.),
+                                 self.dac_freq_res, random_phase = False, DAC_LUT = False)
             I_dds[m::self.fft_len] = I
             Q_dds[m::self.fft_len] = Q
         return I_dds, Q_dds
     
     def pack_luts(self, freqs, transfunc = False, **kwargs):
-    # packs the I and Q look-up-tables into strings of 16-b integers, in preparation to write to the QDR. Returns the string-packed look-up-tables
+        # Packs the I and Q look-up-tables into strings of 16-b integers,
+        # in preparation to write to the QDR. Returns the string-packed look-up-tables
         if transfunc:
-		I_dac, Q_dac = self.freqComb(freqs, self.dac_samp_freq, self.dac_freq_res, random_phase = True, apply_transfunc = True, **kwargs)
+		I_dac, Q_dac = self.freqComb(freqs, self.dac_samp_freq, self.dac_freq_res,
+                                             random_phase = True, apply_transfunc = True, **kwargs)
         else:
-		I_dac, Q_dac = self.freqComb(freqs, self.dac_samp_freq, self.dac_freq_res, random_phase = True)
+		I_dac, Q_dac = self.freqComb(freqs, self.dac_samp_freq, self.dac_freq_res,
+                                             random_phase = True)
 	I_dds, Q_dds = self.define_DDS_LUT(freqs)
 	self.I_dds = I_dds
         I_lut, Q_lut = np.zeros(self.LUTbuffer_len*2), np.zeros(self.LUTbuffer_len*2)
@@ -569,19 +580,20 @@ class roachInterface(object):
         return I, Q
 
     def rmsVoltageADC(self):
-        self.fpga.write_int(self.regs[np.where(self.regs == 'adc_snap_ctrl_reg')[0][0]][1],0)
+        self.fpga.write_int(self.regs['adc_snap_ctrl_reg'], 0)
         time.sleep(0.1)
-        self.fpga.write_int(self.regs[np.where(self.regs == 'adc_snap_ctrl_reg')[0][0]][1],1)
+        self.fpga.write_int(self.regs['adc_snap_ctrl_reg'], 1)
         time.sleep(0.1)
-        self.fpga.write_int(self.regs[np.where(self.regs == 'adc_snap_ctrl_reg')[0][0]][1],0)    
+        self.fpga.write_int(self.regs['adc_snap_ctrl_reg'], 0)    
         time.sleep(0.1)
-        self.fpga.write_int(self.regs[np.where(self.regs == 'adc_snap_trig_reg')[0][0]][1],0)    
+        self.fpga.write_int(self.regs['adc_snap_trig_reg'], 0)    
         time.sleep(0.1)
-        self.fpga.write_int(self.regs[np.where(self.regs == 'adc_snap_trig_reg')[0][0]][1],1)    
+        self.fpga.write_int(self.regs['adc_snap_trig_reg'], 1)    
         time.sleep(0.1)
-        self.fpga.write_int(self.regs[np.where(self.regs == 'adc_snap_trig_reg')[0][0]][1],0)
+        self.fpga.write_int(self.regs['adc_snap_trig_reg'], 0)
         time.sleep(0.1)
-        adc = (np.fromstring(self.fpga.read(self.regs[np.where(self.regs == 'adc_snap_bram_reg')[0][0]][1],(2**10)*8),dtype='>h')).astype('float')
+        adc = (np.fromstring(self.fpga.read(self.regs['adc_snap_bram_reg'],
+                                            (2**10)*8),dtype='>h')).astype('float')
         adc /= (2**15 - 1)
         adc *= 550.
         I = np.hstack(zip(adc[0::4],adc[2::4]))

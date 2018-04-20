@@ -53,7 +53,7 @@ def systemInit1():
     s = socket.socket(socket.AF_PACKET,socket.SOCK_RAW,socket.htons(3))
     print "Setting up GbE interface."
     udp = roachDownlink(ri, fpga, gen_cfg, net_cfg['roach1'],
-                        reg_cfg, s, ri.accum_freq)
+                        reg_cfg, fsy_cfg, s, ri.accum_freq)
     udp.configSocket()
     return fpga, ri, udp, synth
 
@@ -93,12 +93,13 @@ def writeTestcomb(cw = False):
             time.sleep(0.1)
         # Upconvert frequencies using center_freq
         ri.upconvert = np.sort(((ri.freq_comb + (ri.center_freq)*1.0e6))/1.0e6)
-        print "RF tones: ", ri.upconvert
+        print "Writing", np.size(ri.upconvert), "RF tones. "
+        #print ri.upconvert
         # Write to QDR
         ri.writeQDR(ri.freq_comb, transfunc = False)
         # Change this to text file in right location
-        np.save("last_freq_comb.npy", ri.freq_comb)
-        print "Tones written to QDR and saved to last_freq_comb.npy."
+        np.save(fsy_cfg['tonelistdir'] + '/last_freq_comb.npy', ri.freq_comb)
+        print "Tones written to QDR and saved to", fsy_cfg['tonelistdir'], "/last_freq_comb.npy."
         if not (fpga.read_int(reg_cfg['dds_shift_reg'])):
             if reg_cfg['DDC_mixerout_bram_reg'] in fpga.listdev():
                 shift = ri.return_shift(0)
@@ -188,6 +189,32 @@ def get_config():
     rch_cfg = yaml.load(file('./configuration/roach_config.cfg','r'))
     reg_cfg = yaml.load(file('./configuration/firmware_registers.cfg','r'))
     return gen_cfg, hdw_cfg, fsy_cfg, lgg_cfg, net_cfg, rch_cfg, reg_cfg
+
+# Based on kidPy/getSystemState (need to make more useful)
+def getSystemState(fpga, ri, udp, synth):
+    print "Current system state at", time.strftime("%Y-%m-%d %H:%M:%S",time.gmtime()), "UTC"
+    print
+    print "DDS shift:", fpga.read_int(reg_cfg['dds_shift_reg'])
+    print "FFT shift:", fpga.read_int(reg_cfg['fft_shift_reg'])
+    print "Number of tones:", fpga.read_int(reg_cfg['read_comb_len_reg'])
+    print "QDR Cal status:", fpga.read_int(reg_cfg['read_qdr_status_reg'])
+    print
+    print "Data downlink:"
+    print "Stream status:", fpga.read_int(reg_cfg['read_stream_status_reg'])
+    print "Data rate: ", ri.accum_freq, "Hz", ", " + str(np.round(gen_cfg['buf_size'] * ri.accum_freq / 1.0e6, 2)) + " MB/s"
+    print
+    rmsI, rmsQ, crest_factor_I, crest_factor_Q = ri.rmsVoltageADC()
+    print "ADC V_rms (I,Q):", rmsI, "mV, ", rmsQ, "mV"
+    print "Crest factor (I,Q):", crest_factor_I, "dB, ", crest_factor_Q, "dB"
+    print
+    print "Synth state:"
+    print "LO center freq:", ri.center_freq, "MHz"
+    print "Current LO freq:", synth.get_frequency(gen_cfg['LO']), "MHz"
+    print "Current LO power:", synth.get_rf_level(gen_cfg['LO']), "dBm"
+    print "Current clock freq:", synth.get_frequency(gen_cfg['CLOCK']), "MHz"
+    print "Current clock power:", synth.get_rf_level(gen_cfg['CLOCK']), "dBm"
+    return
+    
     
 ###################################################
 # Initial execution for standard operation
@@ -201,9 +228,11 @@ Standard sequence of events (after __main__ above is done):
 >> fpga, ri, udp, synth = systemInit1() # takes us to main_opt in kidPy
 >> ri.uploadfpg() # only if needed
 >> fpga, ri, udp, synth = systemInit2(fpga, ri, udp, synth) # Up to downlink configuration
+>> writeTestcomb()
+>> udp.testDownlink(5)
+>> udp.printChanInfo(0,1)
 
-
-
+% Stream to /data???
 """
     
     
