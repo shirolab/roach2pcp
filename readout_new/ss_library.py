@@ -99,7 +99,8 @@ def writeTestcomb(cw = False):
         ri.writeQDR(ri.freq_comb, transfunc = False)
         # Change this to text file in right location
         np.save(fsy_cfg['tonelistdir'] + '/last_freq_comb.npy', ri.freq_comb)
-        print "Tones written to QDR and saved to", fsy_cfg['tonelistdir'], "/last_freq_comb.npy."
+        print "Tones written to QDR and saved to", \
+            fsy_cfg['tonelistdir'], "/last_freq_comb.npy."
         if not (fpga.read_int(reg_cfg['dds_shift_reg'])):
             if reg_cfg['DDC_mixerout_bram_reg'] in fpga.listdev():
                 shift = ri.return_shift(0)
@@ -225,14 +226,21 @@ if __name__ == "__main__":
 """
 Standard sequence of events (after __main__ above is done):
 
->> fpga, ri, udp, synth = systemInit1() # takes us to main_opt in kidPy
->> ri.uploadfpg() # only if needed
->> fpga, ri, udp, synth = systemInit2(fpga, ri, udp, synth) # Up to downlink configuration
+>> fpga, ri, udp, synth = systemInit1() 
+# takes us to main_opt in kidPy
+>> ri.uploadfpg() 
+# only if needed
+>> fpga, ri, udp, synth = systemInit2(fpga, ri, udp, synth) 
+# Up to downlink configuration
 >> writeTestcomb()
->> udp.testDownlink(5)
->> udp.printChanInfo(0,1)
+# Definitely needed
+>> udp.testDownlink(5) 
+# Flush out packets, returns 0 for good
+>> udp.printChanInfo(0,1) 
+# Inspect packets explicitly
+>> udp.saveDirfile_chanRangeIQ(time_interval = 10) 
+# Stream data to /data/dirfiles for some time (can specify channels)
 
-% Stream to /data???
 """
     
     

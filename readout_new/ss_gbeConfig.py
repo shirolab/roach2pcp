@@ -43,9 +43,10 @@ def parseChanData(chan, data):
     return I, Q, np.arctan2([Q],[I])
 
 
-def writer(q, filename, start_chan, end_chan): #Haven't tested recently, but as 
-    #of a few years ago, functions passed to multiprocessing need to be top
-    #level functions
+def writer(q, filename, start_chan, end_chan):
+    # Haven't tested recently, but as of a few years ago,
+    # functions passed to multiprocessing need to be top
+    # level functions
     chan_range = range(start_chan, end_chan + 1)
     nfo_I = map(lambda z: filename + "/I_" + str(z), chan_range)
     nfo_Q = map(lambda z: filename + "/Q_" + str(z), chan_range)
@@ -60,7 +61,10 @@ def writer(q, filename, start_chan, end_chan): #Haven't tested recently, but as
         Q_fields.append('Q_' + str(chan))
         d.add_spec('I_' + str(chan) + ' RAW FLOAT64 1')
         d.add_spec('Q_' + str(chan) + ' RAW FLOAT64 1')
+    d.add_spec('time RAW FLOAT64 1')
+    d.add_spec('packet_count RAW FLOAT64 1')
     d.close()
+    
     d = gd.dirfile(filename,gd.RDWR|gd.UNENCODED)
     fo_I = map(lambda z: open(z, "ab"), nfo_I)
     fo_Q = map(lambda z: open(z, "ab"), nfo_Q)
@@ -142,7 +146,6 @@ class roachDownlink(object):
 
     def configDownlink(self):
         """Configure GbE parameters"""
-        
         self.fpga.write_int(self.regs['udp_srcmac0_reg'], self.udp_srcmac0)
         time.sleep(0.05)
         self.fpga.write_int(self.regs['udp_srcmac1_reg'], self.udp_srcmac1)
@@ -219,7 +222,8 @@ class roachDownlink(object):
         if not packet:
             print "Non-Roach packet received"
             return
-        data = np.fromstring(packet[self.header_len:], dtype = '<i').astype('float')
+        data = np.fromstring(packet[self.header_len:],
+                             dtype = '<i').astype('float')
         header = packet[:self.header_len]
         saddr = np.fromstring(header[26:30], dtype = "<I")
         saddr = sock.inet_ntoa(saddr) # source addr
@@ -313,9 +317,12 @@ class roachDownlink(object):
             dst = np.fromstring(header[36:38], dtype = ">H")[0]
             ### Parse packet data ###
             roach_checksum = (np.fromstring(packet[-21:-17],dtype = '>I'))
-            sec_ts = (np.fromstring(packet[-17:-13],dtype = '>I')) # seconds elapsed since 'pps_start'
-            fine_ts = np.round((np.fromstring(packet[-13:-9],dtype = '>I').astype('float')/256.0e6)*1.0e3,3) # milliseconds since PPS
-            packet_count = (np.fromstring(packet[-9:-5],dtype = '>I')) # raw packet count since 'pps_start'
+            # seconds elapsed since 'pps_start'
+            sec_ts = (np.fromstring(packet[-17:-13],dtype = '>I'))
+            # milliseconds since PPS
+            fine_ts = np.round((np.fromstring(packet[-13:-9],dtype = '>I').astype('float')/256.0e6)*1.0e3,3)
+            # raw packet count since 'pps_start'
+            packet_count = (np.fromstring(packet[-9:-5],dtype = '>I')) 
             packet_info_reg = (np.fromstring(packet[-5:-1],dtype = '>I'))
             #gpio_reg = (np.fromstring(packet[-1:],dtype = '>I'))
 	    
@@ -387,15 +394,17 @@ class roachDownlink(object):
                 count += 1
                 I_file = 'I' + str(lo_freq)
                 Q_file = 'Q' + str(lo_freq)
-                np.save(os.path.join(savepath,I_file), np.mean(I_buffer[skip_packets:], axis = 0))
-                np.save(os.path.join(savepath,Q_file), np.mean(Q_buffer[skip_packets:], axis = 0))
+                np.save(os.path.join(savepath,I_file),
+                        np.mean(I_buffer[skip_packets:], axis = 0))
+                np.save(os.path.join(savepath,Q_file),
+                        np.mean(Q_buffer[skip_packets:], axis = 0))
             except TypeError:
                 print "Packet error"
                 return -1
         return 0
 
     def saveDirfile_adcIQ(self, time_interval):
-        data_path = self.gc[np.where(self.gc == 'DIRFILE_SAVEPATH')[0][0]][1] 
+        data_path = self.gc['DIRFILE_SAVEPATH'] 
         sub_folder = raw_input("Insert subfolder name (e.g. single_tone): ")
         Npackets = np.ceil(time_interval * self.data_rate)
         Npackets = np.int(np.ceil(Npackets/1024.))
@@ -436,7 +445,7 @@ class roachDownlink(object):
         start_chan = input("Start chan # ? ")
         end_chan = input("End chan # ? ")
         chan_range = range(start_chan, end_chan + 1)
-        data_path = self.gc[np.where(self.gc == 'DIRFILE_SAVEPATH')[0][0]][1]
+        data_path = self.gc['DIRFILE_SAVEPATH']
         sub_folder = raw_input("Insert subfolder name (e.g. single_tone): ")
         Npackets = np.ceil(time_interval * self.data_rate)
         self.zeroPPS()
@@ -488,25 +497,24 @@ class roachDownlink(object):
         return
 
 
-    def saveDirfile_chanRangeIQ(self, time_interval, stage_coords = False):
+    def saveDirfile_chanRangeIQ(self, time_interval = 1, subfolder = '',
+                                start_chan = 0, end_chan = 0,
+                                stage_coords = False):
         """Saves a dirfile containing the I and Q values for a range of channels, streamed
            over a time interval specified by time_interval
            inputs:
                float time_interval: Time interval to integrate over, seconds
                bool stage_coords: Currently deprecated, to be used when beam mapping"""
-        start_chan = input("Start chan # ? ")
-        end_chan = input("End chan # ? ")
         chan_range = range(start_chan, end_chan + 1)
         data_path = self.fs['savedatadir'] 
-        sub_folder = raw_input("Insert subfolder name (e.g. single_tone): ")
         Npackets = int(np.ceil(time_interval * self.data_rate))
         self.zeroPPS()
-        save_path = os.path.join(data_path, sub_folder)
+        save_path = os.path.join(data_path, subfolder)
         if not os.path.exists(save_path):
             os.makedirs(save_path)
         filename = save_path + '/' + \
-                   str(int(time.time())) + '-' + time.strftime('%b-%d-%Y-%H-%M-%S') + '.dir'
-        print filename
+                   time.strftime('%Y%m%d_%H%M%S',time.gmtime()) + '.dir'
+        print "Saving to ", filename
         #begin Async stuff
         manager = mp.Manager()
         pool = mp.Pool(1)
