@@ -40,22 +40,22 @@ Comments
 # include how to set level?
 # use this as a library for all things logging
 
-
 #------------------------------------------------------------------------------------------------------------
 #--------------------------------------------- Code begins here ---------------------------------------------
 #------------------------------------------------------------------------------------------------------------
 
 # imports for tcp socket server
-import os, sys, pickle, struct, logging, logging.handlers
-import SocketServer
+import os, sys, errno, select, psutil, pickle, struct, logging, logging.handlers
+import socket, SocketServer
 
 # imports for daemon creation
 import signal, daemon, daemon.pidfile
 
 # Get the pid file directory from the configuration file
 from ..configuration import filesys_config, logging_config
-LOGFILEDIR = filesys_config.config['logfiledir']
-PIDFILEDIR = filesys_config.config['pidfiledir']
+ROOTDIR = filesys_config.config['rootdir']
+LOGFILEDIR = os.path.join(ROOTDIR, filesys_config.config['logfiledir'])
+PIDFILEDIR = os.path.join(ROOTDIR, filesys_config.config['pidfiledir'])
 
 # Ensure that the paths exists
 if not os.path.exists(LOGFILEDIR): os.mkdir(LOGFILEDIR)
@@ -112,6 +112,9 @@ class LogRecordStreamHandler(SocketServer.StreamRequestHandler):
         logger = logging.getLogger(logrecord.name)
         logger.handle(logrecord)
 
+
+#SocketServer.ThreadingTCPServer.allow_reuse_address = True
+
 class LogRecordSocketReceiver(SocketServer.ThreadingTCPServer):
     """
     Simple TCP socket-based logging receiver to receive log entries from other parts of the application.
@@ -124,20 +127,21 @@ class LogRecordSocketReceiver(SocketServer.ThreadingTCPServer):
 
     """
 
-    allow_reuse_address = 1
-
     def __init__(self, host= LOGHOST,
                         port = LOGPORT,
                         handler = LogRecordStreamHandler):
 #                       port = logging.handlers.DEFAULT_TCP_LOGGING_PORT,
 
+
         SocketServer.ThreadingTCPServer.__init__(self, (host, port), handler)
+
         self.abort = 0
         self.timeout = 1
         self.logname = None
 
     def serve_until_stopped(self):
         abort = 0
+
         while not abort:
             rd, wr, ex = select.select([self.socket.fileno()],
                                        [], [],
@@ -145,6 +149,7 @@ class LogRecordSocketReceiver(SocketServer.ThreadingTCPServer):
             if rd:
                 self.handle_request() # is a method in ThreadingTCPServer that uses the handler to process the request
             abort = self.abort
+            #print "not aborted"
             # this needs cleaning up to abort appropriately
 
 
@@ -163,11 +168,28 @@ class loggingDaemon(object):
         self.pidf = daemon.pidfile.TimeoutPIDLockFile( os.path.join( PIDFILEDIR, 'roachlog.pid' ) )
 
         if self.pidf.is_locked() and not self.pidf.i_am_locking():
-            # then the file is locked by another process - most likely an error from previous processes
+            # two options
+            # 1. then the file is locked by another process - most likely an error from previous processes
             # send warning to log, and break the lock
-            self.logger.warning("Logging p-id file was locked by another process")
-            self.pidf.break_lock()
-            self.logger.debug("Broke existing lock")
+            # 2. the logger is already running
+            #   check to see if the logger is already running
+            pid = self.pidf.read_pid()
+            try:
+                psutil.Process( pid )
+                self.logger.warning("Logger already running with p-id {0} ".format(pid))
+                self.ISRUNNING = 1
+
+            except psutil.NoSuchProcess:
+                self.logger.warning("p-id not found. Process doesn't appear to be running.")
+
+                self.logger.warning("Logging p-id file was locked by another process")
+                self.pidf.break_lock()
+                self.logger.debug("Broke existing lock")
+                self.ISRUNNING = 0
+
+        else:
+            self.ISRUNNING = 0
+
             #self.pidf.acquire()
             #self.logger.debug( "Lock transferred and is being held by me: {0}".format(self.pidf.i_am_locking()) )
         # debugging of logging
@@ -185,19 +207,38 @@ class loggingDaemon(object):
 
         context.signal_map = { signal.SIGTERM: self.daemon_terminate }
 
+        if self.ISRUNNING:
+
+            pid = self.pidf.read_pid()
+            sys.stdout.write("pid:{0}\n".format(pid))
+            self.logger.debug("Not going to daemonise process... already running")
+
+            return
+
         self.logger.debug("About to daemonise process...")
 
         with context:
             #print self.logger.parent.handlers
-            self.logger.info( "Sucessfully daemonised. Running with PID {pid}\r".format(pid = self.pidf.read_pid()) )
+            pid = self.pidf.read_pid()
+            self.logger.info( "Sucessfully daemonised. Running with PID {pid}\r".format(pid = pid) )
+
+            # write PID to stdout so
+            sys.stdout.write("pid:{0}\n".format(pid))
             #print "Running with PID {pid}\r".format(pid = self.pidf.read_pid())
             sys.stdout.flush()
             self.logger.debug( "cwd = {0}".format( os.getcwd() ) )
             # code to run goes here
             # configure_sockethandler()
             # self.logger.debug("Configured sockethandler correctly")
-
-            tcpserver = LogRecordSocketReceiver()
+            try:
+                tcpserver = LogRecordSocketReceiver()
+            except socket.error as err:
+                if err.errno == errno.EADDRINUSE:
+                    # get and close the socket?
+                    self.logger.exception(e.strerror)
+                else:
+                    self.logger.exception("help")
+                    raise
             self.logger.debug("About to start TCP server...")
             #print "About to start TCP server..."
 
@@ -290,7 +331,7 @@ def initialise_logger(verbosity=0):
         format = '%(relativeCreated)5d %(name)-15s %(levelname)-8s %(message)s', # to be read from the logging configuration file
         level=logging.DEBUG)# this needs to be changed to be more general
 
-    print os.path.abspath(filename)
+    #print os.path.abspath(filename)
 
     # ideally want to have logging configured here
 
@@ -298,11 +339,12 @@ def initialise_logger(verbosity=0):
     logger.info('starting loggingDaemon')
 
     d = loggingDaemon()
-    logger.debug('instantiated loggingDaemon succesfully')
+    #logger.debug('instantiated loggingDaemon succesfully')
     d.run()
+
 
 # main script for testing purposes
 if __name__ == '__main__':
-    print "Running main..."
+    #print "Running main..."
 
     initialise_logger()

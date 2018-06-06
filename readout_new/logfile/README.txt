@@ -6,7 +6,7 @@ Logging is potentially complicated by the requirement for multiple processes wan
 
 2. Set up a multiprocessing.Queue to achieve the same thing. I believe this is implemented in Python 3.2, but not 2.7. However, it shouldn’t be hard to configure. 
 
-Eater way, this code should run in a separate, possibly daemon, process. 
+Either way, this code should run in a separate, possibly daemon, process. 
 
 20180101 
 	- implemented first version of daemon logging program using rationale 1 as described above. 
