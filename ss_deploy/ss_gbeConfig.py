@@ -499,7 +499,7 @@ class roachDownlink(object):
 
     def saveDirfile_chanRangeIQ(self, time_interval = 1, subfolder = '',
                                 start_chan = 0, end_chan = 0,
-                                stage_coords = False, dirfilename = False):
+                                stage_coords = False):
         """Saves a dirfile containing the I and Q values for a range of channels, streamed
            over a time interval specified by time_interval
            inputs:
@@ -512,11 +512,8 @@ class roachDownlink(object):
         save_path = os.path.join(data_path, subfolder)
         if not os.path.exists(save_path):
             os.makedirs(save_path)
-        if not dirfilename:
-            filename = save_path + '/' + \
+        filename = save_path + '/' + \
                        time.strftime('%Y%m%d_%H%M%S',time.gmtime()) + '.dir'
-        else:
-            filename = save_path + '/' + dirfilename + '.dir'
 
         print "Saving to ", filename
         #begin Async stuff
