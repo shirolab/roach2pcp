@@ -26,7 +26,7 @@ import socket
 # Less-generic packages (but not developed by us)
 import casperfpga
 # Packages that live in kidPy
-sys.path.append('/sscontrol/kidPy')
+#sys.path.append('/sscontrol/kidPy')
 import valon_synth9
 # Had to change these enough that they just became separate files
 from ss_roachInterface import roachInterface
@@ -81,18 +81,21 @@ def writeTestcomb(cw = False):
     try:
         # Make frequency comb
         if cw:
-            ri.freq_comb = gen_cfg['test_freq']
+            ri.freq_comb = np.float(gen_cfg['test_freq'])
         else:
             ri.makeFreqComb()
         # Make sure FFT shift can handle size of comb
-        if (len(ri.freq_comb) > 400):
+        if (np.size(ri.freq_comb) > 400):
             fpga.write_int(reg_cfg['fft_shift_reg'], 2**5 - 1)
             time.sleep(0.1)
         else:
             fpga.write_int(reg_cfg['fft_shift_reg'], 2**9 - 1)
             time.sleep(0.1)
         # Upconvert frequencies using center_freq
-        ri.upconvert = np.sort(((ri.freq_comb + (ri.center_freq)*1.0e6))/1.0e6)
+        if (np.size(ri.freq_comb) > 1):
+            ri.upconvert = np.sort(((ri.freq_comb + (ri.center_freq)*1.0e6))/1.0e6)
+        else:
+            ri.upconvert = (ri.freq_comb + (ri.center_freq)*1.0e6)/1.0e6
         print "Writing", np.size(ri.upconvert), "RF tones. "
         #print ri.upconvert
         # Write to QDR
@@ -226,20 +229,17 @@ if __name__ == "__main__":
 """
 Standard sequence of events (after __main__ above is done):
 
->> fpga, ri, udp, synth = systemInit1() 
-# takes us to main_opt in kidPy
->> ri.uploadfpg() 
-# only if needed
->> fpga, ri, udp, synth = systemInit2(fpga, ri, udp, synth) 
-# Up to downlink configuration
->> writeTestcomb()
-# Definitely needed
->> udp.testDownlink(5) 
-# Flush out packets, returns 0 for good
->> udp.printChanInfo(0,1) 
-# Inspect packets explicitly
->> udp.saveDirfile_chanRangeIQ(time_interval = 10) 
+fpga, ri, udp, synth = systemInit1() # Takes us to main_opt in kidPy
+ri.uploadfpg() # Only if needed
+fpga, ri, udp, synth = systemInit2(fpga, ri, udp, synth) # Todownlink config
+writeTestcomb() # Definitely needed
+udp.testDownlink(5) # Flush out packets, returns 0 for good
+udp.printChanInfo(0,1) # Inspect packets explicitly
+udp.saveDirfile_chanRangeIQ(time_interval = 10) 
 # Stream data to /data/dirfiles for some time (can specify channels)
+
+# To capture a packet:
+sudo tshark -x -i DEVICE -c 1 > packet
 
 """
     
