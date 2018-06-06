@@ -14,7 +14,6 @@ from configuration import filesys_config, roach_config
 
 def gen_fake_roach_packet(testpacket = True):
     # want time, packet count, data
-    NTONES=1021
     if testpacket:
         testpacketfile = os.path.join("testing", "20180324_testpacket")
         assert os.path.exists(testpacketfile)
@@ -22,6 +21,7 @@ def gen_fake_roach_packet(testpacket = True):
             return fh.read()
 
     else:
+        NTONES = 1010
         x = np.random.randint(1000, size = NTONES)
         x[0] = time.time()
         return x
@@ -49,7 +49,7 @@ def test_write_to_dirfile(dirf, lenbuffer, dataset):
 
 # --- create a dirfile and populate the format file ---
 
-def create_format_file(filename, NTONES=1021):
+def create_format_file(filename, NTONES = 1010):
     # include dervied fields, constants, sweeps, metadata...etc
     if os.path.exists(filename):
         print "Dirfile exists. Passing reference to existing dirfile"
@@ -80,7 +80,7 @@ def create_format_file(filename, NTONES=1021):
     # TODO add derived fields for amp, phase, df
 
     # Add files for on resonance tones
-    kidlist = ["K{kidnum:04d} RAW COMPLEX128 1".format(kidnum=i) for i in range(NTONES)]
+    kidlist = ["K{kidnum:04d} RAW COMPLEX64 1".format(kidnum=i) for i in range(NTONES)]
 
     l = map(dirf.add_spec, kidlist)
     print dirf
@@ -118,7 +118,7 @@ def parse_packet_data(rawpacketdata, NTONES):
 
     for packet in rawpacketdata:
         assert len(packet) == 8192
-        rawiqdata.append( np.fromstring(packet, dtype = '<i4').astype('float64') )
+        rawiqdata.append( np.fromstring(packet[:-24], dtype = '<i4').astype('float64') )
         auxdata.append(   np.fromstring(packet[-21:-1], dtype = '>u4')    )
         gpiodata.append(  np.fromstring(packet[-1:], dtype = '>u1')    )
 
@@ -144,6 +144,7 @@ def parse_packet_data(rawpacketdata, NTONES):
     zdata[:, 1::2] = iodd  + 1j * qodd
 
     return auxdata, gpiodata, zdata
+
 
     # this should be in a dictionary, or keyed object to ensure that the data is written correctly
     #for k, v in zip(dirf.field_list(gd.RAW_ENTRY), )
@@ -248,7 +249,7 @@ bindaddress = 'x.x.x.x'
 bindport = 1234
 buffer_size = 8234 # int * length of roach packet
 
-NTONES = 1021
+NTONES = 1010
 filename = os.path.join('testing', 'run', '20180416_testdatawrite_dirfile')
 
 dq = deque()
