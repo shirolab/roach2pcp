@@ -52,7 +52,7 @@ import socket, SocketServer
 import signal, daemon, daemon.pidfile
 
 # Get the pid file directory from the configuration file
-from ..configuration import filesys_config, logging_config
+from .configuration import filesys_config, logging_config
 ROOTDIR = filesys_config.config['rootdir']
 LOGFILEDIR = os.path.join(ROOTDIR, filesys_config.config['logfiledir'])
 PIDFILEDIR = os.path.join(ROOTDIR, filesys_config.config['pidfiledir'])

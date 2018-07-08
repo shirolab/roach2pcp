@@ -22,7 +22,9 @@ def start_logging_daemon():
     subp = _subprocess.Popen(["python" , "-m", "readout_new.logfile.logdaemon"], \
                                 cwd    = r"/Users/PeteBarry/Documents/analysiscode/multitone/",\
                                 stdout = _subprocess.PIPE)
-
+    # subp = _subprocess.Popen(["python" , "readout_new/logfile/logdaemon.py"], \
+    #                             cwd    = r"/Users/PeteBarry/Documents/analysiscode/multitone/",\
+    #                             stdout = _subprocess.PIPE)
     # read startup information from logger
     info = []
 
@@ -38,10 +40,11 @@ def start_logging_daemon():
             break
 
     subp.poll() # kills zombie process left behind
+    INFO = [item for item in info]
 
     INFO = {item.split(':')[0] : item.split(':')[1] for item in info}
 
-def stop_logging_daemon():
+def stop_logging_daemon(pid = None):
     global INFO
     _os.kill(int(INFO['pid']), _signal.SIGTERM)
 

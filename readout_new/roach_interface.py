@@ -1,11 +1,33 @@
 #!/usr/bin/env python
 
-# holds the code for the Roach interface class
+# holds the code for the Roach interface class.
+
+# Each ri will have the following data
+#       - fpga (as before, class defined in capserfpga)
+#       - synth - generic object that will control the various synths
+#            - in an attempt to handle Nroaches != Nsynths, each roach defined in network_config
+#            will have a synthid entry, that matches one of the synth entries in hardware_config.
+#            Upon initialisation, each synth is initialised into a synth object, which is then
+#            passed to the corresponding roach interface. This way, multiple roaches can reference
+#            the same synth. When multiple roaches use the same synth, care needs to be taken when
+#            manipulating synths in parallel, but this should be an easy check of the ri.synth.synthid
+#       - daemon tracker - associated information regarding the daemon packet receiving daemonself.
+#           - this should have a live status update of whether saving is on/off...etc
 
 class roachInterface(object):
-    def __init__(self):
-        self.x=1
-        
+    def __init__(self, roachid):
+
+        self.roachid  = roachid
+
+        self.fpga     = None
+        self.tonelist = None
+        self.daemon   = None
+        self.synth    = None
+
+
+
+
+
 # This script is the first code to be run after all hardware in connected and switched on
 
 
