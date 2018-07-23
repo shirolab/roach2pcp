@@ -11,6 +11,8 @@
 # turn into a class, or module?
 # include the configure_sockethandler function here, to return a new logging instance as required
 
+#https://stackoverflow.com/questions/384076/how-can-i-color-python-logging-output
+
 import os as _os, signal as _signal, select as _select, subprocess as _subprocess
 
 INFO = {}
@@ -19,8 +21,8 @@ def start_logging_daemon():
     global INFO
 
     # runs the script that starts the logging daemon
-    subp = _subprocess.Popen(["python" , "-m", "readout_new.logfile.logdaemon"], \
-                                cwd    = r"/Users/PeteBarry/Documents/analysiscode/multitone/",\
+    subp = _subprocess.Popen(["python" , "-m", "readout_new.logdaemon"], \
+                                cwd    = r".",\
                                 stdout = _subprocess.PIPE)
     # subp = _subprocess.Popen(["python" , "readout_new/logfile/logdaemon.py"], \
     #                             cwd    = r"/Users/PeteBarry/Documents/analysiscode/multitone/",\

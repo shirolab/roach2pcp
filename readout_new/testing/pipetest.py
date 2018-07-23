@@ -1,3 +1,9 @@
-import sys
+import sys, time
 
-sys.stdout.write("testing")
+
+while True:
+    time.sleep(1)
+    try:
+        sys.stdout.write("testing")
+    except KeyboardInterrupt:
+        break

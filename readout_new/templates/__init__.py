@@ -3,31 +3,21 @@
 # any code to initialse the module (c)should be placed here
 
 # import logfile control for scripts
+from . import daemontemplate
 
-import os, sys, pkgutil, time
+# if True:
+#     print """
+#     \033[95m Welcome to Superspec deployment code
+#
+#     Basic commands:
+#
+#     Logging: access to logging scripts are imported when initalised, and are accessible via the logctrl object
+#
+#     """
 
-from .configuration import filesys_config
-
-# Define top level directories, and create if they don't already exist ?
-ROOTDIR = filesys_config['rootdir']
-if not os.path.exists(ROOTDIR): os.mkdir(ROOTDIR)
-
-import configuration, templates, kid, synthesizer
 
 
-#import logcontrol, configuration, logdaemon as _logdaemon
 
-# function to reload all packages in current namespace
-def reload_all_packages():
-    current_module = sys.modules[__name__]
-    print "Reloading submodules..."
-    for importer, modname, ispkg in pkgutil.iter_modules(current_module.__path__):
-        if ispkg:
-            time.sleep(0.1)
-            print "Reloaded", current_module.__name__, modname
-            reload( sys.modules[getattr(current_module, modname).__name__] )
-    print "Done."
-    reload(sys.modules[__name__])
 
 
 # 1. configure logging (should be running continuously in the background)

@@ -155,112 +155,112 @@ class LogRecordSocketReceiver(SocketServer.ThreadingTCPServer):
 
 # Class to create the logging daemon process
 
-class loggingDaemon(object):
-    def __init__(self):
-        """ Class for the logging daemon process.
-        Sets up PID file called roachlog.pid in the pidfiledir defined in filesys_config.yaml
-
-        """
-        # Configure logger for the log configuration ;-)
-        self.logger = logging.getLogger(LOGNAME)
-
-        # need a test/check to handle if the pid file is already locked - as this is currently silent if it exisits
-        self.pidf = daemon.pidfile.TimeoutPIDLockFile( os.path.join( PIDFILEDIR, 'roachlog.pid' ) )
-
-        if self.pidf.is_locked() and not self.pidf.i_am_locking():
-            # two options
-            # 1. then the file is locked by another process - most likely an error from previous processes
-            # send warning to log, and break the lock
-            # 2. the logger is already running
-            #   check to see if the logger is already running
-            pid = self.pidf.read_pid()
-            try:
-                psutil.Process( pid )
-                self.logger.warning("Logger already running with p-id {0} ".format(pid))
-                self.ISRUNNING = 1
-
-            except psutil.NoSuchProcess:
-                self.logger.warning("p-id not found. Process doesn't appear to be running.")
-
-                self.logger.warning("Logging p-id file was locked by another process")
-                self.pidf.break_lock()
-                self.logger.debug("Broke existing lock")
-                self.ISRUNNING = 0
-
-        else:
-            self.ISRUNNING = 0
-
-            #self.pidf.acquire()
-            #self.logger.debug( "Lock transferred and is being held by me: {0}".format(self.pidf.i_am_locking()) )
-        # debugging of logging
-
-    def run(self):
-        self.logger.debug("Entered the run function. Configuring daemon context.")
-
-        context = daemon.DaemonContext( working_directory=".",
-                                        umask=0o002, # sets permissions - we might want to change later
-                                        stdout = sys.stdout,
-                                        pidfile = self.pidf,
-                                        files_preserve = [self.logger.parent.handlers[0].stream] )
-                                        # Note that this last line is crucial to preserve the logging once the process is daemonised!
-                                        # The .parent seems hackish and not robust, and should probably be changed later
-
-        context.signal_map = { signal.SIGTERM: self.daemon_terminate }
-
-        if self.ISRUNNING:
-
-            pid = self.pidf.read_pid()
-            sys.stdout.write("pid:{0}\n".format(pid))
-            self.logger.debug("Not going to daemonise process... already running")
-
-            return
-
-        self.logger.debug("About to daemonise process...")
-
-        with context:
-            #print self.logger.parent.handlers
-            pid = self.pidf.read_pid()
-            self.logger.info( "Sucessfully daemonised. Running with PID {pid}\r".format(pid = pid) )
-
-            # write PID to stdout so
-            sys.stdout.write("pid:{0}\n".format(pid))
-            #print "Running with PID {pid}\r".format(pid = self.pidf.read_pid())
-            sys.stdout.flush()
-            self.logger.debug( "cwd = {0}".format( os.getcwd() ) )
-            # code to run goes here
-            # configure_sockethandler()
-            # self.logger.debug("Configured sockethandler correctly")
-            try:
-                tcpserver = LogRecordSocketReceiver()
-            except socket.error as err:
-                if err.errno == errno.EADDRINUSE:
-                    # get and close the socket?
-                    self.logger.exception(e.strerror)
-                else:
-                    self.logger.exception("help")
-                    raise
-            self.logger.debug("About to start TCP server...")
-            #print "About to start TCP server..."
-
-            tcpserver.serve_until_stopped()
-
-    # def configure_log(self):
-    #     filename = 'example.log'
-    #     self.filename = filename
-    #     print "Logging file created at {filename}".format( filename = os.path.abspath(filename) )
-    #     logging.basicConfig(
-    #         filename = filename,
-    #         format = '%(relativeCreated)5d %(name)-15s %(levelname)-8s %(message)s')
-
-    def daemon_stop(self, signum, frame):
-        #print "Stopped Daemon\n"
-        self.logger.info( "Logging daemon stopped. Start up again by sending 'kill -19 {pid}' ".format(pid=self.pidf.read_pid()) )
-        os.kill(self.pidf.read_pid(), signal.SIGSTOP) # SIGINT appears to handle closing of the pid file correctly
-
-    def daemon_terminate(self, signum, frame):
-        #print "Stopped Daemon\n"
-        self.logger.info( "Logging daemon terminated" )
-        os.kill(self.pidf.read_pid(), signal.SIGINT) # SIGINT appears to handle closing of the pid file correctly
+# class loggingDaemon(object):
+#     def __init__(self):
+#         """ Class for the logging daemon process.
+#         Sets up PID file called roachlog.pid in the pidfiledir defined in filesys_config.yaml
+#
+#         """
+#         # Configure logger for the log configuration ;-)
+#         self.logger = logging.getLogger(LOGNAME)
+#
+#         # need a test/check to handle if the pid file is already locked - as this is currently silent if it exisits
+#         self.pidf = daemon.pidfile.TimeoutPIDLockFile( os.path.join( PIDFILEDIR, 'roachlog.pid' ) )
+#
+#         if self.pidf.is_locked() and not self.pidf.i_am_locking():
+#             # two options
+#             # 1. then the file is locked by another process - most likely an error from previous processes
+#             # send warning to log, and break the lock
+#             # 2. the logger is already running
+#             #   check to see if the logger is already running
+#             pid = self.pidf.read_pid()
+#             try:
+#                 psutil.Process( pid )
+#                 self.logger.warning("Logger already running with p-id {0} ".format(pid))
+#                 self.ISRUNNING = 1
+#
+#             except psutil.NoSuchProcess:
+#                 self.logger.warning("p-id not found. Process doesn't appear to be running.")
+#
+#                 self.logger.warning("Logging p-id file was locked by another process")
+#                 self.pidf.break_lock()
+#                 self.logger.debug("Broke existing lock")
+#                 self.ISRUNNING = 0
+#
+#         else:
+#             self.ISRUNNING = 0
+#
+#             #self.pidf.acquire()
+#             #self.logger.debug( "Lock transferred and is being held by me: {0}".format(self.pidf.i_am_locking()) )
+#         # debugging of logging
+#
+#     def run(self):
+#         self.logger.debug("Entered the run function. Configuring daemon context.")
+#
+#         context = daemon.DaemonContext( working_directory=".",
+#                                         umask=0o002, # sets permissions - we might want to change later
+#                                         stdout = sys.stdout,
+#                                         pidfile = self.pidf,
+#                                         files_preserve = [self.logger.parent.handlers[0].stream] )
+#                                         # Note that this last line is crucial to preserve the logging once the process is daemonised!
+#                                         # The .parent seems hackish and not robust, and should probably be changed later
+#
+#         context.signal_map = { signal.SIGTERM: self.daemon_terminate }
+#
+#         if self.ISRUNNING:
+#
+#             pid = self.pidf.read_pid()
+#             sys.stdout.write("pid:{0}\n".format(pid))
+#             self.logger.debug("Not going to daemonise process... already running")
+#
+#             return
+#
+#         self.logger.debug("About to daemonise process...")
+#
+#         with context:
+#             #print self.logger.parent.handlers
+#             pid = self.pidf.read_pid()
+#             self.logger.info( "Sucessfully daemonised. Running with PID {pid}\r".format(pid = pid) )
+#
+#             # write PID to stdout so
+#             sys.stdout.write("pid:{0}\n".format(pid))
+#             #print "Running with PID {pid}\r".format(pid = self.pidf.read_pid())
+#             sys.stdout.flush()
+#             self.logger.debug( "cwd = {0}".format( os.getcwd() ) )
+#             # code to run goes here
+#             # configure_sockethandler()
+#             # self.logger.debug("Configured sockethandler correctly")
+#             try:
+#                 tcpserver = LogRecordSocketReceiver()
+#             except socket.error as err:
+#                 if err.errno == errno.EADDRINUSE:
+#                     # get and close the socket?
+#                     self.logger.exception(e.strerror)
+#                 else:
+#                     self.logger.exception("help")
+#                     raise
+#             self.logger.debug("About to start TCP server...")
+#             #print "About to start TCP server..."
+#
+#             tcpserver.serve_until_stopped()
+#
+#     # def configure_log(self):
+#     #     filename = 'example.log'
+#     #     self.filename = filename
+#     #     print "Logging file created at {filename}".format( filename = os.path.abspath(filename) )
+#     #     logging.basicConfig(
+#     #         filename = filename,
+#     #         format = '%(relativeCreated)5d %(name)-15s %(levelname)-8s %(message)s')
+#
+#     def daemon_stop(self, signum, frame):
+#         #print "Stopped Daemon\n"
+#         self.logger.info( "Logging daemon stopped. Start up again by sending 'kill -19 {pid}' ".format(pid=self.pidf.read_pid()) )
+#         os.kill(self.pidf.read_pid(), signal.SIGSTOP) # SIGINT appears to handle closing of the pid file correctly
+#
+#     def daemon_terminate(self, signum, frame):
+#         #print "Stopped Daemon\n"
+#         self.logger.info( "Logging daemon terminated" )
+#         os.kill(self.pidf.read_pid(), signal.SIGINT) # SIGINT appears to handle closing of the pid file correctly
 
 #  ------  Function definitions ------
 
