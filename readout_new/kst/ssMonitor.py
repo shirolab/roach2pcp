@@ -7,33 +7,72 @@
 #
 
 import pykst as kst
+import glob, os
 #import netCDF4 as nc
 
-def plot_dirfile(client_name = "Test dirfile",
-                 datafile = "./test_dirfile/",
-                 x_axis = "time",
-                 y_axis = "chP_0",
-                 frame_start = -1,
-                 frame_num = -1,
-                 frame_skip = 0):
-                 
+def find_latestfile(dataloc = "/data/dirfiles/",
+                    datapattern = "20??????_??????.dir"):
+    list_of_files = glob.glob(dataloc + datapattern)
+    latest_file = max(list_of_files, key = os.path.getctime)
+    return latest_file
+
+def plot_dirfile_chanIQ(client_name = find_latestfile(),
+                        datafile = find_latestfile(),
+                        x_axis = "INDEX",
+                        chanrange = [0],
+                        frame_start = -1,
+                        frame_num = -1,
+                        frame_skip = 0):
     client = kst.Client(client_name)
     X = client.new_data_vector(datafile,
                                field = x_axis,
                                start = frame_start,
                                num_frames = frame_num,
                                skip = frame_skip)
+    # Go through each channel and overplot I/Q
+    for ii in range(len(chanrange)):
+        y_axis = 'I_' + str(chanrange[ii])
+        Y = client.new_data_vector(datafile,
+                                   field = y_axis,
+                                   start = frame_start,
+                                   num_frames = frame_num,
+                                   skip = frame_skip)
+        c1 = client.new_curve(X,Y)
+        y_axis = 'Q_' + str(chanrange[ii])
+        Y = client.new_data_vector(datafile,
+                                   field = y_axis,
+                                   start = frame_start,
+                                   num_frames = frame_num,
+                                   skip = frame_skip)
+        c2 = client.new_curve(X,Y)
+        p1 = client.new_plot()
+        L1 = client.new_legend(p1)
+        p1.add(c1)
+        p1.add(c2)
+    #p1.set_x_axis_interpretation(interp = 'ctime')
+    return client
+
+def add_plottoclient(client,
+                     new_plot,
+                     datafile = find_latestfile(),
+                     x_axis = "INDEX",
+                     frame_start = -1,
+                     frame_num = -1,
+                     frame_skip = 0):
+    X = client.new_data_vector(datafile,
+                               field = x_axis,
+                               start = frame_start,
+                               num_frames = frame_num,
+                               skip = frame_skip)
     Y = client.new_data_vector(datafile,
-                               field = y_axis,
+                               field = new_plot,
                                start = frame_start,
                                num_frames = frame_num,
                                skip = frame_skip)
     c1 = client.new_curve(X,Y)
     p1 = client.new_plot()
     p1.add(c1)
-    p1.set_x_axis_interpretation(interp = 'ctime')
     return client
-
     
 def plot_mount(client_name="Mount Position"):
     mount = kst.Client(client_name)
@@ -128,5 +167,6 @@ def plot_fakeroach(client_name = "Test fakeroach",
     return client
 
 if __name__ == '__main__':
-    plot_mount()
+    client = plot_dirfile_chanIQ()
+
 
