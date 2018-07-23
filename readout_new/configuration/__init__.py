@@ -10,63 +10,67 @@ parts of the application can call individual configurations as required by using
 # where required should work.
 # Log messages (but handle the configuration of the logger correctly (i.e. we can't log if it hasn't been configured!) )
 
-import os, yaml
-config_dir = os.path.dirname(__file__) # returns this directory, regardless of the cwd
+import os as _os, sys as _sys, yaml as _yaml
+config_dir = _os.path.dirname(__file__) # returns this directory, regardless of the cwd
 
-class roachConfig(object):
-    """Simple container to load in a configuration file. Functionality can, and probably will, be
-    extended at a later date.
-    """
+def load_config_file(config_file):
+    with open(config_file, "r") as f:
+        return _yaml.safe_load(f)
 
-    def __init__(self, config_file):
-        self.config_file = config_file
-        self._reload_config_file()
+def reload_all():
+   """Function to reload all configuration files. The easiest way to this is to
+   reload the module."""
 
-    def _reload_config_file(self):
-        with open(self.config_file, "r") as f:
-            self.config = yaml.safe_load(f)
+   reload(_sys.modules[__name__])
+   print "Module reloaded"
 
-#def reload_all():
-#    """Function to reload all configuration files. The easiest way to this is to
-#    reload the module. How to do that?"""
+############# General configuration #############
+general_config_file = _os.path.join(config_dir, 'general_config.cfg')
 
-############# Hardware configuration #############
-
-general_config_file = os.path.join(config_dir, 'general_config.cfg')
-
-assert os.path.exists(general_config_file)
-general_config = roachConfig(general_config_file)
+assert _os.path.exists(general_config_file)
+#general_config = roachConfig(general_config_file)
+general_config = load_config_file(general_config_file)
 
 ############# Hardware configuration #############
+hardware_config_file = _os.path.join(config_dir, 'hardware_config.cfg')
 
-hardware_config_file = os.path.join(config_dir, 'hardware_config.cfg')
-
-assert os.path.exists(hardware_config_file)
-hardware_config = roachConfig(hardware_config_file)
+assert _os.path.exists(hardware_config_file)
+hardware_config = load_config_file(hardware_config_file)
 
 ############# Filesystem configuration #############
+filesys_config_file = _os.path.join(config_dir, 'filesys_config.cfg')
 
-filesys_config_file = os.path.join(config_dir, 'filesys_config.cfg')
-
-assert os.path.exists(filesys_config_file)
-filesys_config = roachConfig(filesys_config_file)
+assert _os.path.exists(filesys_config_file)
+filesys_config = load_config_file(filesys_config_file)
 
 ############# Logging configuration #############
+logging_config_file = _os.path.join(config_dir, 'logging_config.cfg')
 
-logging_config_file = os.path.join(config_dir, 'logging_config.cfg')
-
-assert os.path.exists(logging_config_file)
-logging_config = roachConfig(logging_config_file)
+assert _os.path.exists(logging_config_file)
+logging_config = load_config_file(logging_config_file)
 
 ############# Network configuration #############
+network_config_file = _os.path.join(config_dir, 'network_config.cfg')
 
-network_config_file = os.path.join(config_dir, 'network_config.cfg')
-
-assert os.path.exists(network_config_file)
-network_config = roachConfig(network_config_file)
+assert _os.path.exists(network_config_file)
+network_config = load_config_file(network_config_file)
 
 ############## Roach configuration ##############
+roach_config_file = _os.path.join(config_dir, 'roach_config.cfg')
 
-roach_config_file = os.path.join(config_dir, 'roach_config.cfg')
-assert os.path.exists(roach_config_file)
-roach_config = roachConfig(roach_config_file)
+assert _os.path.exists(roach_config_file)
+roach_config = load_config_file(roach_config_file)
+
+
+# class roachConfig(object):
+#     """Simple container to load in a configuration file. Functionality can, and probably will, be
+#     extended at a later date.
+#     """
+#
+#     def __init__(self, config_file):
+#         #self.config_file = config_file
+#         self._reload_config_file(config_file)
+#
+#     def _reload_config_file(self, config_file):
+#         with open(config_file, "r") as f:
+#             self.config = _yaml.safe_load(f)

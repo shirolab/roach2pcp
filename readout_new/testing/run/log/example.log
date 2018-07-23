@@ -3302,3 +3302,10 @@ error: [Errno 48] Address already in use
   110 roachreadout.logdaemon WARNING  Logger already running with p-id 73694 
   110 roachreadout.logdaemon DEBUG    Entered the run function. Configuring daemon context.
   111 roachreadout.logdaemon DEBUG    Not going to daemonise process... already running
+1173305029 roachreadout.logdaemon INFO     Logging daemon terminated
+    8 roachreadout.logdaemon INFO     starting loggingDaemon
+   17 roachreadout.logdaemon DEBUG    Entered the run function. Configuring daemon context.
+   17 roachreadout.logdaemon DEBUG    About to daemonise process...
+   29 roachreadout.logdaemon INFO     Sucessfully daemonised. Running with PID 706
+   30 roachreadout.logdaemon DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   31 roachreadout.logdaemon DEBUG    About to start TCP server...
