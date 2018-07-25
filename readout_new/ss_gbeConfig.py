@@ -98,6 +98,91 @@ def writer(q, filename, start_chan, end_chan):
     d.close()
     return
 
+def writer_fullpacket(q, filename, start_chan, end_chan):
+    # Haven't tested recently, but as of a few years ago,
+    # functions passed to multiprocessing need to be top
+    # level functions
+    chan_range = range(start_chan, end_chan + 1)
+    nfo_I = map(lambda z: filename + "/I_" + str(z), chan_range)
+    nfo_Q = map(lambda z: filename + "/Q_" + str(z), chan_range)
+
+    # make the dirfile
+    d = gd.dirfile(filename,gd.CREAT|gd.RDWR|gd.UNENCODED)
+    # add fields
+    I_fields = []
+    Q_fields = []
+    for chan in chan_range:
+        I_fields.append('I_' + str(chan))
+        Q_fields.append('Q_' + str(chan))
+        d.add_spec('I_' + str(chan) + ' RAW FLOAT64 1')
+        d.add_spec('Q_' + str(chan) + ' RAW FLOAT64 1')
+    d.add_spec('PACKETCOUNT' +  ' RAW UINT32 1') # Initialized to 0 with 'GbE_pps_start'
+    d.add_spec('PPSCOUNT'  +  ' RAW UINT32 1') # The number of PPS pulses elapsed since 'pps_start'
+    d.add_spec('CLOCKCYCLES'    +  ' RAW UINT32 1') # Clock cycles elapsed since PPS start
+    d.add_spec('GBECTIME'    +  ' RAW UINT32 1') # Currently a constant placeholder, 42 (in progress)
+    d.add_spec('PACKETINFO'  +  ' RAW UINT32 1') # Register for arbitrary info to be saved into udp packet before transmission.
+    d.add_spec('GPIO'  +  ' RAW UINT8 1') # Register for arbitrary info to be saved into udp packet before transmission.
+    d.close()
+    print 'closed after create format file'
+    d = gd.dirfile(filename,gd.RDWR|gd.UNENCODED)
+    print 'opened dirf again'
+    fo_I = map(lambda z: open(z, "ab"), nfo_I)
+    print 'opened I'
+    fo_Q = map(lambda z: open(z, "ab"), nfo_Q)
+    print 'opened Q'    
+    fo_count = open(filename + "/PACKETCOUNT", "ab")
+    fo_ppscount = open(filename + "/PPSCOUNT", "ab")
+    fo_clockcycles = open(filename + "/CLOCKCYCLES", "ab")
+    fo_gbectime = open(filename + "/GBECTIME", "ab")
+    fo_packinfo = open(filename + "/PACKETINFO", "ab")
+    fo_gpio = open(filename + "/GPIO", "ab")
+    print 'opened all'
+    streaming = True
+    while streaming:
+        print 'about to get'
+        q_data = q.get()
+        print 'got'
+        if q_data is not None:
+            print 'qdata is not none'
+            #order in queue: gbe_ctime, pps_count, clock_cycles, packet_count, packet_info, gpio
+            data, header, gbe_ctime, pps_count, clock_cycles, packet_count, packet_info, gpio = q_data
+            print 'unpacked qdata'
+            for idx, chan in enumerate(range(start_chan, end_chan + 1)):
+                I, Q, __ = parseChanData(chan, data)
+                fo_I[idx].write(struct.pack('d', I))
+                fo_Q[idx].write(struct.pack('d', Q))
+            fo_count.write(struct.pack('I', packet_count))
+            fo_ppscount.write(struct.pack('I', pps_count));
+            fo_clockcycles.write(struct.pack('I', clock_cycles))
+            fo_gbectime.write(struct.pack('I', gbe_ctime))
+            fo_packinfo.write(struct.pack('I', packet_info))
+            fo_gpio.write(struct.pack('B', gpio))
+            print 'finished writing'
+        else:
+            print 'qdata is none'
+            streaming = False
+            fo_count.flush()
+            fo_ppscount.flush()
+            fo_clockcycles.flush()
+            fo_gbectime.flush()
+            fo_packinfo.flush()
+            fo_gpio.flush()
+            for idx in range(len(fo_I)):
+                fo_I[idx].flush()
+                fo_Q[idx].flush()
+
+    print 'about to close'
+    for idx in range(len(fo_I)):
+         fo_I[idx].close()
+         fo_Q[idx].close()
+    fo_count.close()
+    fo_ppscount.close()
+    fo_clockcycles.close()
+    fo_gbectime.close()
+    fo_packinfo.close()
+    fo_gpio.close()
+    d.close()
+    return
 
 class roachDownlink(object):
     """Object for handling Roach2 UDP downlink"""
@@ -233,6 +318,46 @@ class roachDownlink(object):
             return
         return packet, data, header, saddr
 
+    def parsePacketData_fullpacket(self):
+        """Parses packet data, filters reception based on source IP
+           outputs:
+               packet: The original data packet
+               float data: Array of channel data
+               header: String packed IP/ETH header
+               saddr: The packet source address"""
+        packet = self.waitForData()
+        if not packet:
+            print "Non-Roach packet received"
+            return
+        data = np.fromstring(packet[self.header_len:],
+                             dtype = '<i').astype('float')
+        ### Parse Header ###
+        header = packet[:self.header_len]
+        saddr = np.fromstring(header[26:30], dtype = "<I")
+        saddr = sock.inet_ntoa(saddr) # source addr
+        daddr = np.fromstring(header[30:34], dtype = "<I")
+        daddr = sock.inet_ntoa(daddr) # dest addr
+        smac = np.fromstring(header[6:12], dtype = "<B")
+        dmac = np.fromstring(header[:6], dtype = "<B")
+        src = np.fromstring(header[34:36], dtype = ">H")[0]
+        dst = np.fromstring(header[36:38], dtype = ">H")[0]
+        ### Parse packet data ###
+        gbe_ctime = (np.fromstring(packet[-21:-17],dtype = '>I'))
+        # seconds elapsed since 'pps_start'
+        pps_count = (np.fromstring(packet[-17:-13],dtype = '>I'))
+        # milliseconds since pps_start
+        clock_cycles = np.round((np.fromstring(packet[-13:-9],dtype = '>I').astype('float')/256.0e6)*1.0e3,3)
+        # raw packet count since 'pps_start'
+        packet_count = (np.fromstring(packet[-9:-5],dtype = '>I')) 
+        packet_info = (np.fromstring(packet[-5:-1],dtype = '>I'))
+        gpio = (np.fromstring(packet[-1:],dtype = np.uint8))
+
+        ### Filter on source IP ###
+        if (saddr != self.nc['udp_source_ip']):
+            print "Non-Roach packet received"
+            return
+        return packet, data, header, saddr, daddr, smac, dmac, src, dst, gbe_ctime, pps_count, clock_cycles, packet_count, packet_info, gpio
+
     def testDownlink(self, time_interval):
         """Tests UDP link. Monitors data stream for time_interval and checks
            for packet count increment
@@ -324,7 +449,7 @@ class roachDownlink(object):
             # raw packet count since 'pps_start'
             packet_count = (np.fromstring(packet[-9:-5],dtype = '>I')) 
             packet_info_reg = (np.fromstring(packet[-5:-1],dtype = '>I'))
-            #gpio_reg = (np.fromstring(packet[-1:],dtype = '>I'))
+            gpio_reg = (np.fromstring(packet[-1:],dtype = np.uint8))
 	    
 	    if count > 0:
                 if (packet_count - previous_idx != 1):
@@ -341,7 +466,7 @@ class roachDownlink(object):
                 print "ms since last PPS =", fine_ts[0]
                 print "Packet count =", packet_count[0]
 		print "Packet info reg =", packet_info_reg[0]
-                #print "GPIO reg =", gpio_reg[0]
+                print "GPIO reg =", gpio_reg[0]
                 print "I =", I, "| Q =", Q, "| Phase =", phase, "(rad)"
             count += 1
             previous_idx = packet_count
@@ -538,6 +663,62 @@ class roachDownlink(object):
                     continue
                 packet_count = (np.fromstring(packet[-9:-5],dtype = '>I'))
                 write_Q.put((data, packet_count, ts))
+                count += 1
+        except KeyboardInterrupt:
+            #making sure stuff still gets written if ctl-c pressed
+            pass
+        finally:
+            write_Q.put(None) #tell the writing function to finish up
+            pool.close()
+            pool.join()
+
+        return
+
+    def saveDirfile_chanRangePacket(self, time_interval = 1, subfolder = '',
+                                start_chan = 0, end_chan = 0,
+                                stage_coords = False, dirfilename = False):
+        """Saves a dirfile containing the full packet for a range of channels, streamed
+           over a time interval specified by time_interval
+           inputs:
+               float time_interval: Time interval to integrate over, seconds
+               bool stage_coords: Currently deprecated, to be used when beam mapping"""
+        chan_range = range(start_chan, end_chan + 1)
+        data_path = self.fs['savedatadir']
+        rootdir = self.fs['rootdir'] 
+        Npackets = int(np.ceil(time_interval * self.data_rate))
+        self.zeroPPS()
+        save_path = os.path.join(rootdir,data_path, subfolder)
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+        if not dirfilename:
+            filename = os.path.join(rootdir, save_path, time.strftime('%Y%m%d_%H%M%S',time.gmtime())+'.dir')
+        else:
+            filename = save_path + '/' + dirfilename + '.dir'
+
+        print "Saving to ", filename
+        #begin Async stuff
+        manager = mp.Manager()
+        pool = mp.Pool(1)
+        write_Q = manager.Queue()
+        pool.apply_async(writer_fullpacket, (write_Q, filename, start_chan, end_chan))
+
+        try:
+            count = 0
+            while count < Npackets:
+                ts = time.time()
+                try:
+                    packet, data, header, saddr, daddr, smac, dmac, src, dst, gbe_ctime, pps_count, clock_cycles, packet_count, packet_info, gpio = self.parsePacketData_fullpacket()
+                    print 'parsed packet'
+                    print 'packetcount = %i' % packet_count
+                    if not packet:
+                        continue
+                #### Add field for stage coords ####
+                except TypeError:
+                    continue
+                #gbe_ctime, pps_count, clock_cycles, packet_count, packet_info, gpio
+                print 'writing to q' 
+                write_Q.put((data, header, gbe_ctime, pps_count, clock_cycles, packet_count, packet_info, gpio))
+                print 'wrote to q'
                 count += 1
         except KeyboardInterrupt:
             #making sure stuff still gets written if ctl-c pressed

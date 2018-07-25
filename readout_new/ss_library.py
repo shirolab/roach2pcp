@@ -32,6 +32,7 @@ import valon_synth9
 from ss_roachInterface import roachInterface
 from ss_gbeConfig import roachDownlink
 #import kidPy as kp # as-is, kidPy requires general_config etc...
+import timedaemon as td
 
 #################################################################
 # Library functions, available to call at any time
@@ -77,11 +78,13 @@ def systemInit2(fpga, ri, udp, synth):
 
 # Write a test tone list to fpga - either full or single tone (in gen_cfg)
 # Based on kidPy/writeVnaComb
-def writeTestcomb(cw = False):
+def writeTestcomb(ri, fpga, cw = False, tonelist = []):
     try:
         # Make frequency comb
         if cw:
             ri.freq_comb = np.float(gen_cfg['test_freq'])
+        elif len(tonelist)>0:
+            ri.freq_comb = tonelist
         else:
             ri.makeFreqComb()
         # Make sure FFT shift can handle size of comb
@@ -101,9 +104,11 @@ def writeTestcomb(cw = False):
         # Write to QDR
         ri.writeQDR(ri.freq_comb, transfunc = False)
         # Change this to text file in right location
-        np.save(fsy_cfg['tonelistdir'] + '/last_freq_comb.npy', ri.freq_comb)
+        tonesavepath = os.path.join(os.sep, fsy_cfg['tonelistdir'], 'last_freq_comb.npy')
+        np.save(tonesavepath, ri.freq_comb)
         print "Tones written to QDR and saved to", \
-            fsy_cfg['tonelistdir'], "/last_freq_comb.npy."
+            tonesavepath
+            #fsy_cfg['tonelistdir'], "/last_freq_comb.npy."
         if not (fpga.read_int(reg_cfg['dds_shift_reg'])):
             if reg_cfg['DDC_mixerout_bram_reg'] in fpga.listdev():
                 shift = ri.return_shift(0)
@@ -225,14 +230,18 @@ def getSystemState(fpga, ri, udp, synth):
 if __name__ == "__main__":
     # Load config files
     gen_cfg, hdw_cfg, fsy_cfg, lgg_cfg, net_cfg, rch_cfg, reg_cfg = get_config()
-
+    fpga, ri, udp, synth = systemInit1() # Takes us to main_opt in kidPy
+    ri.uploadfpg() # Only if needed
+    fpga, ri, udp, synth = systemInit2(fpga, ri, udp, synth) # Todownlink config
+    writeTestcomb(ri, fpga) # Definitely needed
+    udp.testDownlink(5) # Flush out packets, returns 0 for good
 """
 Standard sequence of events (after __main__ above is done):
 
 fpga, ri, udp, synth = systemInit1() # Takes us to main_opt in kidPy
 ri.uploadfpg() # Only if needed
 fpga, ri, udp, synth = systemInit2(fpga, ri, udp, synth) # Todownlink config
-writeTestcomb() # Definitely needed
+writeTestcomb(ri, fpga) # Definitely needed
 udp.testDownlink(5) # Flush out packets, returns 0 for good
 udp.printChanInfo(0,1) # Inspect packets explicitly
 udp.saveDirfile_chanRangeIQ(time_interval = 10) 

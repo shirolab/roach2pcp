@@ -13,7 +13,47 @@ import configuration; reload(configuration)
 from configuration import roach_config
 MAXCHANNELS = roach_config.config["MAXCHANNELS"]
 
-#class roachdatapacket(object):
+
+def parsePacketData_fullpacket(rawpacket, header_len=42):
+    """Parses packet data, filters reception based on source IP outputs:
+    packet: The original data packet
+       float data: Array of channel data
+       header: String packed IP/ETH header
+       saddr: The packet source address"""
+
+    if not rawpacket:
+        print "Non-Roach packet received"
+        return
+    data = np.fromstring(rawpacket[header_len:], dtype = '<i').astype('float')
+    ### Parse Header ###
+    header = rawpacket[:header_len]
+    saddr = np.fromstring(header[26:30], dtype = "<I")
+    saddr = socket.inet_ntoa(saddr) # source addr
+    daddr = np.fromstring(header[30:34], dtype = "<I")
+    daddr = socket.inet_ntoa(daddr) # dest addr
+    smac = np.fromstring(header[6:12], dtype = "<B")
+    dmac = np.fromstring(header[:6], dtype = "<B")
+    src = np.fromstring(header[34:36], dtype = ">H")[0]
+    dst = np.fromstring(header[36:38], dtype = ">H")[0]
+    ### Parse packet data ###
+    roach_checksum = (np.fromstring(rawpacket[-21:-17],dtype = '>I'))
+    # seconds elapsed since 'pps_start'
+    sec_ts = (np.fromstring(rawpacket[-17:-13],dtype = '>I'))
+    # milliseconds since PPS
+    fine_ts = np.round((np.fromstring(rawpacket[-13:-9],dtype = '>I').astype('float')/256.0e6)*1.0e3,3)
+    # raw packet count since 'pps_start'
+    packet_count = (np.fromstring(rawpacket[-9:-5],dtype = '>I')) 
+    packet_info_reg = (np.fromstring(rawpacket[-5:-1],dtype = '>I'))
+    gpio_reg = (np.fromstring(rawpacket[-1:],dtype = np.uint8))
+    #print gpio_reg
+	### Filter on source IP ###
+    #if (saddr != self.nc['udp_source_ip']):
+    #    print "Non-Roach packet received"
+    #    return
+    return rawpacket, data, header, saddr, daddr, smac, dmac, src, dst, roach_checksum, sec_ts, fine_ts, packet_count, packet_info_reg, gpio_reg
+
+
+
 
 def parse_datapacket(datapacket, numchannels=1021, headerlen = 42, timinglen = 20, out=None):
     """
