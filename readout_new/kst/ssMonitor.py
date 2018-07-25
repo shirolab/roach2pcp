@@ -5,6 +5,7 @@
 #
 # Requires pykst
 #
+# Plots IQ timestreams and FFTs
 
 import pykst as kst
 import glob, os
