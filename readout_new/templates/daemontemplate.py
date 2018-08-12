@@ -300,8 +300,12 @@ class daemonControl(object):
             else:
                 raise
 
-    def terminate(self):
+    def terminate(self, force=False):
         self._send_signal(signal.SIGTERM)
+        if self.is_running():
+            print "still running after attempted termination. Something has gone wrong. Try again with force=True"
+        if self.is_running and force == True:
+            self._send_signal(signal.SIGKILL)
 
     def send_message(self, message):
         # send the usr1 signal to tell the daemon to read the fifo

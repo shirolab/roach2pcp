@@ -5,23 +5,41 @@ logfile
 =====
 
 Provides
-    1. A standalone logging daemon program that reads, parses and handles log entries from
-    multiple processes and writes to a common log file.
-    2. SocketServer and handler that can be used to create a remote logging capability that will handle requests
-    and write to a single file from multiple processes without cooruption.
+
+    1. A standalone logging daemon program that reads, parses and handles log entries from multiple processes and writes to a
+    common log file.
+
+    2. start_logging_daemon() - the function to start the logging daemon. When run, this function will configure the logging according
+    to logging.cfg, instantiate the daemon, and run the logging function. The function then returns a loggingController object that
+    provides a simple interface to the newly spawned process (e.g. terminate, is_running...etc).
+
+    3. get_new_logger(name, level) - a convenience function that configures a new logger that can log to the logging daemon.
 
 Code Overview
 ----------------------------
     - Configures a ThreadedSocketServer to listen on a TCP port (determined from configuration/logging.cfg)
     - A custom LogRecordStreamHandler is attached to the server to handle the received log records
     - Create a custom logDaemon class that is based on the base daemonTemplate from templates/daemontemplate.py
-    -
 
 Comments
 ----------------------------
     - This code uses the stdlib logging module to handle log events
     - The SocketServer code is shamelessly adapated from the cookbook example given here
         https://docs.python.org/2/howto/logging-cookbook.html#sending-and-receiving-logging-events-across-a-network
+
+Usage
+----------------------------
+
+    - To test, play and bugfind, open an ipython console,
+        >>> import pcp
+        >>> logctrl = pcp.logfile.start_logging_daemon()
+
+        # where logctrl is an object that provides a method to interact with the spawned process. See loggingController
+        docs for more infomation.
+
+    - The intended way to use this module will be run it from a higher level script, but this loggingController will be available
+    to the user. In the near future, there will be more functionality added to expand the communication with the logging daemon
+    (see todo list in the source code)
 
 """
 #    - To test this module, you can run it as a standalone program by calling it from the mutltitone directory with
@@ -211,12 +229,14 @@ def configure_logging():
                         level    = logging.DEBUG) # this needs to be changed to be more general
 
     # get the logger for the initialisation
+    print "Logging file created at {filename}".format(filename = os.path.abspath(LOGFILENAME))
+
     logger = logging.getLogger(LOGNAME)
     logger.info('Logging configuration initialised as {logname}'.format(logname=LOGNAME))
     return logger
 
 def initalise_tcpserver(serve_forever=False):
-    
+
     logger = logging.getLogger(LOGNAME)
     #logger.debug('instantiated loggingDaemon succesfully')
     try:

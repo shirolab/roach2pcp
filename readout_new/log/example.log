@@ -978,3 +978,20 @@ error: [Errno 48] Address already in use
 3515361 main.test       INFO     useful information
 3527724 main.test       CRITICAL logger already exists
 3631979 main.test       WARNING  logfile.get_new_logger; a logger with a socketHandler to host localhost on port 9050 already exists
+1875791 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+    9 roachreadout    INFO     Logging configuration initialised as roachreadout
+   10 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   10 loggingdaemon   CRITICAL test message - delete
+   10 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   10 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   10 loggingdaemon   DEBUG    About to daemonise process...
+   23 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 10942
+   24 loggingdaemon   DEBUG    pid written to fifo
+   24 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   24 loggingdaemon   DEBUG     about to enter the main program function 
+   26 roachreadout    DEBUG    Instantiated TCP server successfuly 
+308465 loggingdaemon   INFO     Logging daemon terminated
+308466 loggingdaemon   DEBUG    closed fifo
+308466 loggingdaemon   DEBUG    removed fifo successfuly
+308466 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; received keyboard interupt, stop serving
+308466 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
