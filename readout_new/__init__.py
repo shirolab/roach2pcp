@@ -6,20 +6,18 @@
 
 import os, sys, pkgutil, time
 
-from .configuration import filesys_config
-
-# Define top level directories, and create if they don't already exist ?
-ROOTDIR = filesys_config['rootdir']
-if not os.path.exists(ROOTDIR): os.mkdir(ROOTDIR)
+# Define top level root directory, and alert loudly if it don't already exist
 
 import configuration, templates, kid, synthesizer
-
-
-#import logcontrol, configuration, logdaemon as _logdaemon
-
-# function to reload all packages in current namespace
+import logfile
+# MOVE OUT OF INIT - maybe create file called funcs_convenience
 def reload_all_packages():
+    """Helper function to reload all submodules interactively. Useful for debugging, and
+    reloading configuration files. Currently, only reloads top level packages.
+     """
+
     current_module = sys.modules[__name__]
+
     print "Reloading submodules..."
     for importer, modname, ispkg in pkgutil.iter_modules(current_module.__path__):
         if ispkg:

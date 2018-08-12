@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+<xs:element name="tonefile">
+  <xs:complexType>
+    <xs:sequence>
+    <xs:element name="tonelist" maxOccurs="unbounded">
+      <xs:complexType>
+        <xs:sequence>
+          <xs:element name="KID" maxOccurs="unbounded">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="freq" type="xs:float"/>
+                <xs:element name="freqUnit">
+                  <xs:simpleType>
+                    <xs:restriction base="xs:string">
+                     <xs:enumeration value="Hz"/>
+                      <xs:enumeration value="kHz"/>
+                      <xs:enumeration value="MHz"/>
+                      <xs:enumeration value="GHz"/>
+                    </xs:restriction>
+                  </xs:simpleType>
+                </xs:element>
+                <xs:element name="power" type="xs:float"/>
+                <xs:element name="powerUnit">
+                  <xs:simpleType>
+                    <xs:restriction base="xs:string">
+                     <xs:enumeration value="dBW"/>
+                     <xs:enumeration value="dBm"/>
+                    </xs:restriction>
+                  </xs:simpleType>
+                </xs:element>
+                <xs:element name="Qfactor" type="xs:float"/>
+              </xs:sequence>
+              <xs:attribute name="ID" type="xs:string" use="required"/>
+            </xs:complexType>
+          </xs:element>
+        </xs:sequence>
+        <xs:attribute name="ID" type="xs:positiveInteger" use="required"/>
+        <xs:attribute name="date" type="xs:date"/>
+        <xs:attribute name="temperature" type="xs:float" use="required"/>
+        <xs:attribute name="temperatureUnit" use="required">
+          <xs:simpleType>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="K"/>
+              <xs:enumeration value="mK"/>
+            </xs:restriction>
+          </xs:simpleType>
+        </xs:attribute>
+      </xs:complexType>
+    </xs:element>
+    </xs:sequence>
+    <xs:attribute name="arrayID" type="xs:string" use="required"/>
+  </xs:complexType>
+</xs:element>
+</xs:schema>
