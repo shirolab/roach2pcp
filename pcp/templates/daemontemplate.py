@@ -28,7 +28,7 @@ Comments
 #------------------------------------------------------------------------------------------------------------
 
 # stdlib imports
-import os, sys, psutil, types, select, signal, struct, logging, logging.handlers
+import os, sys, psutil, types, time, select, signal, struct, logging, logging.handlers
 # imports for daemon creation
 import daemon, daemon.pidfile
 
@@ -302,6 +302,7 @@ class daemonControl(object):
 
     def terminate(self, force=False):
         self._send_signal(signal.SIGTERM)
+        time.sleep(0.5)
         if self.is_running():
             print "still running after attempted termination. Something has gone wrong. Try again with force=True"
         if self.is_running and force == True:

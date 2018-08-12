@@ -45,6 +45,7 @@ Usage
 #    - To test this module, you can run it as a standalone program by calling it from the mutltitone directory with
 #    "python -m readout_new.logfile" which will run the script with __name__ = __main__ .
 
+
 # TODO
 # clean up socketserver on exit
 # implement rotating file handler for each day?
@@ -272,7 +273,7 @@ def start_logging_daemon():
 
     """
 
-    command_to_run = ["python" , "-m", "readout_new.logfile"]
+    command_to_run = ["python" , "-m", "pcp.logfile"]
     subp = _subprocess.Popen(command_to_run, stdout = sys.stdout)
 
     time.sleep(1) # wait a second for process to be generated
