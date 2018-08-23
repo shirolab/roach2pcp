@@ -8,10 +8,11 @@
 import sys, socket, time, string, struct # stdlib imports
 from random import choice
 import numpy as np
+import pcp; from pcp.lib import lib_datapackets
 
 SERVERPORT = 12345 # server port does not appear to be used in SG's code
 DESTADDR = "localhost"
-DESTPORT = 12347
+DESTPORT = 12348
 
 ROACHUDPADDR = "192.168.40.1" # this mimics the source address contained in the packet, used to filter received packets
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -24,26 +25,21 @@ PACKETLEN =  DATALEN + HDRLEN
 
 print PACKETLEN
 
-hdr = "".join(choice(string.lowercase) for i in range(HDRLEN)) # generate random header with length 42
-hdr = hdr[:26] + socket.inet_aton(ROACHUDPADDR) + hdr[30:] # insert the source address at the correct position
-
 try:
     while True:
         time.sleep(1)
 
-        data = np.random.randint(1000, size = 1024*2).astype(np.float32)
-        # i am presuming the ntp timestamp has two 32bit ints one for sec, other for sub second accuracy
-        # timestamp in real packets might be at the end? possibly 4 bytes? TODO Confirm this with SG
-        data[:2] = divmod(time.time(), 1)
-        packet = hdr + data.tostring() # convert data to bytes and join to finalise packet
-
         print "Sending packet to {ip} at port {port}".format(ip=DESTADDR, port=DESTPORT)
 
+        packet = pcp.lib.lib_datapackets.gen_fake_roach_packet(use_test_packet=True)
+
         s = server_socket.sendto(packet, (DESTADDR, DESTPORT))
+
         print s
+
 except KeyboardInterrupt:
     print "Exiting..."
-    sys.exit(0)
+    #sys.exit(0)
 
 
 # Notes

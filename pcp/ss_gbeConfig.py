@@ -1,14 +1,14 @@
-# This software is a work in progress. It is a console interface designed 
-# to operate the BLAST-TNG ROACH2 firmware. 
+# This software is a work in progress. It is a console interface designed
+# to operate the BLAST-TNG ROACH2 firmware.
 #
 # Copyright (C) January, 2018  Gordon, Sam <sbgordo1@asu.edu>
 # Author: Gordon, Sam <sbgordo1@asu.edu>
-# 
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -64,7 +64,7 @@ def writer(q, filename, start_chan, end_chan):
     d.add_spec('time RAW FLOAT64 1')
     d.add_spec('packet_count RAW FLOAT64 1')
     d.close()
-    
+
     d = gd.dirfile(filename,gd.RDWR|gd.UNENCODED)
     fo_I = map(lambda z: open(z, "ab"), nfo_I)
     fo_Q = map(lambda z: open(z, "ab"), nfo_Q)
@@ -156,12 +156,12 @@ class roachDownlink(object):
         time.sleep(0.05)
         self.fpga.write_int(self.regs['udp_srcip_reg'], self.udp_src_ip)
         time.sleep(0.05)
-        
+
         self.fpga.write_int(self.regs['udp_destip_reg'], self.udp_dest_ip)
         time.sleep(0.1)
         self.fpga.write_int(self.regs['udp_destport_reg'], self.udp_dst_port)
         time.sleep(0.1)
-        
+
         self.fpga.write_int(self.regs['udp_srcport_reg'], self.udp_src_port)
         time.sleep(0.1)
         self.fpga.write_int(self.regs['udp_start_reg'], 0)
@@ -308,7 +308,7 @@ class roachDownlink(object):
             except TypeError:
                 continue
             if not np.size(data):
-                continue 
+                continue
             daddr = np.fromstring(header[30:34], dtype = "<I")
             daddr = sock.inet_ntoa(daddr) # dest addr
             smac = np.fromstring(header[6:12], dtype = "<B")
@@ -322,10 +322,10 @@ class roachDownlink(object):
             # milliseconds since PPS
             fine_ts = np.round((np.fromstring(packet[-13:-9],dtype = '>I').astype('float')/256.0e6)*1.0e3,3)
             # raw packet count since 'pps_start'
-            packet_count = (np.fromstring(packet[-9:-5],dtype = '>I')) 
+            packet_count = (np.fromstring(packet[-9:-5],dtype = '>I'))
             packet_info_reg = (np.fromstring(packet[-5:-1],dtype = '>I'))
             #gpio_reg = (np.fromstring(packet[-1:],dtype = '>I'))
-	    
+
 	    if count > 0:
                 if (packet_count - previous_idx != 1):
                     print "Warning: Packet index error"
@@ -404,7 +404,7 @@ class roachDownlink(object):
         return 0
 
     def saveDirfile_adcIQ(self, time_interval):
-        data_path = self.gc['DIRFILE_SAVEPATH'] 
+        data_path = self.gc['DIRFILE_SAVEPATH']
         sub_folder = raw_input("Insert subfolder name (e.g. single_tone): ")
         Npackets = np.ceil(time_interval * self.data_rate)
         Npackets = np.int(np.ceil(Npackets/1024.))
@@ -506,7 +506,7 @@ class roachDownlink(object):
                float time_interval: Time interval to integrate over, seconds
                bool stage_coords: Currently deprecated, to be used when beam mapping"""
         chan_range = range(start_chan, end_chan + 1)
-        data_path = self.fs['savedatadir'] 
+        data_path = self.fs['savedatadir']
         Npackets = int(np.ceil(time_interval * self.data_rate))
         self.zeroPPS()
         save_path = os.path.join(data_path, subfolder)
@@ -548,4 +548,3 @@ class roachDownlink(object):
             pool.join()
 
         return
-

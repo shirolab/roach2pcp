@@ -8,7 +8,6 @@ parts of the application can call individual configurations as required by using
 # TODO
 # Log messages (but handle the configuration of the logger correctly (i.e. we can't log if it hasn't been configured!) )
 
-
 # import configurations here (might be able to do this dynamically using importlib and inspect for variables)
 import os as _os
 import lib_config as _lib_config

@@ -14,17 +14,34 @@
 #       - daemon tracker - associated information regarding the daemon packet receiving daemonself.
 #           - this should have a live status update of whether saving is on/off...etc
 
-class roachInterface(object):
+from .configuration import filesys_config, roach_config
+
+import casperfpga
+class roachContainer(object):
     def __init__(self, roachid):
 
         self.roachid  = roachid
 
-        self.fpga     = None
-        self.tonelist = None
-        self.daemon   = None
-        self.synth    = None
+        self.fpga            = None
+        self.tonelist        = None
+        self.writer_daemon   = None
+        self.synth           = None
 
-    
+        # get configuration for specific roach
+
+        # create directory for data saving
+        self.savedatadir  = None
+
+    def _initialise_fpga():
+        try:
+            self.fpga = casperfpga.katcp_fpga.KatcpFpga(ppc_ipaddr, timeout = 120.)
+        except RuntimeError:
+            # bad things have happened, and nothing else should proceed
+            fpga = None
+
+
+
+
 
 
 

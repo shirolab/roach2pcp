@@ -70,7 +70,7 @@ import signal, daemon, daemon.pidfile
 # imports for socket server
 import socket, SocketServer
 # import daemon template and controller
-from .templates.daemontemplate import daemonTemplate, daemonControl
+from .lib.daemontemplate import daemonTemplate, daemonControl
 
 # Load configuration files
 from .configuration import filesys_config, logging_config
@@ -179,15 +179,17 @@ class LogRecordSocketReceiver(SocketServer.ThreadingTCPServer):
                 if rd:
                     self.handle_request() # is a method in ThreadingTCPServer that uses the handler to process the request
 
-            except KeyboardInterrupt:
-                self.logger.info("tcpserver.serve_until_stopped; received keyboard interupt, stop serving")
-                break
             # catch the system call interupt when using daemon
             except select.error as err:
                 if err.args[0] == 4:
                     continue
                 else:
                     self.logger.exception("tcpserver.serve_until_stopped; error reading from select")
+
+            # catch signal.SIGINT sent from main process to shut down
+            except KeyboardInterrupt:
+                self.logger.info("tcpserver.serve_until_stopped; received keyboard interupt, stop serving")
+                break
 
         # close the logger appropriately
         logging.shutdown()
@@ -203,10 +205,15 @@ class logDaemon(daemonTemplate):
     def __init__(self, daemonname):
         super(logDaemon, self).__init__(daemonname) # initalise the parent class
 
+    #@self._process_message(message)
+    # def _process_message(self, message):
+
 # Class to create the controller for logging daemon process
 class loggingController(daemonControl):
     def __init__(self, daemonname):
         super(loggingController, self).__init__(daemonname) # initalise the parent class
+
+    # implement log level controller in here - it will write update local loggers as well as in the logging daemon
 
 #  ------  Function definitions ------
 

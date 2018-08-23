@@ -8,7 +8,7 @@ import os, sys, pkgutil, time
 
 # Define top level root directory, and alert loudly if it don't already exist
 
-import configuration, templates, kid, synthesizer
+import configuration, lib, kid, synthesizer
 import logfile
 # MOVE OUT OF INIT - maybe create file called funcs_convenience
 def reload_all_packages():

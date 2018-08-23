@@ -188,7 +188,7 @@ class daemonTemplate(object):
 
         except select.error:
             if err.args[0] == 9:
-                self.logger.warning( "caught select error 9" )# how to fix?
+                self.logger.warning( "caught select error 9" )# bad file descriptor - how to fix?
                 return
             else:
                 raise
