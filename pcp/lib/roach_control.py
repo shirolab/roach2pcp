@@ -5,7 +5,7 @@ def create_new_dirfile(roachcontainer):
     pass
     #return roachcontainer.dirfilename
 
-def do_lo_sweep_single(roachcontainer, tag = "cal"):
+def lo_sweep_single(roachcontainer, tag = "cal"):
     """Given a roach """
 
     # set the datatag

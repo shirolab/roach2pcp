@@ -8,8 +8,28 @@ import os, sys, pkgutil, time
 
 # Define top level root directory, and alert loudly if it don't already exist
 
-import configuration, lib, kid, synthesizer
+print ( \
+"""
+Welcome to the Python Control Program for readout of kinetic inductance detectors
+using Roach2 control boards.
+
+Loading submodules...
+
+"""
+)
+
+
+import configuration, lib, kid, synthesizer, unittests
 import logfile
+
+
+
+
+
+
+
+
+
 # MOVE OUT OF INIT - maybe create file called funcs_convenience
 def reload_all_packages():
     """Helper function to reload all submodules interactively. Useful for debugging, and

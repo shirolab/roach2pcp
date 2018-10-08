@@ -1,19 +1,19 @@
-# Copyright (C) 2011 Associated Universities, Inc. Washington DC, USA.
-# 
+ # Copyright (C) 2011 Associated Universities, Inc. Washington DC, USA.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
 # WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 # General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-# 
+#
 # Correspondence concerning GBT software should be addressed as follows:
 #    GBT Operations
 #    National Radio Astronomy Observatory
@@ -94,7 +94,7 @@ class valon5008:
             # self.conn.setBaudrate(self.baud_requested)
             # print 'Now using %d baud'%self.conn.getBaudrate()
             # self.clearSerialBuffer()
-        
+
         # self.activeSource       = None
         # self.s1 = valon5009Src(1,self)
         # self.s2 = valon5009Src(2,self)
@@ -149,16 +149,16 @@ class valon5008:
         ncount, frac, mod, dbf = self._unpack_freq_registers(bytes)
         EPDF = self._getEPDF(synth)
         return (ncount + float(frac) / mod) * EPDF / dbf
-        
+
     def get_frequency_a(self):
         return self.get_frequency(SYNTH_A)
 
     def get_frequency_b(self):
         return self.get_frequency(SYNTH_B)
-        
+
     def get_frequencies(self):
         return self.get_frequency_a(),self.get_frequency_b()
-        
+
     def set_frequency(self, synth, freq, chan_spacing = 10.):
         """
         Sets the synthesizer to the desired frequency
@@ -219,9 +219,9 @@ oo
 
     def set_frequency_a(self, freq, chan_spacing = 10.):
         return self.set_frequency(SYNTH_A, freq, chan_spacing=chan_spacing)
-        
+
     def set_frequency_b(self, freq, chan_spacing = 10.):
-        return self.set_frequency(SYNTH_B, freq, chan_spacing=chan_spacing)    
+        return self.set_frequency(SYNTH_B, freq, chan_spacing=chan_spacing)
 
     def get_reference(self):
         """
@@ -282,13 +282,13 @@ oo
         rfl = (reg4 >> 3) & 0x03
         rf_level = rfl_table.get(rfl)
         return rf_level
-        
+
     def get_rf_level_a(self):
         return self.get_rf_level(SYNTH_A)
 
     def get_rf_level_b(self):
         return self.get_rf_level(SYNTH_B)
-    
+
     def get_rf_levels(self):
         return self.get_rf_level_a(),self.get_rf_level_b()
 
@@ -336,7 +336,7 @@ oo
 
     def set_rf_level_b(self,rf_level):
         return self.set_rf_level(SYNTH_B,rf_level)
-        
+
     def get_options(self, synth):
         """
         Get options tuple:
@@ -367,31 +367,31 @@ oo
         half = (reg2 >> 24) & 1
         r = (reg2 >> 14) & 0x03ff
         return double, half, r, low_spur
-        
+
     def get_options_a(self):
         return self.get_options(SYNTH_A)
-        
+
     def get_options_b(self):
         return self.get_options(SYNTH_B)
 
     def set_options(self, synth, double = 0, half = 0, r = 1, low_spur = 0):
         """
         Set options.
-        
+
         double and half both True is same as both False.
 
         @param synth : synthesizer base address
         @type  synth : int
-        
+
         @param double : if 1, reference frequency is doubled; default 0
         @type  double : int
-        
+
         @param half : if 1, reference frequency is halved; default 0
         @type  half : int
-        
+
         @param r : reference frequency divisor; default 1
         @type  r : int
-        
+
         @param low_spur : if 1, minimizes PLL spurs;
                           if 0, minimizes phase noise; default 0
         @type  low_spur : int
@@ -410,7 +410,7 @@ oo
         #self._verify_checksum(bytes, checksum)
         reg0, reg1, reg2, reg3, reg4, reg5 = struct.unpack('>IIIIII', bytes)
         reg2 &= 0x9c003fff
-        reg2 |= (((low_spur & 1) << 30) | ((low_spur & 1) << 29) | 
+        reg2 |= (((low_spur & 1) << 30) | ((low_spur & 1) << 29) |
                  ((double & 1) << 25) | ((half & 1) << 24) |
                  ((r & 0x03ff) << 14))
         bytes = struct.pack('>BIIIIII', 0x00 | synth,
@@ -529,7 +529,7 @@ oo
         mask = (synth << 1) or 0x20
         lock = struct.unpack('>B', bytes)[0] & mask
         return lock > 0
-        
+
     def get_phase_locks(self):
         return self.get_phase_lock(SYNTH_A),self.get_phase_lock(SYNTH_B)
 
@@ -552,7 +552,7 @@ oo
             self.conn.close()
         #self._verify_checksum(bytes, checksum)
         return bytes
-    
+
     def get_labels(self):
         return self.get_label(SYNTH_A),self.get_label(SYNTH_B)
 
@@ -565,7 +565,7 @@ oo
 
         @param label : up to 16 bytes of text
         @type  label : str
-        
+
         @return: True if success (bool)
         """
         self.conn.open()

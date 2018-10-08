@@ -1030,3 +1030,85 @@ error: [Errno 48] Address already in use
  9314 loggingdaemon   DEBUG    removed fifo successfuly
  9315 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; received keyboard interupt, stop serving
  9315 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+  517 roachreadout    INFO     Logging configuration initialised as roachreadout
+  520 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+  521 loggingdaemon   CRITICAL test message - delete
+  521 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+  521 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+  521 loggingdaemon   DEBUG    About to daemonise process...
+  534 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 3926
+  534 loggingdaemon   DEBUG    pid written to fifo
+  534 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+  534 loggingdaemon   DEBUG     about to enter the main program function 
+  535 roachreadout    DEBUG    Instantiated TCP server successfuly 
+  362 roachreadout    INFO     Logging configuration initialised as roachreadout
+  362 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+  362 loggingdaemon   CRITICAL test message - delete
+  362 loggingdaemon   WARNING  Logging p-id file was locked by another process
+  362 loggingdaemon   WARNING  Logger already running with p-id 3926 
+  362 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+  362 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+  362 loggingdaemon   INFO     Not going to daemonise process... process appears to be already running
+348849 loggingdaemon   INFO     Logging daemon terminated
+348849 loggingdaemon   DEBUG    closed fifo
+348849 loggingdaemon   DEBUG    removed fifo successfuly
+348849 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; received keyboard interupt, stop serving
+348850 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+  364 roachreadout    INFO     Logging configuration initialised as roachreadout
+  365 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+  365 loggingdaemon   CRITICAL test message - delete
+  365 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+  365 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+  365 loggingdaemon   DEBUG    About to daemonise process...
+  381 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 3980
+  382 loggingdaemon   DEBUG    pid written to fifo
+  382 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+  382 loggingdaemon   DEBUG     about to enter the main program function 
+  384 roachreadout    DEBUG    Instantiated TCP server successfuly 
+216237 loggingdaemon   INFO     received user signal. processing request
+216237 loggingdaemon   DEBUG    command received: test
+222837 loggingdaemon   INFO     Logging daemon terminated
+222837 loggingdaemon   DEBUG    closed fifo
+222837 loggingdaemon   DEBUG    removed fifo successfuly
+222838 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; received keyboard interupt, stop serving
+222838 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+  358 roachreadout    INFO     Logging configuration initialised as roachreadout
+  359 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+  359 loggingdaemon   CRITICAL test message - delete
+  359 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+  359 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+  359 loggingdaemon   DEBUG    About to daemonise process...
+  372 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 3995
+  372 loggingdaemon   DEBUG    pid written to fifo
+  372 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+  373 loggingdaemon   DEBUG     about to enter the main program function 
+  373 roachreadout    DEBUG    Instantiated TCP server successfuly 
+  351 roachreadout    INFO     Logging configuration initialised as roachreadout
+  352 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+  352 loggingdaemon   CRITICAL test message - delete
+  352 loggingdaemon   WARNING  Logging p-id file was locked by another process
+  352 loggingdaemon   WARNING  Logger already running with p-id 3995 
+  352 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+  352 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+  352 loggingdaemon   INFO     Not going to daemonise process... process appears to be already running
+518876 loggingdaemon   INFO     Logging daemon terminated
+518876 loggingdaemon   DEBUG    closed fifo
+518876 loggingdaemon   DEBUG    removed fifo successfuly
+518877 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; received keyboard interupt, stop serving
+518877 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+  354 roachreadout    INFO     Logging configuration initialised as roachreadout
+  355 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+  355 loggingdaemon   CRITICAL test message - delete
+  355 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+  355 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+  355 loggingdaemon   DEBUG    About to daemonise process...
+  371 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 4072
+  372 loggingdaemon   DEBUG    pid written to fifo
+  372 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+  373 loggingdaemon   DEBUG     about to enter the main program function 
+  375 roachreadout    DEBUG    Instantiated TCP server successfuly 
+30526 loggingdaemon   INFO     Logging daemon terminated
+30526 loggingdaemon   DEBUG    closed fifo
+30527 loggingdaemon   DEBUG    removed fifo successfuly
+30527 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; received keyboard interupt, stop serving
+30528 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown

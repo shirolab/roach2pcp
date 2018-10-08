@@ -278,7 +278,6 @@ class daemonControl(object):
         return cmd
 
     def _send_signal(self, signum):
-
         os.kill(self.pid, signum)
 
     def _get_pid(self):

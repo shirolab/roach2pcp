@@ -11,6 +11,7 @@ config_dir = _os.path.dirname(__file__) # returns this directory, regardless of 
 
 def load_config_file(config_file):
     with open(config_file, "r") as f:
+        print( "Loaded {0}".format(config_file) )
         return _yaml.safe_load(f)
 
 #NOTE [20180728] that this has now been superseeded by a reload function within the main directory (left for now jic, will remove later)

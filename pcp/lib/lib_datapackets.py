@@ -13,15 +13,14 @@ from .. import configuration as configuration; reload(configuration)
 # read in relevant config files
 
 from ..configuration import roach_config
-MAXCHANNELS = roach_config["MAXCHANNELS"]
 
 # parse configuration input to get slice objects and list for data
 
-ntones        = configuration.roach_config["PACKETSTRUCT"]["ntones"]
-ntones = 7
-header_len     = configuration.roach_config["PACKETSTRUCT"]["header_len"]
-aux_field_cfg = configuration.roach_config["PACKETSTRUCT"]["aux_field_cfg"]
-kid_field_cfg = configuration.roach_config["PACKETSTRUCT"]["kid_field_cfg"]
+ntones        = configuration.roach_config["packet_structure"]["ntones"]
+#ntones = 7 # for testing
+header_len     = configuration.roach_config["packet_structure"]["header_len"]
+aux_field_cfg = configuration.roach_config["packet_structure"]["aux_field_cfg"]
+kid_field_cfg = configuration.roach_config["packet_structure"]["kid_field_cfg"]
 
 kidentry_type       = kid_field_cfg["entry_type"]
 kid_field_datatype  = kid_field_cfg["field_datatype"]

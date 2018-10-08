@@ -1,12 +1,25 @@
 #!/usr/bin/env python
 
-# initliation script.
-# This script is the first code to be run after all hardware in connected and switched on
+# Init script used to configure and make available the synthesiser modules
 
-# the goal of this is to read information from a set of configuration files that contain all the
-# neccessary information regarding Roaches/synths/ip addresses/ports...etc.
-# -
+# Each fie
+import sys as _sys, os as _os, inspect as _inspect
 
+import synthclasses
 
+_cwd = _os.path.dirname(__file__)
 
-# A helper script to check things are connected would be useful here when setting up
+_modlist = [ _os.path.join(_cwd, _f) for _f in _os.listdir(_cwd) if _os.path.splitext(_f)[-1] == ".py" ]
+__all__ = [ _os.path.basename(_f)[:-3] for _f in _modlist if _os.path.isfile(_f) and not _f.endswith('__init__.py')]
+
+print _modlist
+# import all modules found by __all__
+
+# create a dictionary of available synth modules that will be used by lib_hardware
+# to create synth objects according to the information in the configuration files
+SYNTH_HW_DICT = {}
+
+for classname, synthobj in _inspect.getmembers(synthclasses, _inspect.isclass):
+    for modelnum in getattr(synthobj, "MODELNUMS"):
+        # join vendor and model numbers (all lower case)
+        SYNTH_HW_DICT[ "_".join( (getattr(synthobj, "VENDOR"), str(modelnum).lower() ) )] = synthobj

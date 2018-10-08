@@ -212,7 +212,6 @@ class logDaemon(daemonTemplate):
 class loggingController(daemonControl):
     def __init__(self, daemonname):
         super(loggingController, self).__init__(daemonname) # initalise the parent class
-
     # implement log level controller in here - it will write update local loggers as well as in the logging daemon
 
 #  ------  Function definitions ------
@@ -242,6 +241,7 @@ def configure_logging():
     logger = logging.getLogger(LOGNAME)
     logger.info('Logging configuration initialised as {logname}'.format(logname=LOGNAME))
     return logger
+
 
 def initalise_tcpserver(serve_forever=False):
 
@@ -277,15 +277,20 @@ def start_logging_daemon():
     Returns
     -------
 
-
     """
-
+     # runs the __main__ function in this script. -m runs this as a module so that relative imports are handled correctly
     command_to_run = ["python" , "-m", "pcp.logfile"]
-    subp = _subprocess.Popen(command_to_run, stdout = sys.stdout)
+
+    # Therefore, this will import a new separe instance of pcp, read all the configuration files and start this script. This could be
+    # done more elegantly, but as the log daemon is designed to be a separate independent process, this should work fine
+
+    # Temporarily redirect stdout to silence the introductory welcome messages upon importing this module (there might be a better way)
+    subp = _subprocess.Popen(command_to_run, stdout = open(os.devnull, 'w') ) #sys.stdout)
 
     time.sleep(1) # wait a second for process to be generated
     subp.communicate() # kills zombie process left behind when daemon process spawns
 
+    # return an instance of the loggingController class that allows simple communication with the daemon process 
     return loggingController(daemonname)
 
 
@@ -337,9 +342,9 @@ def get_new_logger(logname = "", initial_log_level = logging.NOTSET):
     return logger
 
 if __name__ =="__main__":
-
+    print "running main"
     # this is the main script that is run in start_logging_daemon() to spawn the daemon process
     logger = configure_logging()
     # change this to logDaemon
     d = daemonTemplate(daemonname, loglevel = logging.INFO)
-    d.run( initalise_tcpserver, True, stdout = sys.stdout, stderr = sys.stdout )
+    d.run( initalise_tcpserver, True, stdout = sys.stdout, stderr = sys.stdout ) # daemonTemplate call signature should be changed here for clairty

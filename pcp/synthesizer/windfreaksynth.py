@@ -7,6 +7,9 @@ import serial
 import serial.tools.list_ports
 import time
 
+VENDOR = 'windfreaktech'
+MODELNUMS = ["synthhd"]
+
 #serial port snrs for device identification
 hwid_snrs = ['4294967295']
 dev_snrs = ['656']
@@ -27,7 +30,7 @@ class SynthHDDevice(object):
 			self._openConnection()
 			self.getStatus()
 		print 'OK :)'
-		
+
 	def _findSerialPort(self):
 		comports = serial.tools.list_ports.comports()
 		for port, desc, hwid in comports:
@@ -35,20 +38,20 @@ class SynthHDDevice(object):
 				return port
 		print 'Error, device not found'
 		return None
-	
+
 	def _openConnection(self):
 		self.conn.open()
-	
+
 	def _closeConnection(self):
 		self.conn.close()
-		
+
 	def _clearSerialBuffer(self):
 		self.conn.readlines()
-	
+
 	def getStatus(self):
 		self.status = 'Not implemented yet'
 		return self.status
-	
+
 	def sendCommand(self,command,clearbuf=True,getResponse=True):
 		if clearbuf: self._clearSerialBuffer()
 		self.conn.write(command)
@@ -71,14 +74,14 @@ class SynthHDDevice(object):
 
 	def getHelp(self):
 		print self.sendCommand('?')
-	
+
 	def getControlChannel(self):
 		return self.sendCommand('C?')
 	def setControlChannel(self,value):
 		value = int(value)
 		assert value in [0,1], 'value error'
 		return self.sendCommand('C%d'%value)
-	
+
 	def getFrequency(self):
 		return float(self.sendCommand('f?'))*1e6
 	def setFrequency(self,value):
@@ -89,7 +92,7 @@ class SynthHDDevice(object):
 		assert value>=self.FREQMIN, 'value too low'
 		assert value<=self.FREQMAX, 'value too high'
 		self.sendCommandFast('f%.8f'%(value/1e6))
-		
+
 	def getPower(self):
 		return float(self.sendCommand('W?'))
 	def setPower(self,value):
@@ -145,12 +148,12 @@ class SynthHDDevice(object):
 	#T) Autocal On(1) or Off(0) 1, 1
 	#b) Feedback select Fundamental(1) or Divided(0) 0, 0
 	#i) Mathematical spacing (Hz) 100.000, 100.000
-	
+
 	def getVersionFW(self):
 		return self.sendCommand('v0')
 	def getVersionHW(self):
 		return self.sendCommand('v1')
-	
+
 	def _programAllSettingsToEEPROM(self):
 		self.sendCommand('e')
 
@@ -183,7 +186,7 @@ class SynthHDDevice(object):
 		assert value>=self.FREQMIN, 'value too low'
 		assert value<=self.FREQMAX, 'value too high'
 		self.sendCommand('l%.8f'%(value/1e6))
-	
+
 	def getSweepUpperFreq(self):
 		return float(self.sendCommand('u?'))*1e6
 	def setSweepUpperFreq(self,value):
@@ -195,38 +198,38 @@ class SynthHDDevice(object):
 		return float(self.sendCommand('s?'))*1e6
 	def setSweepStepSize(self,value):
 		self.sendCommand('s%.8f'%(value/1e6))
-	
+
 	def getSweepStepTime(self):
 		return float(self.sendCommand('t?'))*1e3
 	def setSweepStepTime(self,value):
-		assert value>=0.004 and value<=10.000 
+		assert value>=0.004 and value<=10.000
 		self.sendCommand('t%.3f'%(value/1e3))
-		
+
 	def getSweepAmplitudeLow(self):
 		return float(self.sendCommand('[?'))
 	def setSweepAmplitudeLow(self,value):
-		assert value>=-60 and value<=20 
+		assert value>=-60 and value<=20
 		self.sendCommand('[%.3f'%(value))
-		
+
 	def getSweepAmplitudeHigh(self):
 		return float(self.sendCommand(']?'))
 	def setSweepAmplitudeHigh(self,value):
-		assert value>=-60 and value<=20 
+		assert value>=-60 and value<=20
 		self.sendCommand(']%.3f'%(value))
-		
+
 	def getSweepDirection(self):
 		#(up=1 / down=0)
 		return int(self.sendCommand('^?'))
 	def setSweepDirection(self,value):
 		#(up=1 / down=0)
-		assert value in [1,0] 
+		assert value in [1,0]
 		self.sendCommand('^%d'%(value))
-	
+
 	def getSweepDifferentialFrequencySeparation(self):
 		return float(self.sendCommand('k?'))*1e6
 	def setSweepDifferentialFrequencySeparation(self,value):
 		self.sendCommand('k%.8f'%(value/1e6))
-	
+
 	def getSweepDifferentialMethod(self):
 		#(0=off, 1=ChA-DiffFreq, 2=ChA+DiffFreq)
 		return int(self.sendCommand('n?'))
@@ -234,7 +237,7 @@ class SynthHDDevice(object):
 		#(0=off, 1=ChA-DiffFreq, 2=ChA+DiffFreq)
 		assert value in [0,1,2]
 		self.sendCommand('n%d'%(value))
-	
+
 	def getSweepType(self):
 		#(linear=0 / tabular=1)
 		return int(self.sendCommand('X?'))
@@ -242,7 +245,7 @@ class SynthHDDevice(object):
 		#(linear=0 / tabular=1)
 		assert value in [0,1]
 		self.sendCommand('X%d'%value)
-	
+
 	def getSweepRun(self):
 		#(on=1 / off=0)
 		return int(self.sendCommand('g?'))
@@ -250,7 +253,7 @@ class SynthHDDevice(object):
 		#(on=1 / off=0)
 		assert value in [0,1]
 		self.sendCommand('g%d'%value)
-		
+
 	def getSweepContinuous(self):
 		#(on=1 / off=0)
 		return int(self.sendCommand('c?'))
@@ -258,17 +261,17 @@ class SynthHDDevice(object):
 		#(on=1 / off=0)
 		assert value in [0,1]
 		self.sendCommand('c%d'%value)
-	
+
 	def getAMStepTime(self):
 		return float(self.sendCommand('F?'))/1e6
 	def setAMStepTime(self,value):
 		self.sendCommand('F%d'%(value*1e6))
-	
+
 	def getAMNumberRepetitions(self):
 		return int(self.sendCommand('q?'))
 	def setAMNumberRepetitions(self,value):
 		self.sendCommand('q%d'%(value))
-	
+
 	def getAMRunContinuously(self):
 		#(on=1 / off=0)
 		return int(self.sendCommand('A?'))
@@ -276,7 +279,7 @@ class SynthHDDevice(object):
 		#(on=1 / off=0)
 		assert value in [1,0]
 		self.sendCommand('A%d'%(value))
-	
+
 	def getAMLookupTable(self):
 		#always 100 samples long but samples ignored if value==-75.0
 		return [float(self.sendCommand('@%da?'%(j))) for j in range(100)]
@@ -287,50 +290,50 @@ class SynthHDDevice(object):
 		for j in range(100):
 			cmd+='@%da%.2f'%(j,table[j])
 		self.sendCommand(cmd)
-	
+
 #     Program a Spot in the AM Lookup Table in dBm (Command @):
 
 # Program Frequency Sweep table? and FM table?
-	
+
 	def getPulseOnTime(self):
 		return float(self.sendCommand('P?'))/1e6
 	def setPulseOnTime(self,value):
-		assert value>=1e-6 and value<=10 
+		assert value>=1e-6 and value<=10
 		self.sendCommand('P%d'%(value*1e6))
-	
+
 	def getPulseOffTime(self):
 		return float(self.sendCommand('O?'))/1e6
 	def setPulseOffTime(self,value):
-		assert value>=2e-6 and value<=10 
+		assert value>=2e-6 and value<=10
 		self.sendCommand('O%d'%(value*1e6))
 
 	def getPulseNumberRepetitions(self):
 		return float(self.sendCommand('R?'))
 	def setPulseNumberRepetitions(self,value):
-		assert value>=1 and value<=65500 
+		assert value>=1 and value<=65500
 		self.sendCommand('R%d'%(value))
 
 	def setPulseRunBurst(self):
 		self.sendCommand('G')
-	
+
 	def getPulseContinuous(self):
 		return int(self.sendCommand('j?'))
 	def setPulseContinuous(self,value):
 		assert value in [0,1]
 		self.sendCommand('j%d'%value)
-		
+
 	def getPulseDualChannelMode(self):
 		return int(self.sendCommand('D?'))
 	def setPulseDualChannelMode(self):
 		assert value in [0,1]
 		self.sendCommand('D%d'%value)
-	
+
 	def getFMFrequency(self):
 		return int(self.sendCommand('<?'))
 	def setFMFrequency(self,value):
 		assert value>=1 and value<=5000
 		self.sendCommand('<%d'%(value))
-	
+
 	def getFMDeviation(self):
 		return int(self.sendCommand('>?'))
 	def setFMDeviation(self,value):
@@ -345,12 +348,12 @@ class SynthHDDevice(object):
 		elif current_freq<=6800.00e6: assert abs(value)<=10000000
 		elif current_freq<=14000.0e6: assert abs(value)<=20000000
 		self.sendCommand('>%d'%(value))
-	
+
 	def getFMNumberRepetitions(self):
 		return int(self.sendCommand(',?'))
 	def setFMNumberRepetitions(self,value):
 		self.sendCommand(',%d'%(value))
-	
+
 	def getFMType(self):
 		#(sinusoid=1 / chirp=0)
 		return int(self.sendCommand(';?'))
@@ -358,28 +361,27 @@ class SynthHDDevice(object):
 		#(sinusoid=1 / chirp=0)
 		assert value in [0,1]
 		self.sendCommand(';%d'%(value))
-	
+
 	def getFMContinuousMode(self):
 		return int(self.sendCommand('/?'))
 	def setFMContinuousMode(self,value):
 		assert value in [0,1]
 		return int(self.sendCommand('/%d'%value))
-	
+
 	def getPhaseLockStatus(self):
 		#(lock=1 / unlock=0)
 		return int(self.sendCommand('p'))
-	
+
 	def getTemperature(self):
 		return float(self.sendCommand('z'))
-	
+
 	def getPLLReferenceFrequency(self):
 		return float(self.sendCommand('*?'))*1e6
 	def setPLLReferenceFrequency(self,value):
 		assert value>=10e6 and value<=100e6
 		self.sendCommand('*%.3f'%(value/1e6))
-	
+
 	def getModelType(self):
 		return self.sendCommand('+')
 	def getSerialNumber(self):
 		return self.sendCommand('-')
-	

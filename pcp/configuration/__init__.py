@@ -11,7 +11,8 @@ parts of the application can call individual configurations as required by using
 # import configurations here (might be able to do this dynamically using importlib and inspect for variables)
 import os as _os
 import lib_config as _lib_config
-from .lib_config import config_dir, general_config, filesys_config, logging_config, network_config, roach_config
+from .lib_config import config_dir, general_config, filesys_config, logging_config, \
+                        network_config, roach_config, hardware_config
 from .lib_config import reload_configfiles
 
 ROOTDIR = filesys_config['rootdir']

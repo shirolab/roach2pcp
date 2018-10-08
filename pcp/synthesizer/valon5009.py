@@ -6,6 +6,11 @@ import serial.tools.list_ports
 import time,sys
 from numpy import linspace as _linspace
 
+
+VENDOR = 'VALON'
+MODELNUMS = ["5009"]
+
+
 #FTDI chip ID for the valon 5009  found by inspecting output of serial.tools.list_ports.comports()
 hwid_snrs = ['A59JJN5']
 dev_snrs = ['A9040DX6']
@@ -13,7 +18,7 @@ dev_snrs = ['A9040DX6']
 #Valon power output
 #Default settings:
 #	level = 3 which is the highest out of [0,1,2,3].
-#	atten = 15dB 
+#	atten = 15dB
 #	measured power on Source 1 = +1.27dBm at 512MHz
 #	measured power on Source 2 = +1.25dBm at 512MHz
 
@@ -28,7 +33,7 @@ class ValonListMode:
 
 
 class ValonDevice(object):
-	
+
 	def __init__(self,device_serial_number=dev_snrs[0],open_connection=True,baud=115200):
 		print 'Connecting to Valon 5009 Synthesiser...'
 		self.bauds_available = [9600,19200, 38400, 57600, 115200, 230400, 460800, 921600]
@@ -46,14 +51,14 @@ class ValonDevice(object):
 		if open_connection:
 			self.open_connection()
 		print 'OK :)'
-		
+
 	def _findSerialPort(self):
 		comports = serial.tools.list_ports.comports()
 		for port, desc, hwid in comports:
 			if hwid.find(self.hwid_serial_number)>0:
 				return port
-		return None	
-	
+		return None
+
 	def set_local_baud_auto(self):
 		for baud in self.bauds_available:
 			print 'trying %d baud...'%baud, ;sys.stdout.flush()
@@ -64,7 +69,7 @@ class ValonDevice(object):
 				return baud
 			except (IOError,StandardError):
 				continue
-	
+
 	def open_connection(self):
 		self.conn.open()
 		try:
@@ -78,13 +83,13 @@ class ValonDevice(object):
 			self.conn.setBaudrate(self.baud_requested)
 			print 'Now using %d baud'%self.conn.getBaudrate()
 			self.clearSerialBuffer()
-		
+
 		self.activeSource       = None
 		self.s1 = ValonSource(1,self)
 		self.s2 = ValonSource(2,self)
 		self._referenceSource   = None
 		self._referenceTrim     = None
-		
+
 	def clearSerialBuffer(self):
 		self.conn.write('\r')
 		readlines = self.conn.readlines()
@@ -92,11 +97,11 @@ class ValonDevice(object):
 			raise IOError, 'Is it switched on?'
 		#if readlines[-1] != '\r-1->':
 			#raise StandardError
-	
+
 	def get_status(self):
 		self.status = unicode(self.sendCommand('status'),encoding='latin-1')
 		return self.status
-	
+
 	def sendCommand(self,command):
 		self.clearSerialBuffer()
 		self.conn.write(command+'\r')
@@ -111,7 +116,7 @@ class ValonDevice(object):
 				break
 		if not messageFound:
 			raise StandardError, 'received invalid message'
-		
+
 		prompt  = readlines.pop(-1).strip()
 		if prompt.find('1')>=0:
 			self.activeSource = 1
@@ -119,7 +124,7 @@ class ValonDevice(object):
 			self.activeSource = 2
 		else:
 			raise StandardError, 'received invalid prompt message'
-		
+
 		if len(readlines)==0:
 			return
 		elif len(readlines)==1:
@@ -129,31 +134,31 @@ class ValonDevice(object):
 			for i in readlines:
 				message += i.strip()+'\n'
 			return message
-	
+
 	def sendCommandFast(self,command):
 		self.conn.write(command+'\r')
-	
+
 	def recallFlash(self):
 		self.sendCommand('RCL')
-		
+
 	def saveFlash(self):
 		self.sendCommand('SAV')
-	
+
 	def factoryReset(self):
 		self.sendCommand('RST')
-	
+
 	def displayAllParameters(self):
 		self.sendCommand('DALL')
-	
+
 	def displayLockState(self):
 		self.sendCommand('LOCK')
-		
+
 	def displayDeviceID(self):
 		self.sendCommand('ID')
-	
+
 	def displayHelp(self):
 		self.sendCommand('HELP')
-		
+
 	@property
 	def referenceTrim(self):
 		self._referenceTrim = self.sendCommand('refTrim?')
@@ -162,7 +167,7 @@ class ValonDevice(object):
 	def referenceTrim(self,value):
 		assert value in range(256)
 		self.sendCommand('reftrim %s'%value)
-	
+
 	@property
 	def referenceSource(self):
 		self._referenceSource = self.sendCommand('refs?')
@@ -172,8 +177,8 @@ class ValonDevice(object):
 		"""value = 0 for internal, or 1 for external source \n if using internal source, ext port should be open, i.e. no termination or dc coupled connection"""
 		assert value in [0,1]
 		self.sendCommand('refs %s'%value)
-	
-	
+
+
 
 class ValonSource(object):
 	def __init__(self,sourceNumber,valonDevice):
@@ -210,12 +215,12 @@ class ValonSource(object):
 		if self.valonDevice.activeSource != self.sourceNumber:
 			print 'activating source %d'%self.sourceNumber
 			self.valonDevice.sendCommand('source %d'%self.sourceNumber)
-	
+
 	@property
 	def lock(self):
 		self._lock = self.valonDevice.sendCommand('lock%d?'%self.sourceNumber)
 		return self._lock
-	
+
 	def get_locked(self):
 		lock = self.lock
 		if lock.lower() == 's%d locked'%self.sourceNumber:
@@ -223,7 +228,7 @@ class ValonSource(object):
 		else:
 			self.locked=False
 		return self.locked
-	
+
 	@property
 	def mode(self):
 		self._mode = self.valonDevice.sendCommand('s%d; mode?'%self.sourceNumber)
@@ -233,7 +238,7 @@ class ValonSource(object):
 		assert value.upper in ['CW','SWEEP','LIST']
 		self.valonDevice.sendCommand('s%d; mode %s'%(self.sourceNumber,value))
 		self._mode  = self.mode
-		
+
 	@property
 	def frequency(self):
 		self._frequency = self.valonDevice.sendCommand('s%d; frequency?'%self.sourceNumber)
@@ -242,9 +247,9 @@ class ValonSource(object):
 	def frequency(self,value):
 		if value < self.valonDevice.FREQMAX/1.e6:
 			value*=1e6
-				
+
 		assert (value > self.valonDevice.FREQMIN) and (value < self.valonDevice.FREQMAX)
-		
+
 		ret = self.valonDevice.sendCommand('s%d; frequency %s'%(self.sourceNumber,value))
 		self._frequency  = value
 		self.frequencyActual = float(ret.split()[-2])
@@ -260,8 +265,8 @@ class ValonSource(object):
 		except NameError:
 			f = self.frequency
 			return self.frequencyActual
-			
-	
+
+
 	@property
 	def frequencyOffset(self):
 		self._frequencyOffset = self.valonDevice.sendCommand('s%d; offset?'%self.sourceNumber)
@@ -271,7 +276,7 @@ class ValonSource(object):
 		assert value<6e9
 		self.valonDevice.sendCommand('s%d; offset %s'%(self.sourceNumber,value))
 		self._frequencyOffset  = self.frequencyOffset
-	
+
 	@property
 	def frequencyIncDecStep(self):
 		self._frequencyIncDecStep = self.valonDevice.sendCommand('s%d; FrequencyStep?'%self.sourceNumber)
@@ -280,14 +285,14 @@ class ValonSource(object):
 	def frequencyIncDecStep(self,value):
 		assert (value>1e3) and (value <100e6)
 		self.valonDevice.sendCommand('s%d; frequencyStep %s'%(self.sourceNumber,value))
-		self._frequencyIncDecStep  = self.frequencyIncDecStep	
-		
+		self._frequencyIncDecStep  = self.frequencyIncDecStep
+
 	def frequencyIncrement(self):
 		self.valonDevice.sendCommand('s%d; frequencyIncrement'%self.sourceNumber)
-		
+
 	def frequencyDecrement(self):
 		self.valonDevice.sendCommand('s%d; frequencyDecrement'%self.sourceNumber)
-	
+
 	@property
 	def sweepStart(self):
 		self._sweepStart = self.valonDevice.sendCommand('s%d; start?'%self.sourceNumber)
@@ -296,8 +301,8 @@ class ValonSource(object):
 	def sweepStart(self,value):
 		assert (value > 23e6) and (value <6e9)
 		self.valonDevice.sendCommand('s%d; start %s'%(self.sourceNumber,value))
-		self._frequencyStart  = self.frequencyStart		
-	
+		self._frequencyStart  = self.frequencyStart
+
 	@property
 	def sweepStop(self):
 		self._sweepStop = self.valonDevice.sendCommand('s%d; stop?'%self.sourceNumber)
@@ -306,8 +311,8 @@ class ValonSource(object):
 	def sweepStop(self,value):
 		assert (value > 23e6) and (value <6e9)
 		self.valonDevice.sendCommand('s%d; stop %s'%(self.sourceNumber,value))
-		self._sweepStop  = self.sweepStop	
-	
+		self._sweepStop  = self.sweepStop
+
 	@property
 	def sweepStep(self):
 		self._sweepStep = self.valonDevice.sendCommand('s%d; step?'%self.sourceNumber)
@@ -317,7 +322,7 @@ class ValonSource(object):
 		assert (value < (self.sweepStop-self.sweepStart))
 		self.valonDevice.sendCommand('s%d; step %s'%(self.sourceNumber,value))
 		self._sweepStep  = self.sweepStep
-	
+
 	@property
 	def sweepRate(self):
 		self._sweepRate = self.valonDevice.sendCommand('s%d; rate?'%self.sourceNumber)
@@ -327,7 +332,7 @@ class ValonSource(object):
 		assert (value>10) and (value<1000)
 		self.valonDevice.sendCommand('s%d; rate %s'%(self.sourceNumber,value))
 		self._sweepRate = self.sweepRate
-		
+
 	@property
 	def sweepTriggerMode(self):
 		self._sweepTriggerMode = self.valonDevice.sendCommand('s%d; TMode?'%self.sourceNumber)
@@ -338,11 +343,11 @@ class ValonSource(object):
 		value=value[:3]
 		self.valonDevice.sendCommand('s%d; TMode %s'%(self.sourceNumber,value))
 		self._sweepTriggerMode = self.sweepTriggerMode
-	
+
 	def sweepManualTrigger(self):
 		"""manually trigger a full sweep if in manual trigger mode"""
 		self.valonDevice.sendCommand('TRGR')
-	
+
 	def sweepRun(self,source=None):
 		"""start sweeping"""
 		if source is None:
@@ -352,7 +357,7 @@ class ValonSource(object):
 				self.valonDevice.sendCommand('s%d; Run 0'%self.sourceNumber)
 		else:
 			self.valonDevice.sendCommand('s%d; Run %d'%(self.sourceNumber,value))
-	
+
 	def sweepHalt(self,source=None):
 		"""start sweeping"""
 		if source is None:
@@ -362,7 +367,7 @@ class ValonSource(object):
 				self.valonDevice.sendCommand('s%d; Halt 0'%self.sourceNumber)
 		else:
 			self.valonDevice.sendCommand('s%d; Halt %d'%(self.sourceNumber,source))
-	
+
 	@property
 	def attenuator(self):
 		self._attenuator = self.valonDevice.sendCommand('s%d; attenuator?'%self.sourceNumber)
@@ -372,7 +377,7 @@ class ValonSource(object):
 		assert value in _linspace(0,31.5,64)
 		self.valonDevice.sendCommand('s%d; att %s'%(self.sourceNumber,value))
 		self._attenuator = self.attenuator
-	
+
 	@property
 	def powerLevel(self):
 		self._powerLevel = self.valonDevice.sendCommand('s%d; plevel?'%self.sourceNumber)
@@ -382,7 +387,7 @@ class ValonSource(object):
 		assert value in [0,1,2,3]
 		self.valonDevice.sendCommand('s%d; plevel %s'%(self.sourceNumber,value))
 		self._powerLevel = self.powerLevel
-	
+
 	@property
 	def powerOutputEnable(self):
 		"""Source Amplifier On/Off"""
@@ -414,7 +419,7 @@ class ValonSource(object):
 		assert (value > 0.5) and (value <= 10e3)
 		self.valonDevice.sendCommand('s%d; AMF %s'%(self.sourceNumber,value))
 		self._AMFrequency = self.AMFrequency
-	
+
 	@property
 	def AMDepth(self):
 		self._AMDepth = self.valonDevice.sendCommand('s%d; AMD?'%self.sourceNumber)
@@ -424,8 +429,8 @@ class ValonSource(object):
 		assert value in _linspace(0,31.5,64)
 		self.valonDevice.sendCommand('s%d; AMD %s'%(self.sourceNumber,value))
 		self._AMDepth = self.AMDepth
-		
-		
+
+
 	@property
 	def PFD(self):
 		self._PFD = self.valonDevice.sendCommand('s%d; pfd ?'%self.sourceNumber)
@@ -435,7 +440,7 @@ class ValonSource(object):
 		assert (value >= 1e6) and (value<140e6)
 		self.valonDevice.sendCommand('s%d; pfd %s'%(self.sourceNumber,value))
 		self._PFD = self.PFD
-	
+
 	@property
 	def referenceDoubler(self):
 		self._referenceDoubler = self.valonDevice.sendCommand('s%d; refdb ?'%self.sourceNumber)
@@ -445,7 +450,7 @@ class ValonSource(object):
 		assert value in [0,1]
 		self.valonDevice.sendCommand('s%d; refdb %s'%(self.sourceNumber,value))
 		self._referenceDoubler = self.referenceDoubler
-	
+
 	@property
 	def referenceDivider(self):
 		self._referenceDivider = self.valonDevice.sendCommand('s%d; refdiv ?'%self.sourceNumber)
@@ -455,7 +460,7 @@ class ValonSource(object):
 		assert value in [0,1]
 		self.valonDevice.sendCommand('s%d; refdiv %s'%(self.sourceNumber,value))
 		self._referenceDivider = self.referenceDivider
-		
+
 	@property
 	def chargePumpCurrent(self):
 		self._chargePumpCurrent = self.valonDevice.sendCommand('s%d; cp ?'%self.sourceNumber)
@@ -465,7 +470,7 @@ class ValonSource(object):
 		assert value in range(16)
 		self.valonDevice.sendCommand('s%d; cp %s'%(self.sourceNumber,value))
 		self._chargePumpCurrent = self.chargePumpCurrent
-		
+
 	#@property
 	#def dividerFeedback(self):
 		#self._dividerFeedback = self.valonDevice.sendCommand('divfb ?')
@@ -475,7 +480,7 @@ class ValonSource(object):
 		#assert value in ['VCO','Divider']
 		#self.valonDevice.sendCommand('divfb %s'%value)
 		#self._dividerFeedback = self.dividerFeedback
-	
+
 	@property
 	def SDN(self):
 		"""spur mitigation mode...
@@ -489,7 +494,7 @@ class ValonSource(object):
 		assert value in [0,2,3]
 		self.valonDevice.sendCommand('s%d; sdn %s'%(self.sourceNumber,value))
 		self._SDN = self.SDN
-	
+
 	@property
 	def intFracMode(self):
 		"""intfrac mode... 0:=fractional mode, 1:=integer mode, 2:=auto"""
@@ -501,7 +506,7 @@ class ValonSource(object):
 		assert value in [0,1,2]
 		self.valonDevice.sendCommand('s%d; intfrac %s'%(self.sourceNumber,value))
 		self._intFracMode = self.intFracMode
-	
+
 	@property
 	def sName(self):
 		self._sName = self.valonDevice.sendCommand('s%d; name ?'%self.sourceNumber)
@@ -511,7 +516,7 @@ class ValonSource(object):
 		assert value in [0,1,2]
 		self.valonDevice.sendCommand('s%d; name %s'%(self.sourceNumber,value))
 		self._sName = self.sName
-	
+
 	def set_frequency(self,source,frequency,other,fast=False):
 		if fast:
 			if source==0:
@@ -526,5 +531,3 @@ class ValonSource(object):
 			return 1
 	def get_frequency(self):
 		return self.frequency
-	
-		

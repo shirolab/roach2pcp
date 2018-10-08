@@ -71,9 +71,28 @@ def create_dirfile(dirfilename, ntones, *dirfile_creation_flags):
     # create dirfile
     dirfile = _gd.dirfile(dirfilename, dirfileflagint)
     # add main fields according to
-    dirfile = generate_main_rawfields(maindirfile, ntones)
+    dirfile = generate_main_rawfields(dirfile, ntones)
 
     return dirfile
+
+def close_dirfile(dirfilename):
+
+    # allow dirfile instance to be passed
+    if type( dirfilename ) == _gd.dirfile:
+        # check if dirfile is valid ?
+        dirfilename.close()
+
+    elif type( dirfilename ) == str:
+    # check if file exists
+        if os.path.exists(dirfilename):
+            _gd.dirfile(dirfilename).close()
+            return
+        else:
+            return
+    else:
+        return
+
+
 
 def generate_main_rawfields(dirfile, ntones, fragnum=0, datatag=""):
     # function to generate a standard set of dirfile entries for the roach readout
@@ -91,10 +110,10 @@ def generate_main_rawfields(dirfile, ntones, fragnum=0, datatag=""):
     #             "gpio_reg" :(_gd.RAW_ENTRY, _gd.UINT8) # hardware controlled 8-bit gpio pins
     #             }
 
-    aux_fields = roach_config["PACKETSTRUCT"]["field_list"]
+    aux_fields = roach_config["PACKETSTRUCT"]["aux_field_cfg"]
     aux_entries_to_write = []
 
-    for field_name, (entry_type, field_datatype, __, __, __) in aux_fields.items():
+    for field_name, (entry_type, field_datatype, __, __, __, __) in aux_fields.items():
         print eval(entry_type), eval(field_datatype)
         aux_entries_to_write.append( _gd.entry( eval(entry_type), field_name + datatag, fragnum, (eval(field_datatype), 1)) ) # field_type, name, fragment_idx, (data_type, sample_rate)
 
@@ -183,19 +202,36 @@ def gen_dirfilehandle(dirfilename, *dirfileflags):
         print "Dirfile exists somehow. We can deal with this later. For now returning None."
         return None
 
-def append_to_dirfile(dirfile, datapacket_dict):
+
+def get_data_from_datapacket_dict(datapacket_dict, field_name):
+    # assert field_name in datapacket_dict.keys()
+    # assert all([type(x) == np.ndarray for x in datapacket_dict[field_name][-1]]) # adds 1 us to loop time for each field, may be unnecessary
+    data = datapacket_dict[field_name][-1]
+    return np.ascontiguousarray( [data.pop() for i in range(len(data))] ).flatten()
+
+def append_to_dirfile(dirfile, datapacket_dict, datatag=""):
     """Function to act as the consumer, that will be given a 2d array of data
     comprising multiple packets, and will write the data to disk.
     """
 
     #print dirfile.nentries(type  = _gd.RAW_ENTRY), datatowrite.shape[-1]
     #assert dirfile.nentries(type = _gd.RAW_ENTRY) == datatowrite.shape[-1]
+    # check that the number of fields in the dirfile (index field is not RAW_ENTRY) is less than or equal to the
+    # number that are in the packet, otherwise, this function will fail
 
-    dirfileindex - dirfile.getdata("INDEX")
+    assert len(dirfile.field_list(_gd.RAW_ENTRY)) <= len(datapacket_dict.items())
+
+    dirfileindex = dirfile.getdata("INDEX")
     currentsize = dirfileindex[-1] if dirfileindex.size > 0 else 0
-    print currentsize
+    #print currentsize
 
-    for field_name, (entryfaos_type, field_datatype, py_datatype, sliceobject, packet_data) in datapacket_dict.items():
+    #for field_name, (entryfaos_type, field_datatype, py_datatype, sliceobject, packet_data) in datapacket_dict.items():
+    for field_name in dirfile.field_list(_gd.RAW_ENTRY):
         # pop out the data container
-        datatowrite = [datatowrite.pop(0) for i in range(len(packet_data))]
-        dirfile.putdata(field_name + datatag, np.ascontiguousarray( datatowrite ).flatten(), first_sample = currentsize)
+        #datatowrite = [datatowrite.pop(0) for i in range(len(packet_data))]
+        dirfile.putdata(field_name + datatag, get_data_from_datapacket_dict(datapacket_dict, field_name), first_sample = currentsize)
+
+    dirfile.flush()
+
+def generate_sweep_dirfile(dirfile, datapacket_dict, datatag=""):
+    pass 
