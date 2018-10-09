@@ -1,0 +1,31 @@
+# This is a dirfile format file.
+# It was written using version 0.10.0 of the GetData Library.
+# Written on Sun Aug 26 00:33:28 2018 UTC by PeteBarry.
+
+/VERSION 10
+/ENDIAN little
+/PROTECT none
+/ENCODING none
+K0000_I RAW FLOAT64 1
+K0000_Q RAW FLOAT64 1
+K0001_I RAW FLOAT64 1
+K0001_Q RAW FLOAT64 1
+K0002_I RAW FLOAT64 1
+K0002_Q RAW FLOAT64 1
+K0003_I RAW FLOAT64 1
+K0003_Q RAW FLOAT64 1
+K0004_I RAW FLOAT64 1
+K0004_Q RAW FLOAT64 1
+K0005_I RAW FLOAT64 1
+K0005_Q RAW FLOAT64 1
+K0006_I RAW FLOAT64 1
+K0006_Q RAW FLOAT64 1
+gpio_reg RAW UINT8 1
+raw_packet STRING ""
+packet_count RAW UINT32 1
+pps_timestamp RAW UINT32 1
+fine_timestamp RAW UINT32 1
+roach_checksum RAW UINT32 1
+packet_info_reg RAW UINT32 1
+python_timestamp RAW UINT32 1
+/REFERENCE roach_checksum

@@ -1,0 +1,1114 @@
+6110541 roachreadout    INFO     starting loggingDaemon
+6162643 roachreadout    INFO     starting loggingDaemon
+6169209 roachreadout    INFO     starting loggingDaemon
+6206194 roachreadout    INFO     starting loggingDaemon
+18653 roachreadout    INFO     starting loggingDaemon
+57685 roachreadout    INFO     starting loggingDaemon
+129606 roachreadout    INFO     starting loggingDaemon
+129607 roachreadout    ERROR    Address already in use
+Traceback (most recent call last):
+  File "readout_new/logdaemon.py", line 329, in initialise_logger
+    tcpserver = LogRecordSocketReceiver()
+  File "readout_new/logdaemon.py", line 119, in __init__
+    SocketServer.ThreadingTCPServer.__init__(self, (host, port), handler)
+  File "/Users/PeteBarry/anaconda/lib/python2.7/SocketServer.py", line 417, in __init__
+    self.server_bind()
+  File "/Users/PeteBarry/anaconda/lib/python2.7/SocketServer.py", line 431, in server_bind
+    self.socket.bind(self.server_address)
+  File "/Users/PeteBarry/anaconda/lib/python2.7/socket.py", line 228, in meth
+    return getattr(self._sock,name)(*args)
+error: [Errno 48] Address already in use
+129612 roachreadout    DEBUG    About to start TCP server...
+600672 roachreadout    INFO     starting loggingDaemon
+600674 roachreadout    DEBUG    About to start TCP server...
+688373 roachreadout    INFO     starting loggingDaemon
+688375 roachreadout    DEBUG    About to start TCP server...
+688375 daemon.readout_new.logdaemon DEBUG    Entered the function that. Configuring daemon context.
+717444 roachreadout    INFO     starting loggingDaemon
+717446 roachreadout    DEBUG    About to start TCP server...
+717446 daemon.readout_new.logdaemon DEBUG    Entered the function that. Configuring daemon context.
+727324 roachreadout    INFO     starting loggingDaemon
+727326 roachreadout    DEBUG    About to start TCP server...
+727326 daemon.readout_new.logdaemon DEBUG    Entered the function that. Configuring daemon context.
+737704 roachreadout    INFO     starting loggingDaemon
+737705 roachreadout    DEBUG    About to start TCP server...
+737705 daemon.readout_new.logdaemon DEBUG    Entered the function that. Configuring daemon context.
+737705 daemon.readout_new.logdaemon DEBUG    About to daemonise process...
+737733 daemon.readout_new.logdaemon INFO     Sucessfully daemonised. Running with PID 18355
+737734 daemon.readout_new.logdaemon DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+    9 roachreadout    INFO     starting loggingDaemon
+   10 roachreadout    DEBUG    About to start TCP server...
+   10 daemon.__main__ DEBUG    Entered the function that. Configuring daemon context.
+   10 daemon.__main__ DEBUG    About to daemonise process...
+   25 daemon.__main__ INFO     Sucessfully daemonised. Running with PID 18443
+   25 daemon.__main__ DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+    8 roachreadout    INFO     starting loggingDaemon
+   10 roachreadout    DEBUG    About to start TCP server...
+   10 daemon.__main__ DEBUG    Entered the function that. Configuring daemon context.
+   10 daemon.__main__ DEBUG    About to daemonise process...
+   25 daemon.__main__ INFO     Sucessfully daemonised. Running with PID 18464
+   25 daemon.__main__ DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+    9 roachreadout    INFO     starting loggingDaemon
+   11 roachreadout    DEBUG    About to start TCP server...
+   11 daemon.__main__ DEBUG    Entered the function that. Configuring daemon context.
+   11 daemon.__main__ DEBUG    About to daemonise process...
+   25 daemon.__main__ INFO     Sucessfully daemonised. Running with PID 18478
+   26 daemon.__main__ DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+482712 roachreadout    INFO     starting loggingDaemon
+482714 roachreadout    DEBUG    About to start TCP server...
+482714 daemon.readout_new.logdaemon DEBUG    Entered the function that. Configuring daemon context.
+482714 daemon.readout_new.logdaemon DEBUG    About to daemonise process...
+482744 daemon.readout_new.logdaemon INFO     Sucessfully daemonised. Running with PID 18497
+482744 daemon.readout_new.logdaemon DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+    9 roachreadout    INFO     starting loggingDaemon
+   10 roachreadout    DEBUG    About to start TCP server...
+   10 daemon.__main__ DEBUG    Entered the function that. Configuring daemon context.
+   10 daemon.__main__ DEBUG    About to daemonise process...
+   25 daemon.__main__ INFO     Sucessfully daemonised. Running with PID 18517
+   25 daemon.__main__ DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+83143 roachreadout    INFO     starting loggingDaemon
+83145 roachreadout    DEBUG    About to start TCP server...
+155293 roachreadout    INFO     starting loggingDaemon
+155293 roachreadout    DEBUG    About to start TCP server...
+283690 roachreadout    INFO     starting loggingDaemon
+283690 roachreadout    DEBUG    About to start TCP server...
+294948 roachreadout    INFO     Logging configuration initialised as roachreadout
+294949 roachreadout    DEBUG    Instantiated TCP server successfuly 
+13139 roachreadout    INFO     Logging configuration initialised as roachreadout
+47762 roachreadout    INFO     Logging configuration initialised as roachreadout
+66258 roachreadout    INFO     Logging configuration initialised as roachreadout
+102065 roachreadout    INFO     Logging configuration initialised as roachreadout
+208814 roachreadout    INFO     Logging configuration initialised as roachreadout
+208815 readout_new.logfile DEBUG    error, address already in use
+208815 roachreadout    DEBUG    Instantiated TCP server successfuly 
+219174 roachreadout    INFO     Logging configuration initialised as roachreadout
+219175 readout_new.logfile DEBUG    error, address already in use
+219175 roachreadout    DEBUG    Instantiated TCP server successfuly 
+220702 roachreadout    INFO     Logging configuration initialised as roachreadout
+220703 readout_new.logfile DEBUG    error, address already in use
+220703 roachreadout    DEBUG    Instantiated TCP server successfuly 
+221921 roachreadout    INFO     Logging configuration initialised as roachreadout
+221922 readout_new.logfile DEBUG    error, address already in use
+221922 roachreadout    DEBUG    Instantiated TCP server successfuly 
+292929 roachreadout    INFO     Logging configuration initialised as roachreadout
+292930 readout_new.logfile DEBUG    error, address already in use
+292930 roachreadout    DEBUG    Instantiated TCP server successfuly 
+388298 roachreadout    INFO     Logging configuration initialised as roachreadout
+388299 readout_new.logfile DEBUG    error, address already in use
+388299 roachreadout    DEBUG    Instantiated TCP server successfuly 
+405186 roachreadout    INFO     Logging configuration initialised as roachreadout
+405187 readout_new.logfile DEBUG    error, address already in use
+405187 roachreadout    DEBUG    Instantiated TCP server successfuly 
+27376 roachreadout    INFO     Logging configuration initialised as roachreadout
+27377 readout_new.logfile DEBUG    error, address already in use
+27377 roachreadout    DEBUG    Instantiated TCP server successfuly 
+132696 roachreadout    INFO     Logging configuration initialised as roachreadout
+132700 readout_new.logfile DEBUG    error, address already in use
+132700 roachreadout    DEBUG    Instantiated TCP server successfuly 
+192196 roachreadout    INFO     Logging configuration initialised as roachreadout
+192196 readout_new.logfile DEBUG    error, address already in use
+192196 roachreadout    DEBUG    Instantiated TCP server successfuly 
+657569 roachreadout    INFO     Logging configuration initialised as roachreadout
+657574 readout_new.logfile DEBUG    error, address already in use
+657575 roachreadout    DEBUG    Instantiated TCP server successfuly 
+681565 roachreadout    INFO     Logging configuration initialised as roachreadout
+681566 readout_new.logfile DEBUG    error, address already in use
+681566 roachreadout    DEBUG    Instantiated TCP server successfuly 
+732303 roachreadout    INFO     Logging configuration initialised as roachreadout
+732304 readout_new.logfile DEBUG    error, address already in use
+732304 roachreadout    DEBUG    Instantiated TCP server successfuly 
+795648 roachreadout    INFO     Logging configuration initialised as roachreadout
+795649 roachreadout    ERROR    Address already in use
+Traceback (most recent call last):
+  File "readout_new/logfile.py", line 190, in initalise_logging_daemon
+    tcpserver = LogRecordSocketReceiver()
+  File "readout_new/logfile.py", line 123, in __init__
+    SocketServer.ThreadingTCPServer.__init__(self, (host, port), handler)
+  File "/Users/PeteBarry/anaconda/lib/python2.7/SocketServer.py", line 420, in __init__
+    self.server_bind()
+  File "/Users/PeteBarry/anaconda/lib/python2.7/SocketServer.py", line 434, in server_bind
+    self.socket.bind(self.server_address)
+  File "/Users/PeteBarry/anaconda/lib/python2.7/socket.py", line 228, in meth
+    return getattr(self._sock,name)(*args)
+error: [Errno 48] Address already in use
+846277 roachreadout    INFO     Logging configuration initialised as roachreadout
+846278 readout_new.logfile DEBUG    error, address already in use
+846278 roachreadout    DEBUG    Instantiated TCP server successfuly 
+903971 roachreadout    INFO     Logging configuration initialised as roachreadout
+903972 readout_new.logfile DEBUG    error, address already in use
+903972 roachreadout    DEBUG    Instantiated TCP server successfuly 
+1044448 roachreadout    INFO     Logging configuration initialised as roachreadout
+1044448 roachreadout    DEBUG    Instantiated TCP server successfuly 
+1120975 roachreadout    INFO     Logging configuration initialised as roachreadout
+1120976 readout_new.logfile DEBUG    error, address already in use
+1120976 roachreadout    DEBUG    Instantiated TCP server successfuly 
+1139978 roachreadout    INFO     Logging configuration initialised as roachreadout
+1139979 readout_new.logfile DEBUG    error, address already in use
+1139979 roachreadout    DEBUG    Instantiated TCP server successfuly 
+1158590 roachreadout    INFO     Logging configuration initialised as roachreadout
+1158591 readout_new.logfile DEBUG    error, address already in use
+1158591 roachreadout    DEBUG    Instantiated TCP server successfuly 
+1184878 roachreadout    INFO     Logging configuration initialised as roachreadout
+1184878 readout_new.logfile DEBUG    error, address already in use
+1184879 roachreadout    DEBUG    Instantiated TCP server successfuly 
+1242558 roachreadout    INFO     Logging configuration initialised as roachreadout
+1242559 readout_new.logfile DEBUG    error, address already in use
+1242559 roachreadout    DEBUG    Instantiated TCP server successfuly 
+1382918 readout_new.logfile DEBUG    error, address already in use
+1492914 readout_new.logfile DEBUG    error, address already in use
+1678518 roachreadout    INFO     Logging configuration initialised as roachreadout
+1678519 readout_new.logfile DEBUG    error, address already in use
+1678519 roachreadout    DEBUG    Instantiated TCP server successfuly 
+1771978 roachreadout    INFO     Logging configuration initialised as roachreadout
+1771979 roachreadout    DEBUG    Instantiated TCP server successfuly 
+1778712 roachreadout    INFO     Logging configuration initialised as roachreadout
+1778712 readout_new.logfile DEBUG    error, address already in use
+1778713 roachreadout    DEBUG    Instantiated TCP server successfuly 
+1865681 roachreadout    INFO     Logging configuration initialised as roachreadout
+1865681 roachreadout    DEBUG    Instantiated TCP server successfuly 
+1867056 roachreadout    INFO     Logging configuration initialised as roachreadout
+1867057 readout_new.logfile DEBUG    error, address already in use
+1867057 roachreadout    DEBUG    Instantiated TCP server successfuly 
+1868017 roachreadout    INFO     Logging configuration initialised as roachreadout
+1868017 roachreadout    DEBUG    Instantiated TCP server successfuly 
+1869217 roachreadout    INFO     Logging configuration initialised as roachreadout
+1869217 readout_new.logfile DEBUG    error, address already in use
+1869218 roachreadout    DEBUG    Instantiated TCP server successfuly 
+1870096 roachreadout    INFO     Logging configuration initialised as roachreadout
+1870096 roachreadout    DEBUG    Instantiated TCP server successfuly 
+20412055 roachreadout    INFO     Logging configuration initialised as roachreadout
+20412060 readout_new.logfile DEBUG    error, address already in use
+20412060 roachreadout    DEBUG    Instantiated TCP server successfuly 
+20413976 roachreadout    INFO     Logging configuration initialised as roachreadout
+20413977 readout_new.logfile DEBUG    error, address already in use
+20413977 roachreadout    DEBUG    Instantiated TCP server successfuly 
+20426811 roachreadout    INFO     Logging configuration initialised as roachreadout
+20426812 readout_new.logfile DEBUG    error, address already in use
+20426812 roachreadout    DEBUG    Instantiated TCP server successfuly 
+20429403 roachreadout    INFO     Logging configuration initialised as roachreadout
+20429404 readout_new.logfile DEBUG    error, address already in use
+20429404 roachreadout    DEBUG    Instantiated TCP server successfuly 
+20430221 roachreadout    INFO     Logging configuration initialised as roachreadout
+20430222 readout_new.logfile DEBUG    error, address already in use
+20430222 roachreadout    DEBUG    Instantiated TCP server successfuly 
+20431035 roachreadout    INFO     Logging configuration initialised as roachreadout
+20431036 readout_new.logfile DEBUG    error, address already in use
+20431036 roachreadout    DEBUG    Instantiated TCP server successfuly 
+20433419 roachreadout    INFO     Logging configuration initialised as roachreadout
+20433420 readout_new.logfile DEBUG    error, address already in use
+20433420 roachreadout    DEBUG    Instantiated TCP server successfuly 
+20519328 roachreadout    INFO     Logging configuration initialised as roachreadout
+20519329 roachreadout    DEBUG    Instantiated TCP server successfuly 
+317303 root            INFO     test
+339967 __main__        INFO     test
+339967 __main__        INFO     test
+339967 __main__        INFO     test
+356649 __main__        INFO     test
+356649 __main__        INFO     test
+356649 __main__        INFO     test
+356649 __main__        INFO     test
+   10 roachreadout    INFO     Logging configuration initialised as roachreadout
+   14 roachreadout    DEBUG    Instantiated TCP server successfuly 
+   10 roachreadout    INFO     Logging configuration initialised as roachreadout
+   11 roachreadout    DEBUG    Instantiated TCP server successfuly 
+   12 readout_new.templates.daemontemplate DEBUG    Created fifo at .loggingdaemon.pipe
+   12 readout_new.templates.daemontemplate CRITICAL test message - delete
+21456065 __main__        INFO     print
+    9 roachreadout    INFO     Logging configuration initialised as roachreadout
+   11 roachreadout    DEBUG    Instantiated TCP server successfuly 
+   11 readout_new.templates.daemontemplate DEBUG    Created fifo at .loggingdaemon.pipe
+   11 readout_new.templates.daemontemplate CRITICAL test message - delete
+   10 roachreadout    INFO     Logging configuration initialised as roachreadout
+   11 __main__        DEBUG    error, address already in use
+   11 roachreadout    DEBUG    Instantiated TCP server successfuly 
+   11 readout_new.templates.daemontemplate DEBUG    Created fifo at .loggingdaemon.pipe
+   11 readout_new.templates.daemontemplate CRITICAL test message - delete
+   14 roachreadout    INFO     Logging configuration initialised as roachreadout
+   16 roachreadout    DEBUG    Instantiated TCP server successfuly 
+   16 readout_new.templates.daemontemplate DEBUG    Created fifo at .loggingdaemon.pipe
+   16 readout_new.templates.daemontemplate CRITICAL test message - delete
+   13 roachreadout    INFO     Logging configuration initialised as roachreadout
+   14 roachreadout    DEBUG    Instantiated TCP server successfuly 
+   14 readout_new.templates.daemontemplate DEBUG    Created fifo at .loggingdaemon.pipe
+   15 readout_new.templates.daemontemplate CRITICAL test message - delete
+22579800 readout_new.templates.daemontemplate DEBUG    Created fifo at .logfiletest.pipe
+22579800 readout_new.templates.daemontemplate CRITICAL test message - delete
+22659863 readout_new.templates.daemontemplate INFO     print
+   10 roachreadout    INFO     Logging configuration initialised as roachreadout
+   12 __main__        DEBUG    error, address already in use
+   12 roachreadout    DEBUG    Instantiated TCP server successfuly 
+   12 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   12 loggingdaemon   CRITICAL test message - delete
+   18 roachreadout    INFO     starting loggingDaemon
+   20 roachreadout    DEBUG    Entered the run function. Configuring daemon context.
+   21 roachreadout    DEBUG    About to daemonise process...
+   33 roachreadout    INFO     Sucessfully daemonised. Running with PID 51029
+   33 roachreadout    DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   34 __main__        DEBUG    error, address already in use
+   34 roachreadout    DEBUG    About to start TCP server...
+   11 roachreadout    INFO     starting loggingDaemon
+   11 roachreadout    INFO     starting loggingDaemon
+67435 roachreadout    INFO     Logging daemon terminated
+   10 roachreadout    INFO     starting loggingDaemon
+   11 roachreadout    DEBUG    Entered the run function. Configuring daemon context.
+   11 roachreadout    DEBUG    About to daemonise process...
+   23 roachreadout    INFO     Sucessfully daemonised. Running with PID 51056
+   24 roachreadout    DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   25 roachreadout    DEBUG    About to start TCP server...
+   10 roachreadout    INFO     starting loggingDaemon
+   11 roachreadout    WARNING  Logger already running with p-id 51056 
+   11 roachreadout    DEBUG    Entered the run function. Configuring daemon context.
+   11 roachreadout    DEBUG    Not going to daemonise process... already running
+4873749 roachreadout    INFO     Logging daemon terminated
+   18 roachreadout    INFO     Logging configuration initialised as roachreadout
+   21 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   21 loggingdaemon   CRITICAL test message - delete
+   22 roachreadout    DEBUG    Instantiated TCP server successfuly 
+   10 roachreadout    INFO     Logging configuration initialised as roachreadout
+   10 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   10 loggingdaemon   CRITICAL test message - delete
+   11 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   11 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   11 loggingdaemon   DEBUG    About to daemonise process...
+   22 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 51363
+   23 loggingdaemon   DEBUG    pid written to fifo
+   23 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   23 loggingdaemon   DEBUG    about to run function 
+   24 roachreadout    DEBUG    Instantiated TCP server successfuly 
+12363 loggingdaemon   INFO     Logging daemon terminated
+12364 loggingdaemon   DEBUG    closed fifo
+12365 loggingdaemon   DEBUG    removed fifo successfuly
+   11 roachreadout    INFO     Logging configuration initialised as roachreadout
+   12 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   12 loggingdaemon   CRITICAL test message - delete
+   12 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   12 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   12 loggingdaemon   DEBUG    About to daemonise process...
+   24 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 51374
+   25 loggingdaemon   DEBUG    pid written to fifo
+   25 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   25 loggingdaemon   DEBUG    about to run function 
+   26 roachreadout    DEBUG    Instantiated TCP server successfuly 
+13739 loggingdaemon   INFO     Logging daemon terminated
+13739 loggingdaemon   DEBUG    closed fifo
+13739 loggingdaemon   DEBUG    removed fifo successfuly
+87729673 readout_new.logfile DEBUG    error, address already in use
+87729673 loggingdaemon   DEBUG    Instantiated TCP server successfuly 
+   10 roachreadout    INFO     Logging configuration initialised as roachreadout
+   11 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   11 loggingdaemon   CRITICAL test message - delete
+   11 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   11 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   11 loggingdaemon   DEBUG    About to daemonise process...
+   23 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 51398
+   24 loggingdaemon   DEBUG    pid written to fifo
+   24 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   24 loggingdaemon   DEBUG    about to run function 
+   25 __main__        DEBUG    error, address already in use
+   26 roachreadout    DEBUG    Instantiated TCP server successfuly 
+68352 loggingdaemon   INFO     Logging daemon terminated
+68352 loggingdaemon   DEBUG    closed fifo
+68352 loggingdaemon   DEBUG    removed fifo successfuly
+   13 roachreadout    INFO     Logging configuration initialised as roachreadout
+   13 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   13 loggingdaemon   CRITICAL test message - delete
+   13 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   13 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   13 loggingdaemon   DEBUG    About to daemonise process...
+   24 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 51453
+   25 loggingdaemon   DEBUG    pid written to fifo
+   25 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   25 loggingdaemon   DEBUG    about to run function 
+   26 __main__        DEBUG    error, address already in use
+   26 roachreadout    DEBUG    Instantiated TCP server successfuly 
+88408583 __main__        INFO     print
+88427508 __main__        DEBUG    print
+88461496 __main__        DEBUG    print
+531490 loggingdaemon   INFO     Logging daemon terminated
+531491 loggingdaemon   DEBUG    closed fifo
+531491 loggingdaemon   DEBUG    removed fifo successfuly
+   12 roachreadout    INFO     Logging configuration initialised as roachreadout
+   12 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   12 loggingdaemon   CRITICAL test message - delete
+   12 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   12 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   12 loggingdaemon   DEBUG    About to daemonise process...
+   25 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 51484
+   26 loggingdaemon   DEBUG    pid written to fifo
+   26 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   26 loggingdaemon   DEBUG    about to run function 
+   27 roachreadout    DEBUG    Instantiated TCP server successfuly 
+24432 loggingdaemon   INFO     Logging daemon terminated
+24432 loggingdaemon   DEBUG    closed fifo
+24433 loggingdaemon   DEBUG    removed fifo successfuly
+89119686 loggingdaemon   DEBUG    Instantiated TCP server successfuly 
+   10 roachreadout    INFO     Logging configuration initialised as roachreadout
+   11 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   11 loggingdaemon   CRITICAL test message - delete
+   11 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   11 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   11 loggingdaemon   DEBUG    About to daemonise process...
+   23 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 51515
+   23 loggingdaemon   DEBUG    pid written to fifo
+   24 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   24 loggingdaemon   DEBUG    about to run function 
+   25 __main__        DEBUG    error, address already in use
+   25 roachreadout    DEBUG    Instantiated TCP server successfuly 
+   12 roachreadout    INFO     Logging configuration initialised as roachreadout
+   12 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   13 loggingdaemon   CRITICAL test message - delete
+   13 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   13 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   13 loggingdaemon   DEBUG    About to daemonise process...
+   25 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 51557
+   26 loggingdaemon   DEBUG    pid written to fifo
+   26 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   26 loggingdaemon   DEBUG    about to run function 
+   27 roachreadout    DEBUG    Instantiated TCP server successfuly 
+29504 loggingdaemon   INFO     Logging daemon terminated
+29504 loggingdaemon   DEBUG    closed fifo
+29504 loggingdaemon   DEBUG    removed fifo successfuly
+   10 roachreadout    INFO     Logging configuration initialised as roachreadout
+   13 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   14 loggingdaemon   CRITICAL test message - delete
+   14 loggingdaemon   WARNING  Logging p-id file was locked by another process
+   15 loggingdaemon   WARNING  p-id not found. Process doesn't appear to be running.
+   16 loggingdaemon   DEBUG    Broke existing lock
+   16 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   16 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   16 loggingdaemon   DEBUG    About to daemonise process...
+   27 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 52125
+   28 loggingdaemon   DEBUG    pid written to fifo
+   28 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   28 loggingdaemon   DEBUG     about to enter the main program function 
+   29 roachreadout    DEBUG    Instantiated TCP server successfuly 
+13592 loggingdaemon   INFO     Logging daemon terminated
+13592 loggingdaemon   DEBUG    closed fifo
+13592 loggingdaemon   DEBUG    removed fifo successfuly
+   12 roachreadout    INFO     Logging configuration initialised as roachreadout
+   13 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   13 loggingdaemon   CRITICAL test message - delete
+   13 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   13 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   13 loggingdaemon   DEBUG    About to daemonise process...
+   25 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 52138
+   26 loggingdaemon   DEBUG    pid written to fifo
+   26 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   26 loggingdaemon   DEBUG     about to enter the main program function 
+   27 roachreadout    DEBUG    Instantiated TCP server successfuly 
+10341 loggingdaemon   INFO     Logging daemon terminated
+10341 loggingdaemon   DEBUG    closed fifo
+10342 loggingdaemon   DEBUG    removed fifo successfuly
+10342 __main__        INFO     aborted serve_until_stopped
+   10 roachreadout    INFO     Logging configuration initialised as roachreadout
+   11 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   11 loggingdaemon   CRITICAL test message - delete
+   11 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   11 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   11 loggingdaemon   DEBUG    About to daemonise process...
+   22 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 52156
+   22 loggingdaemon   DEBUG    pid written to fifo
+   22 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   22 loggingdaemon   DEBUG     about to enter the main program function 
+   23 roachreadout    DEBUG    Instantiated TCP server successfuly 
+315491 __main__        INFO     test
+315491 __main__        INFO     test
+674887 loggingdaemon   INFO     Logging daemon terminated
+674888 loggingdaemon   DEBUG    closed fifo
+674888 loggingdaemon   DEBUG    removed fifo successfuly
+674888 __main__        INFO     aborted serve_until_stopped
+1187666 __main__        INFO     logger already exists
+1187666 __main__        INFO     logger already exists
+1214180 __main__        INFO     logger already exists
+1214180 __main__        INFO     logger already exists
+   14 roachreadout    INFO     Logging configuration initialised as roachreadout
+   14 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   14 loggingdaemon   CRITICAL test message - delete
+   14 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   14 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   14 loggingdaemon   DEBUG    About to daemonise process...
+   26 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 52200
+   26 loggingdaemon   DEBUG    pid written to fifo
+   26 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   26 loggingdaemon   DEBUG     about to enter the main program function 
+   27 __main__        DEBUG    error, address already in use
+   27 roachreadout    DEBUG    Instantiated TCP server successfuly 
+349734 loggingdaemon   INFO     Logging daemon terminated
+349734 loggingdaemon   DEBUG    closed fifo
+349735 loggingdaemon   DEBUG    removed fifo successfuly
+349735 __main__        INFO     aborted serve_until_stopped
+   10 roachreadout    INFO     Logging configuration initialised as roachreadout
+   10 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   11 loggingdaemon   CRITICAL test message - delete
+   11 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   11 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   11 loggingdaemon   DEBUG    About to daemonise process...
+   23 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 52220
+   23 loggingdaemon   DEBUG    pid written to fifo
+   23 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   23 loggingdaemon   DEBUG     about to enter the main program function 
+   24 roachreadout    DEBUG    Instantiated TCP server successfuly 
+1618665 main.test       CRITICAL logger already exists
+37349 loggingdaemon   INFO     Logging daemon terminated
+37349 loggingdaemon   DEBUG    closed fifo
+37349 loggingdaemon   DEBUG    removed fifo successfuly
+37349 __main__        INFO     aborted serve_until_stopped
+   19 roachreadout    INFO     Logging configuration initialised as roachreadout
+   22 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   22 loggingdaemon   CRITICAL test message - delete
+   23 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   23 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   23 loggingdaemon   DEBUG    About to daemonise process...
+   34 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 52277
+   34 loggingdaemon   DEBUG    pid written to fifo
+   34 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   34 loggingdaemon   DEBUG     about to enter the main program function 
+   35 __main__        DEBUG    error, address already in use
+   35 roachreadout    DEBUG    Instantiated TCP server successfuly 
+29254 loggingdaemon   INFO     Logging daemon terminated
+29254 loggingdaemon   DEBUG    closed fifo
+29254 loggingdaemon   DEBUG    removed fifo successfuly
+29255 __main__        INFO     aborted serve_until_stopped
+   20 roachreadout    INFO     Logging configuration initialised as roachreadout
+   23 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   23 loggingdaemon   CRITICAL test message - delete
+   23 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   24 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   24 loggingdaemon   DEBUG    About to daemonise process...
+   38 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 52325
+   39 loggingdaemon   DEBUG    pid written to fifo
+   39 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   39 loggingdaemon   DEBUG     about to enter the main program function 
+   40 __main__        DEBUG    error, address already in use
+   41 roachreadout    DEBUG    Instantiated TCP server successfuly 
+   10 roachreadout    INFO     Logging configuration initialised as roachreadout
+   11 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   11 loggingdaemon   CRITICAL test message - delete
+   11 loggingdaemon   WARNING  Logging p-id file was locked by another process
+   11 loggingdaemon   WARNING  Logger already running with p-id 52325 
+   11 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   11 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   11 loggingdaemon   INFO     Not going to daemonise process... process appears to be already running
+6859480 main.test       CRITICAL logger already exists
+6862334 main.test       INFO     test
+64966 loggingdaemon   INFO     Logging daemon terminated
+64966 loggingdaemon   DEBUG    closed fifo
+64966 loggingdaemon   DEBUG    removed fifo successfuly
+64966 __main__        INFO     aborted serve_until_stopped
+   11 roachreadout    INFO     Logging configuration initialised as roachreadout
+   11 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   11 loggingdaemon   CRITICAL test message - delete
+   12 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   12 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   12 loggingdaemon   DEBUG    About to daemonise process...
+   24 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 52342
+   24 loggingdaemon   DEBUG    pid written to fifo
+   24 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   24 loggingdaemon   DEBUG     about to enter the main program function 
+   25 roachreadout    DEBUG    Instantiated TCP server successfuly 
+38251 loggingdaemon   INFO     Logging daemon terminated
+38252 loggingdaemon   DEBUG    closed fifo
+38252 loggingdaemon   DEBUG    removed fifo successfuly
+38252 __main__        INFO     aborted serve_until_stopped
+   18 roachreadout    INFO     Logging configuration initialised as roachreadout
+   21 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   22 loggingdaemon   CRITICAL test message - delete
+   22 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   22 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   22 loggingdaemon   DEBUG    About to daemonise process...
+   35 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 53472
+   36 loggingdaemon   DEBUG    pid written to fifo
+   36 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   36 loggingdaemon   DEBUG     about to enter the main program function 
+   37 roachreadout    DEBUG    Instantiated TCP server successfuly 
+20279 loggingdaemon   INFO     received user signal. processing request
+20279 loggingdaemon   DEBUG    command received: GET_ISRUNNING
+   11 roachreadout    INFO     Logging configuration initialised as roachreadout
+   11 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   11 loggingdaemon   CRITICAL test message - delete
+   11 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   11 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   11 loggingdaemon   DEBUG    About to daemonise process...
+   24 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 53508
+   25 loggingdaemon   DEBUG    pid written to fifo
+   25 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   25 loggingdaemon   DEBUG     about to enter the main program function 
+   26 roachreadout    DEBUG    Instantiated TCP server successfuly 
+    9 roachreadout    INFO     Logging configuration initialised as roachreadout
+   10 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   10 loggingdaemon   CRITICAL test message - delete
+   10 loggingdaemon   WARNING  Logging p-id file was locked by another process
+   10 loggingdaemon   WARNING  p-id not found. Process doesn't appear to be running.
+   10 loggingdaemon   DEBUG    Broke existing lock
+   11 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   11 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   11 loggingdaemon   DEBUG    About to daemonise process...
+   23 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 53522
+   24 loggingdaemon   DEBUG    pid written to fifo
+   24 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   24 loggingdaemon   DEBUG     about to enter the main program function 
+   25 roachreadout    DEBUG    Instantiated TCP server successfuly 
+81622 loggingdaemon   INFO     received user signal. processing request
+81623 loggingdaemon   DEBUG    command received: GET_ISRUNNING
+   11 roachreadout    INFO     Logging configuration initialised as roachreadout
+   11 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   11 loggingdaemon   CRITICAL test message - delete
+   11 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   12 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   12 loggingdaemon   DEBUG    About to daemonise process...
+   25 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 53569
+   25 loggingdaemon   DEBUG    pid written to fifo
+   26 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   26 loggingdaemon   DEBUG     about to enter the main program function 
+   27 roachreadout    DEBUG    Instantiated TCP server successfuly 
+27739 loggingdaemon   INFO     Logging daemon terminated
+27739 loggingdaemon   DEBUG    closed fifo
+27740 loggingdaemon   DEBUG    removed fifo successfuly
+27740 __main__        INFO     aborted serve_until_stopped
+   10 roachreadout    INFO     Logging configuration initialised as roachreadout
+   10 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   10 loggingdaemon   CRITICAL test message - delete
+   11 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   11 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   11 loggingdaemon   DEBUG    About to daemonise process...
+   22 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 53574
+   23 loggingdaemon   DEBUG    pid written to fifo
+   23 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   23 loggingdaemon   DEBUG     about to enter the main program function 
+   24 roachreadout    DEBUG    Instantiated TCP server successfuly 
+ 8233 loggingdaemon   INFO     received user signal. processing request
+ 8234 loggingdaemon   DEBUG    command received: GET_ISRUNNING
+37745 loggingdaemon   INFO     received user signal. processing request
+37746 loggingdaemon   DEBUG    command received: SET_LOGLEVEL:10
+37746 loggingdaemon   INFO     daemon logger level changed to 10
+   10 roachreadout    INFO     Logging configuration initialised as roachreadout
+   11 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   11 loggingdaemon   CRITICAL test message - delete
+   11 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   11 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   11 loggingdaemon   DEBUG    About to daemonise process...
+   23 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 53597
+   24 loggingdaemon   DEBUG    pid written to fifo
+   24 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   24 loggingdaemon   DEBUG     about to enter the main program function 
+   25 roachreadout    DEBUG    Instantiated TCP server successfuly 
+ 8232 loggingdaemon   INFO     received user signal. processing request
+ 8232 loggingdaemon   DEBUG    command received: SET_LOGLEVEL:10
+ 8232 loggingdaemon   INFO     daemon logger level changed to 10
+53813001 main.test       CRITICAL logger already exists
+53817792 main.test       INFO     test
+33030 loggingdaemon   INFO     received user signal. processing request
+33031 loggingdaemon   DEBUG    command received: SET_LOGLEVEL:20
+33031 loggingdaemon   INFO     daemon logger level changed to 20
+53829999 main.test       DEBUG    test
+86308 loggingdaemon   INFO     Logging daemon terminated
+86308 __main__        INFO     aborted serve_until_stopped
+   17 roachreadout    INFO     Logging configuration initialised as roachreadout
+   20 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   21 loggingdaemon   CRITICAL test message - delete
+   21 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   21 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   21 loggingdaemon   DEBUG    About to daemonise process...
+   32 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 10344
+   32 loggingdaemon   DEBUG    pid written to fifo
+   32 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   32 loggingdaemon   DEBUG     about to enter the main program function 
+   33 roachreadout    DEBUG    Instantiated TCP server successfuly 
+  235 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+  439 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+  644 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+  848 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 1052 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 1257 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 1461 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 1665 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 1870 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 2074 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 2279 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 2482 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 2687 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 2891 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 3094 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 3299 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 3502 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 3706 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 3910 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 4115 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 4319 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 4524 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 4726 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 4930 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 5134 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 5339 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 5544 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 5747 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 5952 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 6155 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 6359 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 6563 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 6768 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 6972 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 7175 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 7380 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 7583 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 7786 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 7990 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 8192 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 8394 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 8598 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 8803 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 9007 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 9209 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 9412 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 9615 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 9820 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+10024 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+10228 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+10433 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+10637 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+10842 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+11046 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+11250 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+11454 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+11658 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+11862 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+12066 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+12271 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+12475 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+12679 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+12883 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+13087 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+13292 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+13495 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+13699 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+13902 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+14106 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+14310 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+14514 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+14717 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+14922 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+15126 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+15331 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+15535 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+15740 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+15944 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+16148 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+16353 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+16557 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+16761 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+16963 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+17167 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+17370 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+17574 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+17778 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+17982 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+18187 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+18391 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+18594 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+18799 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+19002 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+19207 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+19409 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+19613 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+19816 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+20021 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+20224 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+20428 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+20631 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+20835 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+21040 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+21123 loggingdaemon   INFO     Logging daemon terminated
+21123 loggingdaemon   DEBUG    closed fifo
+21124 loggingdaemon   DEBUG    removed fifo successfuly
+21124 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; received keyboard interupt, stop serving
+21124 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+    9 roachreadout    INFO     Logging configuration initialised as roachreadout
+   10 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   10 loggingdaemon   CRITICAL test message - delete
+   10 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   10 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   10 loggingdaemon   DEBUG    About to daemonise process...
+   22 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 10461
+   23 loggingdaemon   DEBUG    pid written to fifo
+   23 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   23 loggingdaemon   DEBUG     about to enter the main program function 
+   24 roachreadout    DEBUG    Instantiated TCP server successfuly 
+  229 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+  431 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+  635 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+  840 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 1044 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 1249 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 1453 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 1657 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 1861 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 2065 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 2269 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 2473 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 2678 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 2881 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 3086 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 3290 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 3494 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 3697 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 3900 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 4101 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 4306 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 4509 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 4713 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 4918 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 5122 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 5326 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 5530 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 5733 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 5938 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 6142 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 6347 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 6551 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 6755 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 6959 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 7164 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 7367 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 7570 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 7772 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 7976 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 8181 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 8385 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 8589 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 8793 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 8997 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 9201 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 9405 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 9610 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+ 9814 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+10018 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+10222 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+10426 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+10631 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+10835 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+11039 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+11243 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+11447 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+11650 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+11854 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+12059 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+12262 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+12466 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+12670 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+12874 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+13079 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+13285 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+13489 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+13694 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+13897 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+14101 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+14304 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+14509 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+14713 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+14917 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+15121 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+15325 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+15529 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+15733 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+15937 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+16141 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+16345 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+16550 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+16754 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+16958 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+17161 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+17365 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+17569 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+17774 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+17978 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+18182 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+18387 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+18590 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+18795 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+18999 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+19203 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+19407 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+19612 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+19815 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+20020 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+20224 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+20428 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+20632 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+20835 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+21039 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+21244 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+21448 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+21650 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+21854 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+22059 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+22263 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+22466 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+22671 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+22875 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+23078 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+23283 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+23487 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+23692 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+23894 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+24097 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+24301 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+24505 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+24706 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+24910 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+25114 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+25318 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+25522 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+25725 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+25929 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+26133 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+26337 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+26540 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+26744 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+26948 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+27152 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+27356 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+27560 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+27764 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+27968 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+28173 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+28377 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+28581 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+28786 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+28989 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+29193 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+29397 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+29601 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+29803 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+30007 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+30212 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+30416 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+30620 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+30824 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+31029 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+31233 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+31437 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+31642 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+31846 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+32050 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+32254 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+32459 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+32663 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+32867 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+33071 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+33276 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+33480 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+33683 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+33886 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+34090 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+34294 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+34497 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+34702 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+34906 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+35110 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+35315 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+35519 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+35723 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+35926 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+36131 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+36334 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+36539 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+36743 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+36947 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+37151 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+37354 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+37559 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+37763 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+37967 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+38171 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+38375 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+38579 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+38783 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+38988 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+39191 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+39394 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+39597 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+39800 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+40003 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+40208 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+40412 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+40616 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+40820 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+41025 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+41229 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+41434 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+41638 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+41842 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+42046 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+42251 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+42455 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+42658 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+42862 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+43066 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+43271 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+43475 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+43679 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+43882 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+44087 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+44291 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+44494 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+44698 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+44902 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+45110 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+45314 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+45518 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+45722 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+45926 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+46008 loggingdaemon   INFO     Logging daemon terminated
+46008 loggingdaemon   DEBUG    closed fifo
+46008 loggingdaemon   DEBUG    removed fifo successfuly
+46008 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; received keyboard interupt, stop serving
+46009 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+    9 roachreadout    INFO     Logging configuration initialised as roachreadout
+   10 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   10 loggingdaemon   CRITICAL test message - delete
+   10 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   10 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   10 loggingdaemon   DEBUG    About to daemonise process...
+   23 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 10701
+   23 loggingdaemon   DEBUG    pid written to fifo
+   24 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   24 loggingdaemon   DEBUG     about to enter the main program function 
+   25 roachreadout    DEBUG    Instantiated TCP server successfuly 
+3472858 main.test       CRITICAL logger already exists
+3515361 main.test       INFO     useful information
+3527724 main.test       CRITICAL logger already exists
+3631979 main.test       WARNING  logfile.get_new_logger; a logger with a socketHandler to host localhost on port 9050 already exists
+1875791 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+    9 roachreadout    INFO     Logging configuration initialised as roachreadout
+   10 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   10 loggingdaemon   CRITICAL test message - delete
+   10 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   10 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   10 loggingdaemon   DEBUG    About to daemonise process...
+   23 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 10942
+   24 loggingdaemon   DEBUG    pid written to fifo
+   24 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   24 loggingdaemon   DEBUG     about to enter the main program function 
+   26 roachreadout    DEBUG    Instantiated TCP server successfuly 
+308465 loggingdaemon   INFO     Logging daemon terminated
+308466 loggingdaemon   DEBUG    closed fifo
+308466 loggingdaemon   DEBUG    removed fifo successfuly
+308466 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; received keyboard interupt, stop serving
+308466 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+    9 roachreadout    INFO     Logging configuration initialised as roachreadout
+   10 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   10 loggingdaemon   CRITICAL test message - delete
+   10 loggingdaemon   WARNING  Logging p-id file was locked by another process
+   10 loggingdaemon   WARNING  p-id not found. Process doesn't appear to be running.
+   10 loggingdaemon   DEBUG    Broke existing lock
+   11 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   11 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   11 loggingdaemon   DEBUG    About to daemonise process...
+   22 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 12235
+   23 loggingdaemon   DEBUG    pid written to fifo
+   23 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   23 loggingdaemon   DEBUG     about to enter the main program function 
+   24 roachreadout    DEBUG    Instantiated TCP server successfuly 
+60267 loggingdaemon   INFO     Logging daemon terminated
+60267 loggingdaemon   DEBUG    closed fifo
+60269 loggingdaemon   DEBUG    removed fifo successfuly
+60269 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; received keyboard interupt, stop serving
+60270 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+    9 roachreadout    INFO     Logging configuration initialised as roachreadout
+   10 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+   10 loggingdaemon   CRITICAL test message - delete
+   10 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+   10 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+   10 loggingdaemon   DEBUG    About to daemonise process...
+   25 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 12273
+   26 loggingdaemon   DEBUG    pid written to fifo
+   26 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+   26 loggingdaemon   DEBUG     about to enter the main program function 
+   27 roachreadout    DEBUG    Instantiated TCP server successfuly 
+ 9314 loggingdaemon   INFO     Logging daemon terminated
+ 9314 loggingdaemon   DEBUG    closed fifo
+ 9314 loggingdaemon   DEBUG    removed fifo successfuly
+ 9315 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; received keyboard interupt, stop serving
+ 9315 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+  517 roachreadout    INFO     Logging configuration initialised as roachreadout
+  520 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+  521 loggingdaemon   CRITICAL test message - delete
+  521 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+  521 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+  521 loggingdaemon   DEBUG    About to daemonise process...
+  534 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 3926
+  534 loggingdaemon   DEBUG    pid written to fifo
+  534 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+  534 loggingdaemon   DEBUG     about to enter the main program function 
+  535 roachreadout    DEBUG    Instantiated TCP server successfuly 
+  362 roachreadout    INFO     Logging configuration initialised as roachreadout
+  362 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+  362 loggingdaemon   CRITICAL test message - delete
+  362 loggingdaemon   WARNING  Logging p-id file was locked by another process
+  362 loggingdaemon   WARNING  Logger already running with p-id 3926 
+  362 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+  362 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+  362 loggingdaemon   INFO     Not going to daemonise process... process appears to be already running
+348849 loggingdaemon   INFO     Logging daemon terminated
+348849 loggingdaemon   DEBUG    closed fifo
+348849 loggingdaemon   DEBUG    removed fifo successfuly
+348849 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; received keyboard interupt, stop serving
+348850 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+  364 roachreadout    INFO     Logging configuration initialised as roachreadout
+  365 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+  365 loggingdaemon   CRITICAL test message - delete
+  365 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+  365 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+  365 loggingdaemon   DEBUG    About to daemonise process...
+  381 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 3980
+  382 loggingdaemon   DEBUG    pid written to fifo
+  382 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+  382 loggingdaemon   DEBUG     about to enter the main program function 
+  384 roachreadout    DEBUG    Instantiated TCP server successfuly 
+216237 loggingdaemon   INFO     received user signal. processing request
+216237 loggingdaemon   DEBUG    command received: test
+222837 loggingdaemon   INFO     Logging daemon terminated
+222837 loggingdaemon   DEBUG    closed fifo
+222837 loggingdaemon   DEBUG    removed fifo successfuly
+222838 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; received keyboard interupt, stop serving
+222838 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+  358 roachreadout    INFO     Logging configuration initialised as roachreadout
+  359 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+  359 loggingdaemon   CRITICAL test message - delete
+  359 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+  359 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+  359 loggingdaemon   DEBUG    About to daemonise process...
+  372 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 3995
+  372 loggingdaemon   DEBUG    pid written to fifo
+  372 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+  373 loggingdaemon   DEBUG     about to enter the main program function 
+  373 roachreadout    DEBUG    Instantiated TCP server successfuly 
+  351 roachreadout    INFO     Logging configuration initialised as roachreadout
+  352 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+  352 loggingdaemon   CRITICAL test message - delete
+  352 loggingdaemon   WARNING  Logging p-id file was locked by another process
+  352 loggingdaemon   WARNING  Logger already running with p-id 3995 
+  352 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+  352 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+  352 loggingdaemon   INFO     Not going to daemonise process... process appears to be already running
+518876 loggingdaemon   INFO     Logging daemon terminated
+518876 loggingdaemon   DEBUG    closed fifo
+518876 loggingdaemon   DEBUG    removed fifo successfuly
+518877 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; received keyboard interupt, stop serving
+518877 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown
+  354 roachreadout    INFO     Logging configuration initialised as roachreadout
+  355 loggingdaemon   DEBUG    Created fifo at .loggingdaemon.pipe
+  355 loggingdaemon   CRITICAL test message - delete
+  355 loggingdaemon   DEBUG    Entered the function that. Configuring daemon context.
+  355 loggingdaemon   DEBUG    Opened fifo at .loggingdaemon.pipe
+  355 loggingdaemon   DEBUG    About to daemonise process...
+  371 loggingdaemon   INFO     Sucessfully daemonised. Running with PID 4072
+  372 loggingdaemon   DEBUG    pid written to fifo
+  372 loggingdaemon   DEBUG    cwd = /Users/PeteBarry/Documents/analysiscode/multitone
+  373 loggingdaemon   DEBUG     about to enter the main program function 
+  375 roachreadout    DEBUG    Instantiated TCP server successfuly 
+30526 loggingdaemon   INFO     Logging daemon terminated
+30526 loggingdaemon   DEBUG    closed fifo
+30527 loggingdaemon   DEBUG    removed fifo successfuly
+30527 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; received keyboard interupt, stop serving
+30528 loggingdaemon.logsocketserver INFO     tcpserver.serve_until_stopped; logger successfully shutdown

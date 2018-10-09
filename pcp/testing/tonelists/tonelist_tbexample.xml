@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<tonefile arrayID="MUSCAT25nm-D2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:noNamespaceSchemaLocation="xmlschema_tbexample.xsd">
+	<tonelist ID="001" date="2018-07-26" temperature="0.15" temperatureUnit="K">
+		<KID ID="KID001">
+			<freq>836.2135</freq>
+			<freqUnit>MHz</freqUnit>
+			<power>-60</power>
+			<powerUnit>dBm</powerUnit>
+			<Qfactor>1000000</Qfactor>
+		</KID>
+		<KID ID="KID002">
+			<freq>1.213452</freq>
+			<freqUnit>GHz</freqUnit>
+			<power>-91</power>
+			<powerUnit>dBW</powerUnit>
+			<Qfactor>10000</Qfactor>
+		</KID>
+	</tonelist>
+	<tonelist ID="002" date="2018-07-25" temperature="350" temperatureUnit="mK">
+		<KID ID="KID001">
+			<freq>836.2101</freq>
+			<freqUnit>MHz</freqUnit>
+			<power>-98</power>
+			<powerUnit>dBW</powerUnit>
+			<Qfactor>936542</Qfactor>
+		</KID>
+		<KID ID="KID002">
+			<freq>1203452000</freq>
+			<freqUnit>Hz</freqUnit>
+			<power>-96</power>
+			<powerUnit>dBm</powerUnit>
+			<Qfactor>95425</Qfactor>
+		</KID>
+	</tonelist>
+</tonefile>
