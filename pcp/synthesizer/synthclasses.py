@@ -35,10 +35,12 @@ Unit conventions:
 
 Currently supported models (as of 2nd Sep 2018):
     - Dummy (for testing purposes)
-    - Valon 5008, 5009
-    - APSIN 20G
-    - Rhode and Schwartz, SGS100a, SMA100a
-    - Windfreak Tech. SynthHD
+    -x Valon 5008, 5009
+    -x APSIN 20G
+    -x Rhode and Schwartz, SGS100a, SMA100a
+    -x Windfreak Tech. SynthHD
+
+    "x denotes that the required code hasn't been implemented and tested in this script yet"
 
 TODO:
     - add "fast" frequency functionality to increase speed when sweeping
@@ -68,6 +70,7 @@ class pcp_dummySynth(_dummy_synth.dummySynth):
     def frequency(self):
         """Get or set the frequency of the synthesizer. Units should all be in Hz."""
         return self._frequency
+
     @frequency.setter
     def frequency(self, frequency):
         self._frequency = frequency

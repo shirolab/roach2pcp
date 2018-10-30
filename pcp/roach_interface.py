@@ -20,13 +20,15 @@ try:
     import casperfpga
 except ImportError:
     print "can't find casperfpga module - limited functionality available"
+    casperfpga = None
     pass
-
 
 from .configuration import ROOTDIR, filesys_config, roach_config, network_config, hardware_config, general_config
 
 # import the synth dictionary from
 from .synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT # note that we might need to e careful of import order here
+
+import datalog_mp
 
 from .lib.lib_hardware import initialise_connected_synths as _initialise_connected_synths
 SYNTHS_IN_USE = _initialise_connected_synths()
@@ -55,23 +57,30 @@ class roachInterface(object):
 
         # initialise all the hardware and return objects
         self.initialse_hardware()
-
+        self._initialise_daemon_writer(roachid)
 
     def _initialise_daemon_writer(self, roachid):
-        pass
+        self.writer_daemon = datalog_mp.dataLogger(roachid)
+        self.writer_daemon.start_daemon()
 
     def initialse_hardware(self):
         # initialise all the hardware
+        self.fpga = self._initialise_fpga(self.roachid)
+
         self._initialise_synth_clk(self.roachid)
         self._initialise_synth_lo(self.roachid)
 
+        #self._initialise_gbe(self.roachid)
+
     def _initialise_fpga(self, roachid):
+        if casperfpga is None:
+            print "casperfpga module not loaded. No active FPGA instance"
+            return
         try:
-            self.fpga = casperfpga.katcp_fpga.KatcpFpga(ppc_ipaddr, timeout = 120.)
-            return 0
+            return casperfpga.katcp_fpga.KatcpFpga(ppc_ipaddr, timeout = 120.)
         except RuntimeError:
             # bad things have happened, and nothing else should proceed
-            return -1
+            return
 
     def _initialise_synth_lo(self, roachid):
         # get configuration
@@ -91,7 +100,7 @@ class roachInterface(object):
             self.synth_clk = SYNTHS_IN_USE[synthid_clk]
             pass
         else:
-            self.synth_clk = 'none'
+            self.synth_clk = None
 
     def _initialise_attenuation(self, roachid):
         # get configuration for attenuators for roachid
@@ -119,22 +128,31 @@ class roachInterface(object):
             collected.
 
         save_data : bool
-            Flag to turn off data writing. Mainly for testing purposes. Default is, of course, True. 
+            Flag to turn off data writing. Mainly for testing purposes. Default is, of course, True.
+
+        # TODO:
+            - implement a method to determine if packets are being captured correctly?
 
         """
+        valid_kwargs = ["sweep_span", "sweep_step", "sweep_avgs", "save_data"]
         # parse the keyword arguments
-        sweep_span = np.float32(sweep_kwargs.pop("sweep_span", self.ROACH_CFG["sweep_span"]))
-        sweep_step = np.float32(sweep_kwargs.pop("sweep_step", self.ROACH_CFG["sweep_step"]))
-        sweep_avgs = np.int32(sweep_kwargs.pop("sweep_avgs", self.ROACH_CFG["sweep_avgs"]))
+        sweep_span = np.float32( sweep_kwargs.pop("sweep_span", self.ROACH_CFG["sweep_span"]) )
+        sweep_step = np.float32( sweep_kwargs.pop("sweep_step", self.ROACH_CFG["sweep_step"]) )
+        sweep_avgs = np.int32  ( sweep_kwargs.pop("sweep_avgs", self.ROACH_CFG["sweep_avgs"]) )
 
         save_data = sweep_kwargs.pop("save_data", True)
 
-        # check that daemonwriter is not currently writing, return if not as something has probably gone wrong
-        # if roachcontainer.writer_daemon.isrunning() == True:
-        #     return
+        if sweep_kwargs.keys():
+            print "Error: Optional argument(s) {0} not processed. Valid kwargs are {1}. Sweep not completed."\
+            .format(sweep_kwargs.keys(), valid_kwargs)
+            return
 
-        # check if current sweepdirfile exists (there should be a function that create a new file )
-        # if it does, get the filename and append unique id (_#)
+        # check that daemonwriter is not currently writing, return if not as something has probably gone wrong
+        if self.writer_daemon.is_writing == True:
+            print "Writer is already running. Aborting sweep. Stop current file and retry."
+            return
+
+        # perform a quick check that packets are being streamed to the roach
 
         # get list of LO frequencies for sweeping
         # roachcontainer.losweep_freqs # this is calculated from the LO freq, sweep bandwidths
@@ -142,17 +160,22 @@ class roachInterface(object):
                                 self.synth_lo.frequency + sweep_span/2., \
                                 sweep_step,\
                                 dtype = np.float32)
-        print sweep_freqs
-        # set dirfile for writer
-        # roachcontainer.set_new_file()
 
-        # start_writer
-        # roachcontainer.start_writing()
+        # create new dirfile and set it as the active file. Note that data writing is off by default.
+        self.writer_daemon.set_active_dirfile(datatag = "sweep")
+        self.current_dirfile = self.writer_daemon.current_dirfile
 
-        # loop over LO frequencies, while saving time at lo_step
+        # set up sweep timing parameters
         step_times = []
         # # get time for avg factor
         sleeptime = np.round( sweep_avgs / 488. * 1.05, decimals = 3 )#self.fpga.sample_rate) * 1.05 # num avgs / sample_rate + 5%
+        print "sleep time for sweep is {0}".format(sleeptime)
+
+        # start writing data to file
+        print "starting to write data"
+        self.writer_daemon.start_writing()
+
+        # loop over LO frequencies, while saving time at lo_step
         try:
             for lofreq in sweep_freqs:
                 self.synth_lo.frequency = lofreq
@@ -160,7 +183,12 @@ class roachInterface(object):
                 time.sleep(sleeptime)
         except KeyboardInterrupt:
             pass
+
+        self.writer_daemon.pause_writing()
+
         return np.array(step_times, dtype = np.float64)
+
+        # close dirfile to prevent further writing
 
         # now sweep has finished, create the derived sweep file and save to the current dirfile (from lib_dirfiles)
 
@@ -175,7 +203,8 @@ class roachInterface(object):
             # retain reference to dirfile here
             # link to visualisation.py for plotting (or scraps)
 
-
+    def shutdown():
+        pass
 
 
 

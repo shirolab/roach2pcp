@@ -28,7 +28,7 @@ print PACKETLEN
 try:
     while True:
         time.sleep(1)
-
+        
         print "Sending packet to {ip} at port {port}".format(ip=DESTADDR, port=DESTPORT)
 
         packet = pcp.lib.lib_datapackets.gen_fake_roach_packet(use_test_packet=True)

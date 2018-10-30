@@ -13,9 +13,9 @@
 # - find a neat way of reading field lists from configuration file
 
 # create a new dirfile, and populate with correct fieldnames
-import os, sys, numpy as np
+import os, sys, time, numpy as np
 import pygetdata as _gd
-from ..configuration import roach_config
+from ..configuration import filesys_config, roach_config, general_config
 from . import lib_datapackets
 
 def create_pcp_dirfile(dirfilename, ntones, *dirfileflags):
@@ -59,16 +59,82 @@ def create_pcp_dirfile(dirfilename, ntones, *dirfileflags):
     return maindirfile, sweepdirfile
     # derived fields
     # calbration fragment
-def create_dirfile(dirfilename, ntones, *dirfile_creation_flags):
+
+def is_path_a_dirfile(path_to_check):
+    """
+    Simple function to check if a path is a vlaid dirfile.
+    Firstly, checks if there is a "format" file, then checks that the first line
+    is as expected for the dirfile standard.
+
+    """
+    # ensure that the path exists
+    if not os.path.exists(path_to_check):
+        print "Path doesn't exist."
+        return False
+
+    # ensure that the path is a directory
+    if not os.path.isdir(path_to_check):
+        print "Path is not a directory"
+        return False
+
+    # check if directory contains a 'format' file
+    if not 'format' in os.listdir(path_to_check):
+        print "no format file found in directory."
+        return False
+
+    # open and read the first line of the format file (which should read # "This is a dirfile format file."")
+    format_file_to_check = os.path.join(path_to_check, 'format')
+
+    assert os.path.exists(format_file_to_check) # this is probably not necessary
+
+    # read first line of the format file
+    with open(format_file_to_check) as fin:
+        first_line = fin.readline()
+
+    # check that the first line contains "dirfile format file"
+    if "dirfile format file" in first_line:
+        return True
+    else:
+        print "{0} doesn't look like a valid dirfile".format(path_to_check)
+        return False
+
+def create_dirfile(dirfilename="", ntones=1012, *dirfile_creation_flags, **kwargs):
     """
     High level function to create a new dirfile according to the pcp standards. This creates a format file with a number of tones
     (to be standardised), and other packet information, read from roach_config (to be implmented).
+
+    If no dirfilename is given, or if dirfilename is a path and not a valid dirfile, then a new dirfile will be created using
+    the default filename format.
+
+    If a valid dirfile is given, a warning will be given and it will be passed through.
+
+    Valid kwargs:
+        - datatag; string to add to file path prepended by a leading underscore. Only applies to new filenames. Default is empty string.
     """
-    #
+    # check that the input is a string
+    assert type(dirfilename) == str
+
+    # handle kwargs
+    datatag = kwargs.pop("datatag", ""); sep = "_" if datatag else "" # str to add to file path (only applies to new filenames)
+
     # parse user specified set of dirfile flags, else use defaults (note _gd.EXCL prevents accidental overwriting)
     dirfileflagint = np.bitwise_or.reduce(dirfileflags) if dirfile_creation_flags \
                                                         else _gd.CREAT|_gd.RDWR|_gd.UNENCODED|_gd.EXCL
-    # create dirfile
+
+    # check if the file path is a valid dirfile
+    if is_path_a_dirfile(dirfilename):
+        print "It looks like {0} is a valid dirfile. Opening and returning dirfile.".format(dirfilename)
+        return _gd.dirfile(dirfilename, _gd.RDWR|_gd.UNENCODED)
+
+    # check if path exists - join new filename to existing path.
+    elif os.path.exists(dirfilename):
+        dirfilename = os.path.join( dirfilename, time.strftime(general_config['default_datafilename_format']) + sep + datatag )
+
+    # assume that the path given is the intended path of the new dirfile
+    else:
+        pass # not required, but better to be explicit than implicit :)
+
+    # create the new dirfile
     dirfile = _gd.dirfile(dirfilename, dirfileflagint)
     # add main fields according to
     dirfile = generate_main_rawfields(dirfile, ntones)
@@ -92,8 +158,6 @@ def close_dirfile(dirfilename):
     else:
         return
 
-
-
 def generate_main_rawfields(dirfile, ntones, fragnum=0, datatag=""):
     # function to generate a standard set of dirfile entries for the roach readout
     # will be used for both timestreams and raw sweep files
@@ -110,7 +174,7 @@ def generate_main_rawfields(dirfile, ntones, fragnum=0, datatag=""):
     #             "gpio_reg" :(_gd.RAW_ENTRY, _gd.UINT8) # hardware controlled 8-bit gpio pins
     #             }
 
-    aux_fields = roach_config["PACKETSTRUCT"]["aux_field_cfg"]
+    aux_fields = roach_config["packet_structure"]["aux_field_cfg"]
     aux_entries_to_write = []
 
     for field_name, (entry_type, field_datatype, __, __, __, __) in aux_fields.items():
@@ -234,4 +298,4 @@ def append_to_dirfile(dirfile, datapacket_dict, datatag=""):
     dirfile.flush()
 
 def generate_sweep_dirfile(dirfile, datapacket_dict, datatag=""):
-    pass 
+    pass

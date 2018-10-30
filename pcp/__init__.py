@@ -18,10 +18,17 @@ Loading submodules...
 """
 )
 
-
+#import sub-libraries
 import configuration, lib, kid, synthesizer, unittests
-import logfile
+import logfile, roach_interface, datalog_mp
 
+
+# lists of important information defined at the top level for convenience (i.e. pcp.ROACH_LIST)
+# will show the list of roaches defined in the confiruation files
+
+ROACH_LIST = configuration.roach_config['roach_params'].keys()
+SYNTH_LIST = configuration.hardware_config['synth_config'].keys()
+ATTEN_LIST = configuration.hardware_config['atten_config'].keys()
 
 
 
