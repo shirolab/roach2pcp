@@ -104,7 +104,10 @@ class dataLogger(object):
 
     # TODO:
     -x implement a check to see whether packets are being collected
-    -x add flush/empty queue function
+    -x add flush/empty data queue function
+    - move socket initialisation into daemon process (remove duplicate socket defs)
+    - implement a close dirfile option
+    - implement a more robust method to check if _eventqueue has been read
     """
 
     def __init__(self, roachid):
@@ -149,7 +152,9 @@ class dataLogger(object):
         # create mp.Event and mp.Queue for controlling process
         self._ctrlevent  = mp.Event()
         self._exitevent  = mp.Event()
+        self._cmdevent   = mp.Event()
         self._eventqueue = mp.Queue()
+
 
     # -----------------------------------------------------------------------------
 
@@ -243,7 +248,9 @@ class dataLogger(object):
                     #pass to parallel thread for writing to disk
                     packet = self._sockethandle.recv(9000)
                     # check packet is real
-                    self._writer_queue.appendleft( packet )
+
+                    # append (packet, time.time()) to queue which passes to packet to _writer_thread_function
+                    self._writer_queue.appendleft( ( packet, time.time() ) )
 
                 continue
 
@@ -261,7 +268,7 @@ class dataLogger(object):
             #     break
         print "cleaning up"
 
-    def _parse_packet_and_append_to_dirfile(self):
+    def _parse_packet_and_append_to_dirfile(self, datatowrite):
         """
         Function to act as the worker thread for parsing packets and writing data to a dirfile.
 
@@ -283,20 +290,21 @@ class dataLogger(object):
         # gets passed the raw string data from the queue
         # handle empty queue?
         #while self.is_writing:
-        # read current length of queue
-        sizetoread = min(len(self._writer_queue), roach_config["max_queue_len"])
+        # read current length of queue - "max_queue_len" is used to limit the maximum number of packets to read at once
+        #sizetoread = min(len(self._writer_queue), roach_config["max_queue_len"])
         # get all packets in the current queue
-        datatowrite = [self._writer_queue.pop() for i in range(sizetoread)]
-        if len(datatowrite) > 0:
+        #datatowrite = [self._writer_queue.pop() for i in range(sizetoread)]
+        #if len(datatowrite) > 0:
             # parse packets into dictionary
-            datapacket_dict = lib_datapackets.parse_datapacket_dict(datatowrite)
-            # append to dirfile
-            lib_dirfiles.append_to_dirfile(self.current_dirfile, datapacket_dict)
-            return 0
-        else:
+        datapacket_dict = lib_datapackets.parse_datapacket_dict(datatowrite)
+        # append to dirfile
+        lib_dirfiles.append_to_dirfile(self.current_dirfile, datapacket_dict)
+
+        return 0
+        #else:
             #print "no packets in queue"
             #time.sleep(5)
-            return -1
+        #    return -1
 
     def _writer_thread_function(self):
         """
@@ -319,21 +327,69 @@ class dataLogger(object):
         if not type(self.current_dirfile) == _gd.dirfile:
             print "no dirfile set"
 
+        datatowrite = []
+
         while not self._exitevent.is_set():
             #print "writer paused"
             #sys.stdout.write("{0}, {1}\r".format(self.current_dirfile, self.is_writing)); sys.stdout.flush()
 
             while self.is_writing:
 
-                retcode = self._parse_packet_and_append_to_dirfile()
-                if retcode < 0:
-                    sys.stdout.write("{0} no packet in queue {0}\r".format( ["-","*"][np.roll([0,1], i)[0]] ) )
-                    sys.stdout.flush()
-                else:
-                    print "packet_received"
-                time.sleep(100e-6);
-                i += 1
-            time.sleep(2)
+                sizetoread = min(len(self._writer_queue), roach_config["max_queue_len"])
+                bufferlen_to_write = 10
+
+                # get all packets in the current queue
+                datatowrite += [self._writer_queue.pop() for i in range(sizetoread)]
+
+                #datatowrite = [0]*11
+                #sys.stdout.write("{0} packets in queue".format( len(datatowrite) ) )
+                #sys.stdout.flush()
+
+                #print "length of data to write", len(datatowrite)
+                #time.sleep(1)
+
+                if ( len(datatowrite) >= bufferlen_to_write ) or not self.is_writing :
+                    # the is_writing state above is to ensure that if the writer is paused, the current buffer get written to disk
+                    #print "would write this to file"
+                    retcode = self._parse_packet_and_append_to_dirfile(datatowrite)
+
+                    #time.sleep(100e-6) # why is this here?
+                    datatowrite = [] # <-- this should always run; either the buffer length is reached, or the writer has been paused
+                    i += 1 # this isn't used anymore...
+
+            if datatowrite:
+                print "some data didn't get saved!!" # just in case some data is left in the buffer
+
+            time.sleep(0.1)
+
+    ########################### Queue functions ###########################
+
+    def _add_to_queue_and_wait(self, command_to_send):
+
+        if self.is_daemon_running():
+            self._eventqueue.put( command_to_send )
+            print "command put into queue"
+        #time.sleep(0.1)
+
+            while not self._cmdevent.is_set():
+                sys.stdout.write("waiting for command queue to empty\r")
+                continue
+            self._cmdevent.clear()
+
+        else:
+            print "data logging daemon doesn't appear to running."
+
+    def _read_response_from_eventqueue(self, initial_command):
+        # check if write status is the same as the command we sent. How to properly handle it if so? It most likely is due to the main daemon process being terminated
+        #self.writer_alive = writer_status if writer_status != command_to_send else self.writer_alive
+        #return self.writer_alive
+        try:
+            value_from_queue = self._eventqueue.get( timeout=.1 )
+            return value_from_queue if value_from_queue != initial_command else False
+
+        except mp.queues.Empty:
+            print "queue empty, no data returned."
+            return False
 
     def is_writer_thread_running(self):
         """
@@ -346,26 +402,23 @@ class dataLogger(object):
         ( there is a )
 
         """
+        command_to_send = ("STATUS_WRITER",0)
         # set the event to read the command
         self._ctrlevent.set()
-        # ask for the status
-        command_to_send = ("STATUS_WRITER",0)
-        self._eventqueue.put( command_to_send )
-        # wait for that command to be processed, this could be more elegant (maybe using semaphores?),
-        # but need to be careful as the parallel process will put new items in the queue. Simple delay seems to work ok for now
-        time.sleep(0.25)
+        self._add_to_queue_and_wait( command_to_send ) # need to be careful that we don't have race conditions?
+        return self._read_response_from_eventqueue( command_to_send )
 
         # Read queue to get values returned
-        try:
-            writer_status = self._eventqueue.get( timeout=.1 )
-            # check if write status is the same as the command we sent. How to properly handle it if so? It most likely is due to the main daemon process being terminated
-            #self.writer_alive = writer_status if writer_status != command_to_send else self.writer_alive
-            #return self.writer_alive
-            return writer_status if writer_status != command_to_send else False
-
-        except mp.queues.Empty:
-            print "queue empty, no data returned."
-            return False
+        # try:
+        #     writer_status = self._eventqueue.get( timeout=.1 )
+        #     # check if write status is the same as the command we sent. How to properly handle it if so? It most likely is due to the main daemon process being terminated
+        #     #self.writer_alive = writer_status if writer_status != command_to_send else self.writer_alive
+        #     #return self.writer_alive
+        #     return writer_status if writer_status != command_to_send else False
+        #
+        # except mp.queues.Empty:
+        #     print "queue empty, no data returned."
+        #     return False
 
     def _clean_up(self):
         print "cleaning up"
@@ -378,11 +431,16 @@ class dataLogger(object):
 
         # by design, writer thread will die after the daemon process is temrinated
         self.is_writing = False
+        # close the current dirfile so as not to leave dangling file references
+        self.current_dirfile.close()
 
     def pause_writing(self):
+        #self._eventqueue.put( ("STOP_WRITE",0) )
+        command_to_send = ("STOP_WRITE", 0)
         self._ctrlevent.set()
-        self._eventqueue.put( ("STOP_WRITE",0) )
+        self._add_to_queue_and_wait( command_to_send )
         self.is_writing = False
+        return self._read_response_from_eventqueue( command_to_send )
 
     def start_writing(self):
         """
@@ -396,9 +454,14 @@ class dataLogger(object):
             print "No dirfile set. Use self.set_active_dirfile() to create and set a new dirfile and re-run"
             return
 
+        command_to_send = ("START_WRITE", 0)
         self._ctrlevent.set()
-        self._eventqueue.put( ("START_WRITE",0) )
-        self.is_writing = True
+        self._add_to_queue_and_wait( command_to_send ) # need to be careful that we don't have race conditions?
+        #time.sleep(1)
+
+        #self.is_writing = True
+        #time.sleep(0.2)
+        self.is_writing = self._read_response_from_eventqueue( command_to_send )
 
     def terminate(self):
         # setting the exitevent allows the functions to exit the main while loops in the daemon and writer thread
@@ -448,7 +511,7 @@ class dataLogger(object):
             print "Warning, it appears a dirfile is currently being written. Stop and retry."
             return
 
-        # if an empty string is given (default), then a new file is generated (this is likely to be the )
+        # if an empty string is given (default), then a new file is generated (this is likely to be the most used case)
         new_dirfile = self.DIRFILE_SAVEDIR if not new_dirfile else new_dirfile
 
         # store last open filename for convenience
@@ -522,19 +585,21 @@ class dataLogger(object):
         command_to_send = ("CHECK_PACKET", num_packets)
         if not self.is_writing:
             self._ctrlevent.set()
-            self._eventqueue.put( command_to_send )
+            self._add_to_queue_and_wait(command_to_send)
+            #self._ctrlevent.set()
+            #self._eventqueue.put( command_to_send )
         else:
             print "currently saving data. Stop and retry"
 
-        time.sleep(0.25)
+        return self._read_response_from_eventqueue(command_to_send)
 
-        try:
-            packet_check = self._eventqueue.get( timeout=.1 )
-            return packet_check if packet_check != command_to_send else False
+        #try:
+        #    packet_check = self._eventqueue.get( timeout=.1 )
+        #    return packet_check if packet_check != command_to_send else False
 
-        except mp.queues.Empty:
-            print "queue empty, no data returned."
-            return False
+        #except mp.queues.Empty:
+        #    print "queue empty, no data returned."
+        #    return False
 
     def clear_queue(self):
         """
@@ -552,7 +617,8 @@ class dataLogger(object):
     def _process_command(self):
         """
         Internal method to handle and process any event triggered by event.set(). Note that when running,
-        this is a copy of the main memory space, and so self in this method does not update self in the main process.
+        this is a copy of the main memory space and has direct access to the daemon process memory space,
+        Also, self in this method does not update self in the main process.
 
         """
 
@@ -597,22 +663,40 @@ class dataLogger(object):
             # open new dirfile
             #self.current_dirfile = dirfile_lib.( self.current_filename )
 
+        elif command == "START_WRITE":
+
+            # clear all packets currently in data queue
+            self._writer_queue.clear()
+
+            print "starting writing"
+            # sets the writing flag to True (see inner loop of _writer_thread_function)
+            self.is_writing = True
+
+            # set cmd event to indicate that the main thread can read the queue
+            if self._eventqueue.empty():
+                self._cmdevent.set()
+                self._eventqueue.put( self.is_writing )
+            else:
+                print "queue not empty - something bad has happened - nothing done"
+
         elif command == "STOP_WRITE":
             self.is_writing = False
             print "stopping writing"
 
-        elif command == "START_WRITE":
-
-            self.is_writing = True
-            # clear queue of all packets
-            self._writer_queue.clear()
-            print "starting writing"
+            # how to tell if writing has stopped?
+            time.sleep(0.5)
+            if self._eventqueue.empty():
+                self._cmdevent.set()
+                self._eventqueue.put( self.is_writing )
+            else:
+                print "queue not empty - something bad has happened - nothing done"
 
         elif command == "STATUS_WRITER":
             # handle the request for the status of the writer
 
             # make sure the event queue is empty and return the status of the filewriter
             if self._eventqueue.empty():
+                self._cmdevent.set()
                 self._eventqueue.put( self._filewritethread.is_alive() )
             else:
                 print "queue not empty - something bad has happened - nothing done"
@@ -620,10 +704,15 @@ class dataLogger(object):
         elif command == "CHECK_PACKET":
 
             if self._eventqueue.empty():
-                self._eventqueue.put( len(self._writer_queue) > 0 )
+                # select on the socket to see if there packets are being received. Doesn't do anything with
+                # the packet, and so this could be triggered by stray packets
+                rd,wr,err = select.select([self._sockethandle],[],[], 2)
+
+                self._cmdevent.set()
+                self._eventqueue.put( bool(rd) )
+
             else:
                 print "queue not empty - something bad has happened - nothing done"
-
 
         elif command == "CLEAR_QUEUE":
             print "Queue cleared"
@@ -631,28 +720,3 @@ class dataLogger(object):
 
         else:
             print "command not recognised"
-
-# def test_function(event):
-#
-#     name = mp.current_process().name
-#
-#     assert type(event) == mp.synchronize.Event
-#
-#     print name
-#
-#     if name not in ["MainProcess"]:
-#         setproctitle.setproctitle(setproctitle.getproctitle() + "- {name}".format(name = name))
-#
-#     i = 0
-#     while True:
-#         try:
-#             while not event.is_set():
-#
-#                 print i; i+=1
-#                 time.sleep(5)
-#
-#             handle_event()
-#             event.clear()
-#         except KeyboardInterrupt:
-#             print "broke out"
-#             break

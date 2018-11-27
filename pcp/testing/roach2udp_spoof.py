@@ -8,6 +8,16 @@
 import sys, socket, time, string, struct # stdlib imports
 from random import choice
 import numpy as np
+
+import argparse
+
+parser = argparse.ArgumentParser(description='Simple program to send a dummy roach packet to a specified UDP socket.')
+parser.add_argument('--sleep_time', type=float, default = 1,
+                    help='Loop sleep time (1/sample rate) in seconds. Default = 1 s')
+
+args = parser.parse_args()
+
+
 import pcp; from pcp.lib import lib_datapackets
 
 SERVERPORT = 12345 # server port does not appear to be used in SG's code
@@ -25,10 +35,12 @@ PACKETLEN =  DATALEN + HDRLEN
 
 print PACKETLEN
 
+# Instantiate the parser
+
 try:
     while True:
-        time.sleep(1)
-        
+        time.sleep(args.sleep_time)
+
         print "Sending packet to {ip} at port {port}".format(ip=DESTADDR, port=DESTPORT)
 
         packet = pcp.lib.lib_datapackets.gen_fake_roach_packet(use_test_packet=True)

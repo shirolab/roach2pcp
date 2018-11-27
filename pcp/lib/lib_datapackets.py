@@ -49,16 +49,18 @@ def parse_datapacket_dict(packets):
     packets = packets if isinstance(packets, list) else [packets] # fast way to ensure input is a list
 
     for packet in packets:
+        assert len(packet) == 2 and type(packet) == tuple
+        packet, python_time = packet
 
         for field_name, item in datapacket_dict.items():
             data = np.frombuffer( packet[header_len:][item[-2]], dtype = item[2] )
             item[-1].append( data ) if data.size > 0 else None
             #item[-1].append( struct.unpack( item[2], packet[header_len:][item[-2]] ) )
 
-        # write python_timestamp manually
+        # write python_timestamp and raw_packet manually
         datapacket_dict["raw_packet"][-1].append(packet)
-        datapacket_dict["python_timestamp"][-1].append(time.time())
-
+        datapacket_dict["python_timestamp"][-1].append(python_time)
+        print python_time
     return datapacket_dict
 
 

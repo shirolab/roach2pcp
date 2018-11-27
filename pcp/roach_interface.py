@@ -15,7 +15,7 @@
 #           - this should have a live status update of whether saving is on/off...etc
 
 import os, sys, time, numpy as np
-
+import pygetdata as _gd
 try:
     import casperfpga
 except ImportError:
@@ -29,6 +29,8 @@ from .configuration import ROOTDIR, filesys_config, roach_config, network_config
 from .synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT # note that we might need to e careful of import order here
 
 import datalog_mp
+
+from .lib import lib_dirfiles as _lib_dirfiles
 
 from .lib.lib_hardware import initialise_connected_synths as _initialise_connected_synths
 SYNTHS_IN_USE = _initialise_connected_synths()
@@ -46,6 +48,9 @@ class roachInterface(object):
         self.input_atten     = None
         self.output_atten    = None
 
+        self.current_dirfile       = None
+        self.current_sweep_dirfile = None
+
         # get configuration for specific roach
         self.ROACH_CFG = roach_config['roach_params'][roachid]
         # check configurations are all appropriate (this should be done in configuration __init__ )
@@ -58,6 +63,9 @@ class roachInterface(object):
         # initialise all the hardware and return objects
         self.initialse_hardware()
         self._initialise_daemon_writer(roachid)
+
+################################################################################
+################################################################################
 
     def _initialise_daemon_writer(self, roachid):
         self.writer_daemon = datalog_mp.dataLogger(roachid)
@@ -106,6 +114,11 @@ class roachInterface(object):
         # get configuration for attenuators for roachid
         pass
 
+    def read_existing_sweep_file(self, path_to_sweep):
+        # check if filename appears to be a valid dirfile
+        assert _lib_dirfiles.is_path_a_dirfile(path_to_sweep)
+        self.current_sweep_dirfile = _gd.dirfile(path_to_sweep, _gd.RDWR)
+
     def sweep_lo(self, **sweep_kwargs):
         """
         Function to sweep the LO. Takes in a number of optional keyword arugments. If not given,
@@ -135,6 +148,7 @@ class roachInterface(object):
 
         """
         valid_kwargs = ["sweep_span", "sweep_step", "sweep_avgs", "save_data"]
+
         # parse the keyword arguments
         sweep_span = np.float32( sweep_kwargs.pop("sweep_span", self.ROACH_CFG["sweep_span"]) )
         sweep_step = np.float32( sweep_kwargs.pop("sweep_step", self.ROACH_CFG["sweep_step"]) )
@@ -143,8 +157,7 @@ class roachInterface(object):
         save_data = sweep_kwargs.pop("save_data", True)
 
         if sweep_kwargs.keys():
-            print "Error: Optional argument(s) {0} not processed. Valid kwargs are {1}. Sweep not completed."\
-            .format(sweep_kwargs.keys(), valid_kwargs)
+            print "Error: Optional argument(s) {0} not processed. Valid kwargs are {1}. Sweep not completed.".format(sweep_kwargs.keys(), valid_kwargs)
             return
 
         # check that daemonwriter is not currently writing, return if not as something has probably gone wrong
@@ -156,14 +169,15 @@ class roachInterface(object):
 
         # get list of LO frequencies for sweeping
         # roachcontainer.losweep_freqs # this is calculated from the LO freq, sweep bandwidths
-        sweep_freqs = np.arange(self.synth_lo.frequency - sweep_span/2., \
+        lo_freqs = np.arange(self.synth_lo.frequency - sweep_span/2., \
                                 self.synth_lo.frequency + sweep_span/2., \
                                 sweep_step,\
                                 dtype = np.float32)
 
         # create new dirfile and set it as the active file. Note that data writing is off by default.
-        self.writer_daemon.set_active_dirfile(datatag = "sweep")
-        self.current_dirfile = self.writer_daemon.current_dirfile
+        self.writer_daemon.set_active_dirfile(datatag = "sweep_raw")
+
+        time.sleep(1)
 
         # set up sweep timing parameters
         step_times = []
@@ -171,14 +185,23 @@ class roachInterface(object):
         sleeptime = np.round( sweep_avgs / 488. * 1.05, decimals = 3 )#self.fpga.sample_rate) * 1.05 # num avgs / sample_rate + 5%
         print "sleep time for sweep is {0}".format(sleeptime)
 
+        # alias to current dirfile for convenience
+        self.current_dirfile = self.writer_daemon.current_dirfile
+
         # start writing data to file
         print "starting to write data"
         self.writer_daemon.start_writing()
 
-        # loop over LO frequencies, while saving time at lo_step
+        # wait until writing starts
+        while not self.writer_daemon.is_writing:
+            time.sleep(0.1)
+            continue
+
+        #time.sleep(2)
+        #loop over LO frequencies, while saving time at lo_step
         try:
-            for lofreq in sweep_freqs:
-                self.synth_lo.frequency = lofreq
+            for lo_freq in lo_freqs:
+                self.synth_lo.frequency = lo_freq
                 step_times.append( time.time() )
                 time.sleep(sleeptime)
         except KeyboardInterrupt:
@@ -186,27 +209,149 @@ class roachInterface(object):
 
         self.writer_daemon.pause_writing()
 
-        return np.array(step_times, dtype = np.float64)
+        # save lostep_times to current dirfile
+        self.current_dirfile.add(_gd.entry(_gd.RAW_ENTRY, "lo_freqs",     0, (_gd.FLOAT64, 1)))
+        self.current_dirfile.add(_gd.entry(_gd.RAW_ENTRY, "lostep_times", 0, (_gd.FLOAT64, 1)))
 
+        self.current_dirfile.putdata("lo_freqs",     np.ascontiguousarray( lo_freqs,   dtype = np.float64 ))
+        self.current_dirfile.putdata("lostep_times", np.ascontiguousarray( step_times, dtype = np.float64 ))
+
+        # on my mac, we need to close and reopen the dirfile to flush the data before reading back in the data
+        # - not sure why, or if this is a problem on linux
+        self.current_dirfile.close()
+        self.current_dirfile = _gd.dirfile(self.writer_daemon.current_filename, _gd.RDWR)
+
+        # with the raw sweep data available, create the derived sweep file and save to the current dirfile (from lib_dirfiles)
+
+        lotimes = self.current_dirfile.getdata("lostep_times")
+        ptimes  = self.current_dirfile.getdata("python_timestamp")
+
+        # align LO steps with python timestreams
+        idxs = np.searchsorted(ptimes, lotimes)[1:] # miss out the first point (should always be 0)
+        #print "indexes",idxs
+
+        # read in IQ data and split up according to LO steps and store in a dictionary
+        sweep_data_dict = {}
+        startidx = 0 # user defined number of samples to skip after lo switch (to be read from config, or set at run time)
+        stopidx  = None # same, but at the other end (None reads all samples)
+
+        for field in self.current_dirfile.field_list():
+
+            if field.startswith("K"):
+
+                # get the field data, split and average the lo switch indexes, taking data between startidx and stopidx, and pass to an array
+                data = np.array([np.mean(l[startidx:stopidx]) for l in np.split(self.current_dirfile.getdata(field), idxs)])
+
+                # split the field to get the tone name, and I or Q
+                try:
+                    tonenum, i_or_q = field.split('_')
+                except ValueError:
+                    print "the field name {0} doesn't appear to be of the correct format".format(field)
+                    continue # continue to next iteration
+
+                # add new key to dictionary if data doesn't already exist
+                sweep_data_dict[tonenum] = np.zeros_like(data, dtype=np.complex64) if tonenum not in sweep_data_dict.keys() else sweep_data_dict[tonenum]
+                if i_or_q.lower() == "i":
+                    sweep_data_dict[tonenum].real = data
+                elif i_or_q.lower() == "q":
+                    sweep_data_dict[tonenum].imag = data
+                else:
+                    print "unknown field name - something went wrong. "
+                    continue
+
+
+        # create new sweep dirfile and keep hold of it
+        self.current_sweep_dirfile = _lib_dirfiles.generate_sweep_dirfile(self.writer_daemon.DIRFILE_SAVEDIR, lo_freqs, sweep_data_dict)
+
+        # add metadata for
+        _lib_dirfiles.add_metadata_to_dirfile(self.current_sweep_dirfile, {"raw_sweep_filename": self.current_dirfile.name})
+
+        #return sweep_data_dict
         # close dirfile to prevent further writing
-
-        # now sweep has finished, create the derived sweep file and save to the current dirfile (from lib_dirfiles)
-
-            # stop file write
-            # get dirfilehandle
-            # align LO steps with python timestreams
-            # read in IQ data and split up according to LO steps
-            # discard first Npoints (user definable)
-            # average together to get f, I, Q
-            # save as a new file in the dirfile
-            # add to format file
-            # retain reference to dirfile here
-            # link to visualisation.py for plotting (or scraps)
-
-    def shutdown():
-        pass
+        #self.current_dirfile.close()
 
 
+
+
+        # stop file write
+        # get dirfilehandle
+        # discard first Npoints (user definable)
+        # average together to get f, I, Q
+        # save as a new file in the dirfile
+        # add to format file
+        # retain reference to dirfile here
+        # link to visualisation.py for plotting (or scraps)
+        # post process sweep to find F0s...etc
+
+        # playing with subdirfiles
+
+    def stop_stream(self, **streamkwargs):
+        """
+
+        Function to use to stop streaming data to disk.
+
+        """
+        if self.writer_daemon.is_writing:
+            self.writer_daemon.pause_writing()
+
+            self.current_dirfile.close()
+            self.current_dirfile = _gd.dirfile(self.writer_daemon.current_filename, _gd.RDWR)
+
+        else:
+            print "writer doesn't appear to be running. Nothing done."
+
+
+    def start_stream(self, **stream_kwargs):
+        """
+
+        Function to use to stream data to disk.
+
+        """
+
+        stream_time = stream_kwargs.pop("stream_time", None)
+        save_data   = stream_kwargs.pop("save_data", True) # currently not used
+
+        # check that sweep exists - warn if not and give option to proceed?
+        if self.current_sweep_dirfile is None:
+            print "warning: no sweep file available - limited functionality available"
+
+        # create a new dirfile for the observation
+        self.writer_daemon.set_active_dirfile(datatag = "stream")
+        time.sleep(1)
+
+        # alias to current dirfile for convenience
+        self.current_dirfile = self.writer_daemon.current_dirfile
+
+        print "starting to write data"
+        self.writer_daemon.start_writing()
+
+        # wait until writing starts
+        while not self.writer_daemon.is_writing:
+            time.sleep(0.1)
+            continue
+
+        # run for designated period of time if set, otherwise finish
+        if stream_time is not None:
+            tstart = time.time()
+            while time.time() < tstart + stream_time:
+                time.sleep(stream_time/10.)
+                continue
+
+            self.stop_stream()
+
+
+
+    def shutdown(self):
+        """Shutdown procedure for the roach interface"""
+
+        # terminate writer daemon threads
+        self.writer_daemon.terminate()
+        # close all local file descriptors
+        try:
+            self.current_dirfile.close()
+            self.current_sweep_dirfile.close()
+        except AttributeError:
+            pass
 
 # This script is the first code to be run after all hardware in connected and switched on
 
