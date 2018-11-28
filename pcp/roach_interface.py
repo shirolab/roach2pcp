@@ -81,14 +81,25 @@ class roachInterface(object):
         #self._initialise_gbe(self.roachid)
 
     def _initialise_fpga(self, roachid):
+
         if casperfpga is None:
             print "casperfpga module not loaded. No active FPGA instance"
             return
+
         try:
-            return casperfpga.katcp_fpga.KatcpFpga(ppc_ipaddr, timeout = 120.)
+            fpga = casperfpga.katcp_fpga.KatcpFpga( network_config['dummyroach']['roach_ppc_ip'], timeout = 120. )
         except RuntimeError:
             # bad things have happened, and nothing else should proceed
+            print "Error, fpga not connected. "
             return
+
+        # upload fpg file if not already uploaded
+
+        # write registers (dds_shift + accum_len)
+
+        # calibrate qdr
+
+        return fpga
 
     def _initialise_synth_lo(self, roachid):
         # get configuration

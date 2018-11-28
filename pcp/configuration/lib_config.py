@@ -96,3 +96,9 @@ roach_config_file = _os.path.join(config_dir, 'roach_config.cfg')
 
 assert _os.path.exists(roach_config_file)
 roach_config = load_config_file(roach_config_file)
+
+############## Roach firmware registers ##############
+firmware_registers = _os.path.join(config_dir, 'firmware_registers.cfg')
+
+assert _os.path.exists(firmware_registers)
+firmware_registers = load_config_file(firmware_registers)
