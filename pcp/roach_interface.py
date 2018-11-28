@@ -61,8 +61,9 @@ class roachInterface(object):
         os.makedirs(self.save_data_dir) if not os.path.exists(self.save_data_dir) else None
 
         # initialise all the hardware and return objects
-        self.initialse_hardware()
+
         self._initialise_daemon_writer(roachid)
+        #self.initialse_hardware()
 
 ################################################################################
 ################################################################################
@@ -71,14 +72,13 @@ class roachInterface(object):
         self.writer_daemon = datalog_mp.dataLogger(roachid)
         self.writer_daemon.start_daemon()
 
-    def initialse_hardware(self):
+    def initialse_hardware(self, roachid):
         # initialise all the hardware
-        self.fpga = self._initialise_fpga(self.roachid)
+        self.fpga = self._initialise_fpga(roachid)
 
-        self._initialise_synth_clk(self.roachid)
-        self._initialise_synth_lo(self.roachid)
-
-        #self._initialise_gbe(self.roachid)
+        # initialise the synthesisers
+        self._initialise_synth_clk(roachid)
+        self._initialise_synth_lo(roachid)
 
     def _initialise_fpga(self, roachid):
 
@@ -94,10 +94,26 @@ class roachInterface(object):
             return
 
         # upload fpg file if not already uploaded
+        if fpga.is_connected() and not fpga.is_running():
+            fpga = lib_fpga.upload_firmware_file()
+
+        elif fpga.is_connected() and fpga.is_running():
+            print "firmware looks to be uploaded"
+
+        else:
+            print "it looks like the fpga is not connected"
 
         # write registers (dds_shift + accum_len)
-
+        lib_fpga.write_to_fpga_register(fpga, { 'accum_len_reg': self.ROACH_CFG['accum_len'], \
+                                                'dds_shift_reg': self.ROACH_CFG['dds_shift']  } )
         # calibrate qdr
+        if lib_fpga.calibrate_qdr(fpga) < 0:
+            print "qdr calibration failed."
+        else:
+            lib_fpga.write_to_fpga_register(fpga, { 'write_qdr_status_reg': 1 } )
+
+        # configure downlink
+        lib_fpga.configure_downlink_registers(fpga, roachid)
 
         return fpga
 
