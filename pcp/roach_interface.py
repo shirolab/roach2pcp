@@ -30,7 +30,7 @@ from .synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT # note that we might ne
 
 import datalog_mp
 
-from .lib import lib_dirfiles as _lib_dirfiles
+from .lib import lib_dirfiles as _lib_dirfiles, lib_fpga as _lib_fpga
 
 from .lib.lib_hardware import initialise_connected_synths as _initialise_connected_synths
 SYNTHS_IN_USE = _initialise_connected_synths()
@@ -95,7 +95,7 @@ class roachInterface(object):
 
         # upload fpg file if not already uploaded
         if fpga.is_connected() and not fpga.is_running():
-            fpga = lib_fpga.upload_firmware_file()
+            fpga = _lib_fpga.upload_firmware_file( )
 
         elif fpga.is_connected() and fpga.is_running():
             print "firmware looks to be uploaded"
@@ -104,16 +104,16 @@ class roachInterface(object):
             print "it looks like the fpga is not connected"
 
         # write registers (dds_shift + accum_len)
-        lib_fpga.write_to_fpga_register(fpga, { 'accum_len_reg': self.ROACH_CFG['accum_len'], \
+        _lib_fpga.write_to_fpga_register(fpga, { 'accum_len_reg': self.ROACH_CFG['roach_accum_len'], \
                                                 'dds_shift_reg': self.ROACH_CFG['dds_shift']  } )
         # calibrate qdr
-        if lib_fpga.calibrate_qdr(fpga) < 0:
+        if _lib_fpga.calibrate_qdr(fpga) < 0:
             print "qdr calibration failed."
         else:
-            lib_fpga.write_to_fpga_register(fpga, { 'write_qdr_status_reg': 1 } )
+            _lib_fpga.write_to_fpga_register(fpga, { 'write_qdr_status_reg': 1 } )
 
         # configure downlink
-        lib_fpga.configure_downlink_registers(fpga, roachid)
+        _lib_fpga.configure_downlink_registers(fpga, roachid)
 
         return fpga
 

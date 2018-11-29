@@ -20,7 +20,7 @@ Loading submodules...
 
 #import sub-libraries
 import configuration, lib, kid, synthesizer, unittests
-import logfile, roach_interface, datalog_mp, toneslist
+import logfile, roach_interface, datalog_mp#, toneslist
 
 
 # lists of important information defined at the top level for convenience (i.e. pcp.ROACH_LIST)
