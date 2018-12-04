@@ -12,8 +12,14 @@ parts of the application can call individual configurations as required by using
 import os as _os
 import lib_config as _lib_config
 from .lib_config import config_dir, general_config, filesys_config, logging_config, \
-                        network_config, roach_config, hardware_config
+                        network_config, roach_config, hardware_config, firmware_registers
 from .lib_config import reload_configfiles
+
+# JUST FOR DEBUGGING
+from .lib_config import _cfgcheck_dupifaces, _cfgcheck_roachids
+
+from .lib_config import verify_general_config, verify_filesys_config
+
 
 ROOTDIR = filesys_config['rootdir']
 if not _os.path.exists(ROOTDIR): _os.mkdir(ROOTDIR)
