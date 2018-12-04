@@ -59,12 +59,7 @@ def verify_general_config(general_config):
     """
     Check coherence in the parameters of "general_config.cfg"
     """
-
-    print './pcp/' + general_config["firmware_file"]
-    #_os.system("pwd")
-
-    #assert _os.path.exists("." + general_config["firmware_file"]), bcolors.FAIL + "Firmware file doesn't exist" + bcolors.ENDC
-
+    assert _os.path.exists(general_config["firmware_file"]), bcolors.FAIL + "Firmware file doesn't exist" + bcolors.ENDC
 
     # This are unreal huge limits, it depends of the synthesizer used, but they are useful for KID applications
     assert general_config["center_freq"] > MIN_SYNTH_FREQ, bcolors.FAIL + "Center frequency should be higher than 0 Hz" + bcolors.ENDC 
@@ -90,13 +85,40 @@ def verify_general_config(general_config):
     print bcolors.OKBLUE + "Format in general_config.cfg parameters are consistent." + bcolors.ENDC 
 
 def verify_filesys_config(filesys_config):
-
     """
     Check the file paths exists
     """
     assert _os.path.isdir(filesys_config["rootdir"]), bcolors.FAIL + filesys_config["rootdir"] + ". Root directory doesn't exists!" + bcolors.ENDC
     print bcolors.OKBLUE + "Format in filesys_config.cfg parameters are consistent." + bcolors.ENDC 
 
+def verify_hardware_config(hardware_config):
+    """
+    Check the parameters in hardware config file are logical
+    """
+    # Synthesizers
+    n_synths = _num_synths(hardware_config)
+
+    # Attenuators
+    in_Att = False
+    out_Att = False
+    n_attens = _num_attens(hardware_config)
+    for atten in n_attens:
+        if hardware_config["atten_config"][atten]["direction"] == "in":
+            in_Att = True
+        if hardware_config["atten_config"][atten]["direction"] == "out":
+            out_Att = True 
+
+    if len(n_synths) <= 0:
+        print bcolors.WARNING + "There is not synthesizers defined in the configuration file" + bcolors.ENDC
+    elif not in_Att:
+        print bcolors.WARNING + "Input attenuators is missing" + bcolors.ENDC
+    elif not out_Att:
+        print bcolors.WARNING + "Output attenuators is missing" + bcolors.ENDC
+    else:
+        print bcolors.OKBLUE + "Synthesizers and attenuators are defined in the configuration file" + bcolors.ENDC
+
+def verify_network_config(network_config):
+    pass
 
 # functions to verify that the configuration files are consistent
 # - do they contain the same number of roaches in network, roach
@@ -232,6 +254,18 @@ def _num_roaches(dict_file):
     """
     return [n for n in dict_file.keys() if type(dict_file[n]) == dict and "device_id" in dict_file[n]]
 
+def _num_synths(dict_file):
+    """
+    Return the synthesizers id in config file
+    """
+    return dict_file["synth_config"].keys()
+
+def _num_attens(dict_file):
+    """
+    Return the attenuators id in config file
+    """
+    return dict_file["atten_config"].keys()
+
 def _is_valid_port(port):
     if port >= 0 and port <= 1023:
         return "reserved"
@@ -270,6 +304,8 @@ hardware_config_file = _os.path.join(config_dir, 'hardware_config.cfg')
 
 assert _os.path.exists(hardware_config_file)
 hardware_config = load_config_file(hardware_config_file)
+
+verify_hardware_config(hardware_config)
 
 ############# Filesystem configuration #############
 filesys_config_file = _os.path.join(config_dir, 'filesys_config.cfg')

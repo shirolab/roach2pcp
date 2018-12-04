@@ -18,8 +18,5 @@ from .lib_config import reload_configfiles
 # JUST FOR DEBUGGING
 from .lib_config import _cfgcheck_dupifaces, _cfgcheck_roachids
 
-from .lib_config import verify_general_config, verify_filesys_config
-
-
 ROOTDIR = filesys_config['rootdir']
 if not _os.path.exists(ROOTDIR): _os.mkdir(ROOTDIR)
