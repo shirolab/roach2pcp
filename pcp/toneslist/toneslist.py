@@ -21,10 +21,10 @@ Date: 19.10.2018
 
 import numpy as np
 import pandas as pd
-import configuration; reload(configuration)
+from .. import configuration as configuration; reload(configuration)
 
 # Read in relevant config files
-from configuration import toneslist_config
+from ..configuration import toneslist_config
 #
 
 ### === Toneslist class === ###
@@ -60,6 +60,7 @@ class Toneslist(object):
 
 					res_id_sweep (array of string): Identification of the resonator associated with a resonance frequency (eg.: RES000),
 					f_res_sweep (array of float): Measured resonnant frequency of a resonator, in Hz,
+					pow_res_sweep (array of int): Output optimal power from cryostat measured, in dBm,
 					res_q_sweep (array of int): Estimated Q for each measured resonators,
 
 					lo_frequency (float): Median frequency to be taken as the Local Oscillator [LO] lo_frequency,
@@ -99,6 +100,7 @@ class Toneslist(object):
 			# Add the broadband VNA sweep toneslist data and their BB transformation
 			res_id_sweep = []
 			f_res_sweep = []
+			pow_res_sweep = []
 			res_q_sweep = []
 			f_center = []
 			bb_freqs = []
@@ -107,7 +109,8 @@ class Toneslist(object):
 			f_res_tmp = res_data_sweep[1, :].astype(float)
 			res_id_sweep.append(res_data_sweep[0, :].astype(str))
 			f_res_sweep.append(res_data_sweep[1, :].astype(float))
-			res_q_sweep.append(res_data_sweep[2, :].astype(int))
+			pow_res_sweep.append(res_data_sweep[2, :].astype(int))
+			res_q_sweep.append(res_data_sweep[3, :].astype(int))
 
 			# LO calculation
 			lo_frequency = sum(f_res_tmp) / len(f_res_tmp)
@@ -115,8 +118,8 @@ class Toneslist(object):
 			# Baseband frequency tranformation
 			bb_freqs.append(f_res_tmp - lo_frequency)
 
-			content = [(res_id_sweep, f_res_sweep, res_q_sweep)]
-			col_names = ['res_id_sweep', 'f_res_sweep', 'q_res_sweep']
+			content = [(res_id_sweep, f_res_sweep, pow_res_sweep, res_q_sweep)]
+			col_names = ['res_id_sweep', 'f_res_sweep',, 'pow_res_sweep', 'q_res_sweep']
 			sub_toneslist_sweep = pd.DataFrame(content, columns = col_names, index = idx)
 
 			content = [(lo_frequency, bb_freqs)]
@@ -154,7 +157,7 @@ class Toneslist(object):
 		col = ['date', 'time', 'run', 'array', 'chip', 'temp',
 										'pow_in_cryo', 'pow_out_cryo', 'res_id_design',
 										'f_res_design', 'q_res_design', 'res_id_sweep',
-										'f_res_sweep', 'q_res_sweep', 'lo_frequency', 'bb_freqs']
+										'f_res_sweep', 'pow_res_sweep', 'q_res_sweep', 'lo_frequency', 'bb_freqs']
 		assert all(toneslist.columns == col), "The toneslist parameter is not a toneslist or is missing data."
 
 		assert type(threshold) == float, "The threshold parameter is not a float."
@@ -170,6 +173,7 @@ class Toneslist(object):
 			sub_toneslist = toneslist.loc[idx]
 			res_id_sweep = sub_toneslist.res_id_sweep
 			f_res_sweep = sub_toneslist.f_res_sweep
+			pow_res_sweep = sub_toneslist.pow_res_sweep
 			q_res_sweep = sub_toneslist.q_res_sweep
 			f_res_design = sub_toneslist.f_res_design
 
@@ -183,13 +187,14 @@ class Toneslist(object):
 				if delta_f >= threshold:
 					res_id_freqd_sub = res_id_sweep[0][i]
 					freqs_rm_freqd_sub = f_res_sweep[0][i]
+					pow_rm_freqd_sub = pow_res_sweep[0][i]
 					q_rm_freqd_sub = q_res_sweep[0][i]
 					idx_rm.append(i)
 
 			# Generation of the dataset
 			if not (not idx_rm):
-				content = [(res_id_freqd_sub, freqs_rm_freqd_sub, q_rm_freqd_sub)]
-				col_names = ['res_id_sweep', 'f_res_sweep', 'res_q_sweep']
+				content = [(res_id_freqd_sub, freqs_rm_freqd_sub, pow_rm_freqd_sub, q_rm_freqd_sub)]
+				col_names = ['res_id_sweep', 'f_res_sweep', 'pow_res_sweep', 'res_q_sweep']
 				sub_dataset_freqd = pd.DataFrame(content, columns = col_names, index = [idx])
 
 				dataset_freqd = pd.concat([dataset_freqd, sub_dataset_freqd])
@@ -198,6 +203,7 @@ class Toneslist(object):
 			if update_toneslist == True and not (not idx_rm):
 				res_id_new = np.delete(res_id_sweep, idx_rm)
 				freqs_new = np.delete(f_res_sweep, idx_rm)
+				pow_new = np.delete(pow_res_sweep, idx_rm)
 				q_new = np.delete(q_res_sweep, idx_rm)
 
 				# LO calculation
@@ -208,6 +214,7 @@ class Toneslist(object):
 
 				toneslist.at[idx, "res_id_sweep"] = [res_id_new]
 				toneslist.at[idx, "f_res_sweep"] = [freqs_new]
+				toneslist.at[idx, "pow_res_sweep"] = [pow_new]
 				toneslist.at[idx, "q_res_sweep"] = [q_new]
 				toneslist.at[idx, "lo_frequency"] = lo_frequency
 				toneslist.at[idx, "bb_freqs"] = bb_freqs
@@ -240,7 +247,7 @@ class Toneslist(object):
 		col = ['date', 'time', 'run', 'array', 'chip', 'temp',
 										'pow_in_cryo', 'pow_out_cryo', 'res_id_design',
 										'f_res_design', 'q_res_design', 'res_id_sweep',
-										'f_res_sweep', 'q_res_sweep', 'lo_frequency', 'bb_freqs']
+										'f_res_sweep', 'pow_res_sweep', 'q_res_sweep', 'lo_frequency', 'bb_freqs']
 		assert all(toneslist.columns == col), "The toneslist parameter is not a toneslist."
 
 		assert type(threshold) == float, "The threshold parameter is not a float."
@@ -256,6 +263,7 @@ class Toneslist(object):
 			sub_toneslist = toneslist.loc[idx]
 			res_id_sweep = sub_toneslist.res_id_sweep
 			f_res_sweep = sub_toneslist.f_res_sweep
+			pow_res_sweep = sub_toneslist.pow_res_sweep
 			q_res_sweep = sub_toneslist.q_res_sweep
 			bb_freqs = sub_toneslist.bb_freqs
 
@@ -271,6 +279,8 @@ class Toneslist(object):
 					res_id_clashes.append(res_id_sweep[0][i + 1])
 					f_rm_clashes = [f_res_sweep[0][i]]
 					f_rm_clashes.append(f_res_sweep[0][i + 1])
+					pow_rm_clashes = [pow_res_sweep[0][i]]
+					pow_rm_clashes.append(pow_res_sweep[0][i + 1])
 					q_rm_clashes = [q_res_sweep[0][i]]
 					q_rm_clashes.append(q_res_sweep[0][i + 1])
 					if not i in idx_rm:
@@ -279,8 +289,8 @@ class Toneslist(object):
 
 			# Generation of the dataset
 			if not (not idx_rm):
-				content = [(res_id_clashes, f_rm_clashes, q_rm_clashes)]
-				col_names = ['res_id_clashes', 'f_rm_clashes', 'q_rm_clashes']
+				content = [(res_id_clashes, f_rm_clashes, pow_rm_clashes, q_rm_clashes)]
+				col_names = ['res_id_clashes', 'f_rm_clashes', 'pow_rm_clashes', 'q_rm_clashes']
 				sub_dataset_clashes = pd.DataFrame(content, columns = col_names, index = [idx])
 
 				dataset_clashes = pd.concat([dataset_clashes, sub_dataset_clashes])
@@ -289,6 +299,7 @@ class Toneslist(object):
 			if update_toneslist == True and not (not idx_rm):
 				res_id_new = np.delete(res_id_sweep, idx_rm)
 				freqs_new = np.delete(f_res_sweep, idx_rm)
+				pow_new = np.delete(pow_res_sweep, idx_rm)
 				q_new = np.delete(q_res_sweep, idx_rm)
 
 				# LO calculation
@@ -299,6 +310,7 @@ class Toneslist(object):
 
 				toneslist.at[idx, "res_id_sweep"] = [res_id_new]
 				toneslist.at[idx, "f_res_sweep"] = [freqs_new]
+				toneslist.at[idx, "pow_res_sweep"] = [pow_new]
 				toneslist.at[idx, "q_res_sweep"] = [q_new]
 				toneslist.at[idx, "lo_frequency"] = lo_frequency
 				toneslist.at[idx, "bb_freqs"] = bb_freqs
@@ -330,7 +342,7 @@ class Toneslist(object):
 		col = ['date', 'time', 'run', 'array', 'chip', 'temp',
 										'pow_in_cryo', 'pow_out_cryo', 'res_id_design',
 										'f_res_design', 'q_res_design', 'res_id_sweep',
-										'f_res_sweep', 'q_res_sweep', 'lo_frequency', 'bb_freqs']
+										'f_res_sweep', 'q_res_sweep', 'pow_res_sweep', 'lo_frequency', 'bb_freqs']
 		assert all(toneslist.columns == col), "The toneslist parameter is not a toneslist."
 
 		# Initialisation of the missings calculation
@@ -371,6 +383,63 @@ class Toneslist(object):
 
 		return dataset_missings
 	#
-##
+        ##
+
+	### === Design and Sweep Toneslist generation === ###
+
+	def compile_sd_toneslist(self, sd_data, save_sd_toneslist = False):
+	  
+		"""
+			Description:
+				Compile sweep or design toneslist in a numpy array format, from data either in txt, csv, list or array format
+
+			Parameters:
+				sd_data (txt, csv, list or array): The toneslist data containing:
+					resonators ID (list of string), 
+					resonnance frequency (list of floats) in Hz, 
+					absolute power if sweep (list of int), in dBm,
+					Qs (list of int).
+				save_sd_toneslist (bool): Option to save the compiled sweep / design toneslist.
+
+			Return:
+				sd_toneslist (numpy array): The compiled toneslist in the right format to be used by the compile_toneslist function
+				
+		"""
+		
+		# Parameter validation
+		if sd_data.endswith('.txt') or sd_data.endswith('.csv'):
+			
+			# Reading data
+			data = pd.read_csv(sd_data, delim_whitespace=True, skipinitialspace=True)
+			
+			if len(data.columns) == 4: datatype_flag = 1
+			elif len(data.columns) == 3: datatype_flag = 1
+			else: datatype_flag = 0
+		
+		elif type(sd_data) == list or type(sd_data) == numpy.ndarray:
+			if len(sd_data) == 3 or len(sd_data) == 4: datatype_flag = 1
+				
+		else: datatype_flag = 0
+		
+		assert datatype_flag == 1, "Data format error."
+		
+		# Compilation from txt or csv
+		if sd_data.endswith('.txt') or sd_data.endswith('.csv'):
+			sd_data_header = data.columns
+			if len(sd_data_header) == 4:
+				sd_toneslist = np.array([data[sd_data_header[0]],data[sd_data_header[1]], data[sd_data_header[2]], data[sd_data_header[3]]])
+			elif len(sd_data_header) == 3:
+				sd_toneslist = np.array([data[sd_data_header[0]],data[sd_data_header[1]], data[sd_data_header[2]]])
+		
+		# Compilation from list
+		elif type(sd_data) == list:
+			sd_toneslist = np.array(sd_data)
+			
+		# Saving the compiled toneslist
+		if save_sd_toneslist == True:
+			if len(sd_toneslist) == 3: np.save('./last_design_toneslist.npy',sd_toneslist)
+			elif len(sd_toneslist) == 4: np.save('./last_sweep_toneslist.npy',sd_toneslist)
+	  
+		return sd_toneslist
 
 ### END ###

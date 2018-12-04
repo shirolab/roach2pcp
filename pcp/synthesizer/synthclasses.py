@@ -113,3 +113,36 @@ class pcp_apsin(_apsin.apsinSynth):
     # add a print status method for convenience
     def print_status(self):
         _pprint.pprint(vars(self), width=1)
+
+# ===========================================================================================
+# === WINDFREAK =============================================================================
+# ===========================================================================================
+
+import windfreaksynth as _windfreaksynth # hide the base class from the user by prepending "_"
+
+class pcp_windfreaksynth(_windfreaksynth.SynthHDDevice):
+
+    # pass vendor and model nums as class attributes for checking
+    VENDOR = _windfreaksynth.VENDOR
+    MODELNUMS = _windfreaksynth.MODELNUMS
+
+    def __init__(self):
+        # instantiate class to get all of the factory provided methods
+        super(pcp_windfreaksynth, self).__init__()
+
+    # make sure all methods are defined in the same way, and return the same item
+
+    # only show example here, as the base class for dummySynth was written in this way
+    @property
+    def frequency(self): # getter
+        """Get or set the frequency of the synthesizer. Units should all be in Hz."""
+        self._frequency = self.getFrequency()
+        return self._frequency
+        
+    @frequency.setter
+    def frequency(self, frequency):
+        self.setFrequencyFast(frequency)
+
+    # add a print status method for convenience
+    def print_status(self):
+        _pprint.pprint(vars(self), width=1)
