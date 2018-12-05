@@ -61,27 +61,6 @@ def verify_general_config(general_config):
     """
     assert _os.path.exists(general_config["firmware_file"]), bcolors.FAIL + "Firmware file doesn't exist" + bcolors.ENDC
 
-    # This are unreal huge limits, it depends of the synthesizer used, but they are useful for KID applications
-    assert general_config["center_freq"] > MIN_SYNTH_FREQ, bcolors.FAIL + "Center frequency should be higher than 0 Hz" + bcolors.ENDC 
-    assert general_config["center_freq"] <= MAX_SYNTH_FREQ, bcolors.FAIL + "Center frequency over range!" + bcolors.ENDC
-
-    assert (np.float(general_config["lo_step"])/MIN_STEP_SYNTH)%1==0, bcolors.FAIL + 'Resolution is %.2f dB!'%MIN_STEP_SYNTH + bcolors.ENDC
-
-    assert general_config["Nfreq"] <= MAX_NUM_FREQS, bcolors.FAIL + "Number of frequencies are over range!" + bcolors.ENDC
-    assert general_config["Nfreq"] >= MIN_NUM_FREQS, bcolors.FAIL + "It should be at least one tone" + bcolors.ENDC
-
-    assert np.float(general_config["max_pos_freq"]) - np.float(general_config["min_pos_freq"]) > 0, bcolors.FAIL + "The positivie frequency range is wrong, minimum frequency is greater than maximum" + bcolors.ENDC 
-    assert np.float(general_config["min_neg_freq"]) - np.float(general_config["max_neg_freq"]) < 0, bcolors.FAIL + "The negative frequency range is wrong, maximum frequency is lower than minimum" + bcolors.ENDC 
-
-    assert np.float(general_config["symm_offset"]) > 0, bcolors.FAIL + "Symm offset has to be positive!" + bcolors.ENDC
-
-    assert np.float(general_config["test_freq"]) > MIN_SYNTH_FREQ*1.0e6, bcolors.FAIL + "Test frequency should be higher than 0 Hz" + bcolors.ENDC 
-    assert np.float(general_config["test_freq"]) <= MAX_SYNTH_FREQ*1.0e6, bcolors.FAIL + "Test frequency over range!" + bcolors.ENDC
-
-    # Check buffer header size 
-    assert general_config["buf_size"] > MIN_BUFFER and general_config["buf_size"] <= MAX_BUFFER, bcolors.FAIL + "The buffer size is out of range!" + bcolors.ENDC
-    assert general_config["header_len"] > MIN_HEADER and general_config["header_len"] <= MAX_HEADER, bcolors.FAIL + "The header length is out of range!" + bcolors.ENDC
-
     print bcolors.OKBLUE + "Format in general_config.cfg parameters are consistent." + bcolors.ENDC 
 
 def verify_filesys_config(filesys_config):
@@ -89,7 +68,7 @@ def verify_filesys_config(filesys_config):
     Check the file paths exists
     """
     assert _os.path.isdir(filesys_config["rootdir"]), bcolors.FAIL + filesys_config["rootdir"] + ". Root directory doesn't exists!" + bcolors.ENDC
-    print bcolors.OKBLUE + "Format in filesys_config.cfg parameters are consistent." + bcolors.ENDC 
+    print bcolors.OKBLUE + "Parameters in filesys_config.cfg are consistent." + bcolors.ENDC 
 
 def verify_hardware_config(hardware_config):
     """
@@ -111,21 +90,107 @@ def verify_hardware_config(hardware_config):
     if len(n_synths) <= 0:
         print bcolors.WARNING + "There is not synthesizers defined in the configuration file" + bcolors.ENDC
     elif not in_Att:
-        print bcolors.WARNING + "Input attenuators is missing" + bcolors.ENDC
+        print bcolors.WARNING + "Input attenuators is not defined" + bcolors.ENDC
     elif not out_Att:
-        print bcolors.WARNING + "Output attenuators is missing" + bcolors.ENDC
+        print bcolors.WARNING + "Output attenuators is not defined" + bcolors.ENDC
     else:
         print bcolors.OKBLUE + "Synthesizers and attenuators are defined in the configuration file" + bcolors.ENDC
 
 def verify_network_config(network_config):
-    pass
+
+    n_roaches = _num_roaches(network_config)
+
+    """
+    Check if the network parameters are consistent
+    """
+    for n in n_roaches:
+        assert _is_valid_ip(network_config[n]["roach_ppc_ip"]), bcolors.FAIL + "IP address is not valid!" + bcolors.ENDC
+        print n + ":" + network_config[n]["roach_ppc_ip"] + bcolors.OKGREEN + " IP address valid" + bcolors.ENDC
+
+        # Check parameters of UDP Source are valid
+        assert _is_valid_ip(network_config[n]["udp_source_ip"]), n + ":" + network_config[n]["udp_source_ip"] + bcolors.FAIL + " UDP Source IP format is not valid!" + bcolors.ENDC
+        print n + ":" + network_config[n]["udp_source_ip"] + bcolors.OKGREEN + " UDP Source IP format is valid" + bcolors.ENDC
+
+        assert _is_valid_mac(network_config[n]["udp_source_mac"]), n + ":" + network_config[n]["udp_source_mac"] + bcolors.FAIL + " UDP Source MAC format is not valid!" + bcolors.ENDC
+        print n + ":" + network_config[n]["udp_source_mac"] + bcolors.OKGREEN + " UDP Source MAC format is valid" + bcolors.ENDC
+
+        if _is_valid_port(network_config[n]["udp_source_port"]) == "reserved":
+            print n + ":" + str(network_config[n]["udp_source_port"]) + bcolors.WARNING + " UDP Source port needs root permisions" + bcolors.ENDC
+        else:
+            assert _is_valid_port(network_config[n]["udp_source_port"]), n + ":" + network_config[n]["udp_source_port"] + bcolors.FAIL + " UDP Source port format is not valid!" + bcolors.ENDC
+            print n + ":" + str(network_config[n]["udp_source_port"]) + bcolors.OKGREEN + " UDP Source port format is valid" + bcolors.ENDC
+
+        # Check parameters of UDP Dest are valid
+        assert _is_valid_ip(network_config[n]["udp_dest_ip"]), n + ":" + network_config[n]["udp_dest_ip"] + bcolors.FAIL + " UDP dest IP format is not valid!" + bcolors.ENDC
+        print n + ":" + network_config[n]["udp_dest_ip"] + bcolors.OKGREEN + " UDP dest IP format is valid" + bcolors.ENDC
+
+        assert _is_valid_mac(network_config[n]["udp_dest_mac"]), n + ":" + network_config[n]["udp_dest_mac"] + bcolors.FAIL + " UDP dest MAC format is not valid!" + bcolors.ENDC
+        print n + ":" + network_config[n]["udp_dest_mac"] + bcolors.OKGREEN + " UDP dest MAC format is valid" + bcolors.ENDC
+
+        if _is_valid_port(network_config[n]["udp_dest_port"]) == "reserved":
+            print n + ":" + str(network_config[n]["udp_dest_port"]) + bcolors.WARNING + " UDP dest port needs root permisions" + bcolors.ENDC
+        else:
+            assert _is_valid_port(network_config[n]["udp_dest_port"]), n + ":" + file[n]["udp_dest_port"] + bcolors.FAIL + " UDP dest port format is not valid!" + bcolors.ENDC
+            print n + ":" + str(network_config[n]["udp_dest_port"]) + bcolors.OKGREEN + " UDP dest port format is valid" + bcolors.ENDC
+
+        # Check buffer header size 
+        assert network_config[n]["buf_size"] > 0 and network_config[n]["buf_size"] <= 9000, bcolors.FAIL + "The buffer size is out of range!" + bcolors.ENDC
+        assert network_config[n]["header_len"] > 0 and network_config[n]["header_len"] <= 42, bcolors.FAIL + "The header length is out of range!" + bcolors.ENDC
+
+        print bcolors.OKBLUE + n + " buffer size and header length within range" + bcolors.ENDC
+
+        # Check conflicts between source and dest network parameters
+        assert network_config[n]["roach_ppc_ip"] != network_config[n]["udp_dest_ip"], bcolors.FAIL + "IP conflict. Roach PPC and Dest have the same IP address" + bcolors.ENDC 
+        assert network_config[n]["roach_ppc_ip"] != network_config[n]["udp_source_ip"], bcolors.FAIL + "IP conflict. Roach PPC and Source have the same IP address" + bcolors.ENDC 
+        
+        assert network_config[n]["udp_source_ip"] != network_config[n]["udp_dest_ip"], bcolors.FAIL + "UDP IP conflict. Source and Dest have the same IP address" + bcolors.ENDC 
+        assert network_config[n]["udp_source_mac"] != network_config[n]["udp_dest_mac"], bcolors.FAIL + "UDP MAC conflict. Source and Dest have the same MAC address" + bcolors.ENDC
+        
+        print bcolors.OKBLUE + n + " no conflicts founded between source and dest" + bcolors.ENDC
+
+    """
+    Check values of UDP packages
+    """
+    assert network_config["MAXCHANNELS"] > 0, bcolors.FAIL + "It should be at least 1 channel" + bcolors.ENDC
+    assert network_config["MAXCHANNELS"] <= 1012, bcolors.FAIL + "The maximum number of channels is 1012 (20 are reserved)" + bcolors.ENDC 
+
+    print bcolors.OKBLUE + "Parameters in network_config.cfg are consistent." + bcolors.ENDC 
+
+def verify_roach_config(roach_config):
+
+    n_roaches = _num_roaches(roach_config["roach_params"])
+
+    for roach in n_roaches:
+
+        # This are unreal huge limits, it depends of the synthesizer used, but they are useful for KID applications
+        assert roach_config["roach_params"][roach]["center_freq"] > MIN_SYNTH_FREQ, bcolors.FAIL + "Center frequency should be higher than 0 Hz" + bcolors.ENDC 
+        assert roach_config["roach_params"][roach]["center_freq"] <= MAX_SYNTH_FREQ, bcolors.FAIL + "Center frequency over range!" + bcolors.ENDC
+
+        assert (np.float(roach_config["roach_params"][roach]["lo_step"])/MIN_STEP_SYNTH)%1==0, bcolors.FAIL + 'Resolution is %.2f dB!'%MIN_STEP_SYNTH + bcolors.ENDC
+
+        assert roach_config["roach_params"][roach]["Nfreq"] <= MAX_NUM_FREQS, bcolors.FAIL + "Number of frequencies are over range!" + bcolors.ENDC
+        assert roach_config["roach_params"][roach]["Nfreq"] >= MIN_NUM_FREQS, bcolors.FAIL + "It should be at least one tone" + bcolors.ENDC
+
+        assert np.float(roach_config["roach_params"][roach]["max_pos_freq"]) - np.float(roach_config["roach_params"][roach]["min_pos_freq"]) > 0, bcolors.FAIL + "The positivie frequency range is wrong, minimum frequency is greater than maximum" + bcolors.ENDC 
+        assert np.float(roach_config["roach_params"][roach]["min_neg_freq"]) - np.float(roach_config["roach_params"][roach]["max_neg_freq"]) < 0, bcolors.FAIL + "The negative frequency range is wrong, maximum frequency is lower than minimum" + bcolors.ENDC 
+
+        assert np.float(roach_config["roach_params"][roach]["symm_offset"]) > 0, bcolors.FAIL + "Symm offset has to be positive!" + bcolors.ENDC
+
+        assert np.float(roach_config["roach_params"][roach]["test_freq"]) > MIN_SYNTH_FREQ*1.0e6, bcolors.FAIL + "Test frequency should be higher than 0 Hz" + bcolors.ENDC 
+        assert np.float(roach_config["roach_params"][roach]["test_freq"]) <= MAX_SYNTH_FREQ*1.0e6, bcolors.FAIL + "Test frequency over range!" + bcolors.ENDC
+
+        # Check buffer header size 
+        assert roach_config["roach_params"][roach]["buf_size"] > MIN_BUFFER and roach_config["roach_params"][roach]["buf_size"] <= MAX_BUFFER, bcolors.FAIL + "The buffer size is out of range!" + bcolors.ENDC
+        assert roach_config["roach_params"][roach]["header_len"] > MIN_HEADER and roach_config["roach_params"][roach]["header_len"] <= MAX_HEADER, bcolors.FAIL + "The header length is out of range!" + bcolors.ENDC
+
+    print bcolors.OKBLUE + "Parameters in roach_config.cfg are consistent." + bcolors.ENDC 
 
 # functions to verify that the configuration files are consistent
 # - do they contain the same number of roaches in network, roach
 # - do the synthids match the ids in hardware_config
 # - check that the interfaces are not duplicated, or
 
-def verify_config_consistency():
+def verify_config_consistency(roach_config,network_config,hardware_config):
     """
     Top level function to run tests on the current set of configuration files to ensure
     consistency. Runs the following checks:
@@ -137,6 +202,10 @@ def verify_config_consistency():
     # get configuration file data
     # count how many roaches are defined
     # run through tests on various config files
+
+    _cfgcheck_roachids(roach_config, network_config)
+    _cfgcheck_dupifaces(network_config)
+    _cfgcheck_synthids(roach_config, hardware_config)
 
 def _cfgcheck_roachids(roach_config, network_config):
     """
@@ -163,63 +232,45 @@ def _cfgcheck_roachids(roach_config, network_config):
 
     assert roach_match != 0, bcolors.FAIL + "None of the ROACH ID matches, verify that they are written correctly in the config files." + bcolors.ENDC    
 
-def _cfgcheck_synthids():
+
+def _cfgcheck_synthids(roach_config, hardware_config):
     """
     Check synth ids are consistent and match
     """
-    
+    n_roaches = roach_config["roach_params"].keys()
+    synth_id_hardware = _num_synths(hardware_config)
 
-def _cfgcheck_dupifaces(file):
+    _is_lo = False
+    _is_clk = False
 
-    n_roaches = _num_roaches(file)
+    for roach in n_roaches:
+        if roach_config["roach_params"][roach]["synthid_lo"] in synth_id_hardware:
+            _is_lo = True
+        if roach_config["roach_params"][roach]["synthid_clk"] in synth_id_hardware:
+            _is_clk = True
 
-    """
-    Check if the network parameters are consistent
-    """
-    for n in n_roaches:
-        assert _is_valid_ip(file[n]["roach_ppc_ip"]), bcolors.FAIL + "IP address is not valid!" + bcolors.ENDC
-        print n + ":" + file[n]["roach_ppc_ip"] + bcolors.OKGREEN + " IP address valid" + bcolors.ENDC
+        if _is_lo and _is_clk:            
+            if roach_config["roach_params"][roach]["synthid_lo"] == roach_config["roach_params"][roach]["synthid_clk"]:
+                synth = hardware_config["synth_config"][roach_config["roach_params"][roach]["synthid_lo"]]
+                if "channel" in synth:
+                    if synth["channel"] < 2:
+                        print bcolors.WARNING + roach_config["roach_params"][roach]["synthid_lo"] + " has not enough channels for lo and clk signals" + bcolors.ENDC
+                    else:
+                       print bcolors.OKBLUE + "Synthesizers parameters are consistent" + bcolors.ENDC
+            else:
+                print bcolors.OKBLUE + "Synthesizers parameters are consistent" + bcolors.ENDC
 
-        # Check parameters of UDP Source are valid
-        assert _is_valid_ip(file[n]["udp_source_ip"]), n + ":" + file[n]["udp_source_ip"] + bcolors.FAIL + " UDP Source IP format is not valid!" + bcolors.ENDC
-        print n + ":" + file[n]["udp_source_ip"] + bcolors.OKGREEN + " UDP Source IP format is valid" + bcolors.ENDC
+        elif not _is_lo:
+            print bcolors.WARNING + "LO synthesizer not founded" + bcolors.ENDC
+        elif not _is_clk:
+            print bcolors.WARNING + "CLK synthesizer not founded" + bcolors.ENDC
 
-        assert _is_valid_mac(file[n]["udp_source_mac"]), n + ":" + file[n]["udp_source_mac"] + bcolors.FAIL + " UDP Source MAC format is not valid!" + bcolors.ENDC
-        print n + ":" + file[n]["udp_source_mac"] + bcolors.OKGREEN + " UDP Source MAC format is valid" + bcolors.ENDC
+        _is_clk = False
+        _is_lo = False
 
-        if _is_valid_port(file[n]["udp_source_port"]) == "reserved":
-            print n + ":" + str(file[n]["udp_source_port"]) + bcolors.WARNING + " UDP Source port needs root permisions" + bcolors.ENDC
-        else:
-            assert _is_valid_port(file[n]["udp_source_port"]), n + ":" + file[n]["udp_source_port"] + bcolors.FAIL + " UDP Source port format is not valid!" + bcolors.ENDC
-            print n + ":" + str(file[n]["udp_source_port"]) + bcolors.OKGREEN + " UDP Source port format is valid" + bcolors.ENDC
+def _cfgcheck_dupifaces(network_config):
 
-        # Check parameters of UDP Dest are valid
-        assert _is_valid_ip(file[n]["udp_dest_ip"]), n + ":" + file[n]["udp_dest_ip"] + bcolors.FAIL + " UDP dest IP format is not valid!" + bcolors.ENDC
-        print n + ":" + file[n]["udp_dest_ip"] + bcolors.OKGREEN + " UDP dest IP format is valid" + bcolors.ENDC
-
-        assert _is_valid_mac(file[n]["udp_dest_mac"]), n + ":" + file[n]["udp_dest_mac"] + bcolors.FAIL + " UDP dest MAC format is not valid!" + bcolors.ENDC
-        print n + ":" + file[n]["udp_dest_mac"] + bcolors.OKGREEN + " UDP dest MAC format is valid" + bcolors.ENDC
-
-        if _is_valid_port(file[n]["udp_dest_port"]) == "reserved":
-            print n + ":" + str(file[n]["udp_dest_port"]) + bcolors.WARNING + " UDP dest port needs root permisions" + bcolors.ENDC
-        else:
-            assert _is_valid_port(file[n]["udp_dest_port"]), n + ":" + file[n]["udp_dest_port"] + bcolors.FAIL + " UDP dest port format is not valid!" + bcolors.ENDC
-            print n + ":" + str(file[n]["udp_dest_port"]) + bcolors.OKGREEN + " UDP dest port format is valid" + bcolors.ENDC
-
-        # Check buffer header size 
-        assert file[n]["buf_size"] > 0 and file[n]["buf_size"] <= 9000, bcolors.FAIL + "The buffer size is out of range!" + bcolors.ENDC
-        assert file[n]["header_len"] > 0 and file[n]["header_len"] <= 42, bcolors.FAIL + "The header length is out of range!" + bcolors.ENDC
-
-        print bcolors.OKBLUE + n + " buffer size and header length within range" + bcolors.ENDC
-
-        # Check conflicts between source and dest network parameters
-        assert file[n]["roach_ppc_ip"] != file[n]["udp_dest_ip"], bcolors.FAIL + "IP conflict. Roach PPC and Dest have the same IP address" + bcolors.ENDC 
-        assert file[n]["roach_ppc_ip"] != file[n]["udp_source_ip"], bcolors.FAIL + "IP conflict. Roach PPC and Source have the same IP address" + bcolors.ENDC 
-        
-        assert file[n]["udp_source_ip"] != file[n]["udp_dest_ip"], bcolors.FAIL + "UDP IP conflict. Source and Dest have the same IP address" + bcolors.ENDC 
-        assert file[n]["udp_source_mac"] != file[n]["udp_dest_mac"], bcolors.FAIL + "UDP MAC conflict. Source and Dest have the same MAC address" + bcolors.ENDC
-        
-        print bcolors.OKBLUE + n + " no conflicts founded between source and dest" + bcolors.ENDC
+    n_roaches = _num_roaches(network_config)
 
     """
     Check ehternet interfaces are not duplicated
@@ -227,25 +278,31 @@ def _cfgcheck_dupifaces(file):
     start_comp = 1
     for roach_1 in range(len(n_roaches)):
         for roach_2 in range(start_comp,len(n_roaches)):
-            assert file[n_roaches[roach_1]]["roach_ppc_ip"] != file[n_roaches[roach_2]]["roach_ppc_ip"],  bcolors.FAIL + "There is a roach IP conflict. There are two roaches with the same IP address: " + n_roaches[roach_1] + "," + n_roaches[roach_2] + bcolors.ENDC
+            assert network_config[n_roaches[roach_1]]["roach_ppc_ip"] != network_config[n_roaches[roach_2]]["roach_ppc_ip"],  bcolors.FAIL + "There is a roach IP conflict. There are two roaches with the same IP address: " + n_roaches[roach_1] + "," + n_roaches[roach_2] + bcolors.ENDC
 
-            assert file[n_roaches[roach_1]]["udp_source_ip"] != file[n_roaches[roach_2]]["udp_source_ip"],  bcolors.FAIL + "There is a UDP source IP conflict. There are two roaches with the same IP source address: " + n_roaches[roach_1] + "," + n_roaches[roach_2] + bcolors.ENDC
-            assert file[n_roaches[roach_1]]["udp_source_mac"] != file[n_roaches[roach_2]]["udp_source_mac"],  bcolors.FAIL + "There is a UDP source IP conflict. There are two roaches with the same MAC source address: " + n_roaches[roach_1] + "," + n_roaches[roach_2] + bcolors.ENDC
+            assert network_config[n_roaches[roach_1]]["udp_source_ip"] != network_config[n_roaches[roach_2]]["udp_source_ip"],  bcolors.FAIL + "There is a UDP source IP conflict. There are two roaches with the same IP source address: " + n_roaches[roach_1] + "," + n_roaches[roach_2] + bcolors.ENDC
+            assert network_config[n_roaches[roach_1]]["udp_source_mac"] != network_config[n_roaches[roach_2]]["udp_source_mac"],  bcolors.FAIL + "There is a UDP source IP conflict. There are two roaches with the same MAC source address: " + n_roaches[roach_1] + "," + n_roaches[roach_2] + bcolors.ENDC
 
-            assert file[n_roaches[roach_1]]["udp_dest_ip"] != file[n_roaches[roach_2]]["udp_dest_ip"],  bcolors.FAIL + "There is a UDP dest IP conflict. There are two roaches with the same IP dest address: " + n_roaches[roach_1] + "," + n_roaches[roach_2] + bcolors.ENDC
-            assert file[n_roaches[roach_1]]["udp_dest_mac"] != file[n_roaches[roach_2]]["udp_dest_mac"],  bcolors.FAIL + "There is a UDP dest IP conflict. There are two roaches with the same MAC dest address: " + n_roaches[roach_1] + "," + n_roaches[roach_2] + bcolors.ENDC
+            assert network_config[n_roaches[roach_1]]["udp_dest_ip"] != network_config[n_roaches[roach_2]]["udp_dest_ip"],  bcolors.FAIL + "There is a UDP dest IP conflict. There are two roaches with the same IP dest address: " + n_roaches[roach_1] + "," + n_roaches[roach_2] + bcolors.ENDC
+            assert network_config[n_roaches[roach_1]]["udp_dest_mac"] != network_config[n_roaches[roach_2]]["udp_dest_mac"],  bcolors.FAIL + "There is a UDP dest IP conflict. There are two roaches with the same MAC dest address: " + n_roaches[roach_1] + "," + n_roaches[roach_2] + bcolors.ENDC
 
-            assert file[n_roaches[roach_1]]["udp_dest_device"] != file[n_roaches[roach_2]]["udp_dest_device"],  bcolors.FAIL + "There is a UDP device conflict. There are two roaches with the same UDP device address: " + n_roaches[roach_1] + "," + n_roaches[roach_2] + bcolors.ENDC
+            assert network_config[n_roaches[roach_1]]["udp_dest_device"] != network_config[n_roaches[roach_2]]["udp_dest_device"],  bcolors.FAIL + "There is a UDP device conflict. There are two roaches with the same UDP device address: " + n_roaches[roach_1] + "," + n_roaches[roach_2] + bcolors.ENDC
             
         start_comp += 1
 
     print bcolors.OKBLUE + "ROACH network parameters. No conflicts founded" + bcolors.ENDC
 
+
+
+def _cfgcheck_ifacesexist():
     """
-    Check values of UDP packages
+    Check ehternet interfaces are present in the system
     """
-    assert file["MAXCHANNELS"] > 0, bcolors.FAIL + "It should be at least 1 channel" + bcolors.ENDC
-    assert file["MAXCHANNELS"] <= 1012, bcolors.FAIL + "The maximum number of channels is 1012 (20 are reserved)" + bcolors.ENDC 
+
+    #Simon carnal, que si los dispositivos de red existen fisicamente en la compu
+    #Como el device, su mac y la IP
+
+
 
 
 def _num_roaches(dict_file):
@@ -280,14 +337,6 @@ def _is_valid_ip(ip):
 def _is_valid_mac(mac):
     m = re.match("[0-9a-f]{2}([-:]?)[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", mac.lower())
     return bool(m)
-
-def _cfgcheck_ifacesexist():
-    """
-    Check ehternet interfaces are present in the system
-    """
-
-    #Simon carnal, que si los dispositivos de red existen fisicamente en la compu
-    #Como el device, su mac y la IP
 
 
 ############# General configuration #############
@@ -327,7 +376,7 @@ network_config_file = _os.path.join(config_dir, 'network_config.cfg')
 assert _os.path.exists(network_config_file)
 network_config = load_config_file(network_config_file)
 
-_cfgcheck_dupifaces(network_config)
+verify_network_config(network_config)
 
 ############## Roach configuration ##############
 roach_config_file = _os.path.join(config_dir, 'roach_config.cfg')
@@ -335,11 +384,10 @@ roach_config_file = _os.path.join(config_dir, 'roach_config.cfg')
 assert _os.path.exists(roach_config_file)
 roach_config = load_config_file(roach_config_file)
 
-_cfgcheck_roachids(roach_config, network_config)
-
-
 ############## Roach firmware registers ##############
 firmware_registers = _os.path.join(config_dir, 'firmware_registers.cfg')
 
 assert _os.path.exists(firmware_registers)
 firmware_registers = load_config_file(firmware_registers)
+
+verify_config_consistency(roach_config, network_config, hardware_config)
