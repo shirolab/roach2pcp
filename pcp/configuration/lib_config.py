@@ -9,6 +9,7 @@ import os as _os, sys as _sys, yaml as _yaml
 import re
 
 import numpy as np
+import net_ifaces as ni
 
 MIN_BUFFER = 0
 MAX_BUFFER = 9000 
@@ -206,6 +207,7 @@ def verify_config_consistency(roach_config,network_config,hardware_config):
     _cfgcheck_roachids(roach_config, network_config)
     _cfgcheck_dupifaces(network_config)
     _cfgcheck_synthids(roach_config, hardware_config)
+    _cfgcheck_ifacesexist(network_config)
 
 def _cfgcheck_roachids(roach_config, network_config):
     """
@@ -292,17 +294,52 @@ def _cfgcheck_dupifaces(network_config):
 
     print bcolors.OKBLUE + "ROACH network parameters. No conflicts founded" + bcolors.ENDC
 
-
-
-def _cfgcheck_ifacesexist():
+def _cfgcheck_ifacesexist(network_config):
     """
     Check ehternet interfaces are present in the system
     """
 
-    #Simon carnal, que si los dispositivos de red existen fisicamente en la compu
-    #Como el device, su mac y la IP
+    ifconfig = ni.get_ifconfig()
+    ifaces = ni.get_ifaces(ifconfig)
 
+    n_roaches = _num_roaches(network_config)
+    device_flag = [False]*len(n_roaches)
 
+    for roach in n_roaches:
+        device_flag = False
+        ip_flag = False
+        mac_flag = False
+
+        udp_mac = network_config[roach]["udp_dest_mac"].lower()
+        n_udp_mac = ""
+        for i in udp_mac:
+            if i != ":":
+                n_udp_mac += i
+
+        for iface in ifaces:
+            if ((network_config[roach]["udp_dest_device"] == "localhost" or network_config[roach]["udp_dest_device"] == "") and iface[0] == "lo") or (network_config[roach]["udp_dest_device"] == iface[0]):
+                if network_config[roach]["udp_dest_ip"] == iface[1] or (network_config[roach]["udp_dest_ip"] == "localhost" and (iface[1] == "localhost" or iface[1] == "127.0.0.1")):
+                    ip_flag = True
+                if n_udp_mac == iface[3]:
+                    mac_flag = True
+                if (network_config[roach]["udp_dest_device"] == "localhost" or network_config[roach]["udp_dest_device"] == ""):
+                    mac_flag = True
+
+                device_flag = True
+
+        device = network_config[roach]["udp_dest_device"]
+        if network_config[roach]["udp_dest_device"] == "":
+            device = "localhost"
+
+        if device_flag:
+            if ip_flag and mac_flag:
+                print bcolors.OKGREEN + roach + "-" + device + " is defined in network interface. IP and MAC address match" + bcolors.ENDC
+            if not ip_flag:
+                print bcolors.WARNING + roach + "-" + device + ". The IP of the device doesn't match with the configuration file." + bcolors.ENDC
+            if not mac_flag:
+                print bcolors.WARNING + roach + "-" + device + ". MAC address of the device doesn't match with the configuration file." + bcolors.ENDC
+        else:
+            raise Exception(bcolors.FAIL + roach + "-" + device + " is not defined in network interface." + bcolors.ENDC)
 
 
 def _num_roaches(dict_file):
