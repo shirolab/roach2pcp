@@ -78,6 +78,9 @@ def verify_hardware_config(hardware_config):
     # Synthesizers
     n_synths = _num_synths(hardware_config)
 
+    for synth in n_synths:
+        assert "modelnum" in hardware_config["synth_config"][synth] and hardware_config["synth_config"][synth]["modelnum"] != None, bcolors.FAIL + synth +" needs a modelnum to work" + bcolors.ENDC
+
     # Attenuators
     in_Att = False
     out_Att = False
