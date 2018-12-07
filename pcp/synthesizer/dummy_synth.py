@@ -2,7 +2,7 @@
 # PB - 2018
 
 VENDOR = 'dummy'
-MODELNUMS = [None]
+MODELNUMS = ['dummy']
 
 import time as _time
 
@@ -20,7 +20,7 @@ class dummySynth(object):
         self.reference = "int" # ext, int
         self.islocked  = False
         self.vendor   = "dummy"
-        self.modelnum = None
+        self.modelnum = "dummy"
 
     def test_connection(self):
         """Simple method to test to see if the hardware connection is alive. Returns True or False"""

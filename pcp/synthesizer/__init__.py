@@ -23,3 +23,4 @@ for classname, synthobj in _inspect.getmembers(synthclasses, _inspect.isclass):
     for modelnum in getattr(synthobj, "MODELNUMS"):
         # join vendor and model numbers (all lower case)
         SYNTH_HW_DICT[ "_".join( (getattr(synthobj, "VENDOR"), str(modelnum).lower() ) )] = synthobj
+print 'synthesizer:__init__.py SYNTH_HW_DICT:', SYNTH_HW_DICT

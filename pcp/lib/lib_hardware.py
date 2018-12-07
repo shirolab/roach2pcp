@@ -28,7 +28,7 @@ def initialise_connected_synths():
     # read in synth configuration (make copies here to not alter the live configuration dict, may not be a bad thing?)
     synth_config = hardware_config["synth_config"].copy()
     roach_params = roach_config["roach_params"].copy()
-
+    
     # for each entry, return the key, if active is true
     for key, cfg in synth_config.items():
         if cfg["active"] is not True:
@@ -39,8 +39,8 @@ def initialise_connected_synths():
 
     # get the unique synthids defined in the roach_config for both lo and clocks (clocks can be None, and will be discarded)
     synthids = set([roach[key] for roach in roach_params.values() \
-                                for key in roach.keys() if key.startswith("synthid") if roach[key] is not None])
-
+                                for key in roach.keys() if key.startswith("synthid") if roach[key] is not None])	
+    print '\n\n synthids',synthids
     # compare and check that all synthids are in the active synth_config dict
     synth_check = synthids.difference(synth_config.keys()) # should be empty
 
@@ -53,13 +53,15 @@ entry in the configuration files and try again.".format(synthids=list(synth_chec
     # return a dictionary with initilased synth objects
 
     synth_object_dict = dict.fromkeys(synth_config, None)
-
+    print '\n\n _SYNTH_HW_DICT',_SYNTH_HW_DICT
+    
     for synthid, synthcfg in synth_config.items():
         # replace None with instantiated synthesiser object
 
         # need dictionary of synth objects from synthesier
         synth_dict_key = "_".join((synthcfg['vendor'], str(synthcfg['modelnum']))).lower()
-
+        print '\n',synthid,synthcfg,synth_dict_key
+    
         synth_object_dict[synthid] = _synthObj(config = synthcfg, synthobj = _SYNTH_HW_DICT[synth_dict_key] )
         #synth_object_dict[synthid] = (synthcfg, _SYNTH_HW_DICT[synth_dict_key])# initialise_synth(synth_config[synthid])
 
