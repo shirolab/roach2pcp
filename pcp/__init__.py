@@ -49,7 +49,7 @@ def reload_all_packages():
     for importer, modname, ispkg in pkgutil.iter_modules(current_module.__path__):
         if ispkg:
             time.sleep(0.1)
-            print "Reloaded", current_module.__name__, modname
+            print "Reloading", current_module.__name__, modname
             reload( sys.modules[getattr(current_module, modname).__name__] )
     print "Done."
     reload(sys.modules[__name__])

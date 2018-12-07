@@ -4,7 +4,7 @@ import time as _time
 from ..configuration import firmware_registers as _firmware_registers, roach_config as _roach_config, network_config as _network_config
 from . import lib_qdr as _lib_qdr
 
-def upload_firmware_file(self, fpga, firmware_file):
+def upload_firmware_file(fpga, firmware_file):
     """
 
     Upload a firmware file (fpg)

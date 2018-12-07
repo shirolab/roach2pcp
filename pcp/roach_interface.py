@@ -73,12 +73,13 @@ class roachInterface(object):
         self.writer_daemon.start_daemon()
 
     def initialse_hardware(self, roachid):
-        # initialise all the hardware
-        self.fpga = self._initialise_fpga(roachid)
-
         # initialise the synthesisers
         self._initialise_synth_clk(roachid)
         self._initialise_synth_lo(roachid)
+        
+        # initialise all the hardware
+        self.fpga = self._initialise_fpga(roachid)
+
 
     def _initialise_fpga(self, roachid):
 
@@ -87,15 +88,15 @@ class roachInterface(object):
             return
 
         try:
-            fpga = casperfpga.katcp_fpga.KatcpFpga( network_config['dummyroach']['roach_ppc_ip'], timeout = 120. )
+            fpga = casperfpga.katcp_fpga.KatcpFpga( network_config[roachid]['roach_ppc_ip'], timeout = 120. )
         except RuntimeError:
             # bad things have happened, and nothing else should proceed
             print "Error, fpga not connected. "
             return
-
+        firmware_file = os.path.join(filesys_config['rootdir'],general_config['firmware_file'])
         # upload fpg file if not already uploaded
         if fpga.is_connected() and not fpga.is_running():
-            fpga = _lib_fpga.upload_firmware_file( )
+            fpga = _lib_fpga.upload_firmware_file(fpga, firmware_file )
 
         elif fpga.is_connected() and fpga.is_running():
             print "firmware looks to be uploaded"
