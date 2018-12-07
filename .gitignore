@@ -7,6 +7,10 @@
 # Temp files
 *~
 
+#ide project files
+*.kdev4
+.kdev4
+
 superspec_readout/blastfirmwave_main_samrowe_cardiff.py
 
 superspec_readout/daemon_testing/daemon_test.py
