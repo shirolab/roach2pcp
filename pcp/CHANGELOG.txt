@@ -1,0 +1,18 @@
+# Changelog
+This file will document and keep track of changes with each push to the master branch.
+
+Put most recent commits at the top please!
+
+2018-12-07 13:30 [PB] ==================
+
+- Added this file.
+
+
+2018-12-07 12:30 [PB] ==================
+
+- Removed device_id field in the network_config file, that is what the field names (i.e. network_config.keys()) are for…
+	- if there is a good reason to keep it, let me know and i’ll add it back in (edited)
+
+- Added a maxchannels field for each roach to the roach_config file to retain flexibility
+	- Modified the configuration verification accordingly
+
