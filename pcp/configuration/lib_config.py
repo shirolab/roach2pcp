@@ -13,7 +13,7 @@ import net_ifaces as ni
 import color_msg as cm
 
 MIN_BUFFER = 0
-MAX_BUFFER = 9000 
+MAX_BUFFER = 9000
 
 MIN_HEADER = 0
 MAX_HEADER = 42
@@ -53,14 +53,14 @@ def verify_general_config(general_config):
     """
     assert _os.path.exists(general_config["firmware_file"]), cm.FAIL + "Firmware file doesn't exist" + cm.ENDC
 
-    print cm.OKBLUE + "Format in general_config.cfg parameters are consistent." + cm.ENDC 
+    print cm.OKBLUE + "Format in general_config.cfg parameters are consistent." + cm.ENDC
 
 def verify_filesys_config(filesys_config):
     """
     Check the file paths exists
     """
     assert _os.path.isdir(filesys_config["rootdir"]), cm.FAIL + filesys_config["rootdir"] + ". Root directory doesn't exists!" + cm.ENDC
-    print cm.OKBLUE + "Parameters in filesys_config.cfg are consistent." + cm.ENDC 
+    print cm.OKBLUE + "Parameters in filesys_config.cfg are consistent." + cm.ENDC
 
 def verify_hardware_config(hardware_config):
     """
@@ -80,7 +80,7 @@ def verify_hardware_config(hardware_config):
         if hardware_config["atten_config"][atten]["direction"] == "in":
             in_Att = True
         if hardware_config["atten_config"][atten]["direction"] == "out":
-            out_Att = True 
+            out_Att = True
 
     if len(n_synths) <= 0:
         print cm.WARNING + "There is not synthesizers defined in the configuration file" + cm.ENDC
@@ -128,28 +128,22 @@ def verify_network_config(network_config):
             assert _is_valid_port(network_config[n]["udp_dest_port"]), n + ":" + file[n]["udp_dest_port"] + cm.FAIL + " UDP dest port format is not valid!" + cm.ENDC
             print n + ":" + str(network_config[n]["udp_dest_port"]) + cm.OKGREEN + " UDP dest port format is valid" + cm.ENDC
 
-        # Check buffer header size 
+        # Check buffer header size
         assert network_config[n]["buf_size"] > 0 and network_config[n]["buf_size"] <= 9000, cm.FAIL + "The buffer size is out of range!" + cm.ENDC
         assert network_config[n]["header_len"] > 0 and network_config[n]["header_len"] <= 42, cm.FAIL + "The header length is out of range!" + cm.ENDC
 
         print cm.OKBLUE + n + " buffer size and header length within range" + cm.ENDC
 
         # Check conflicts between source and dest network parameters
-        assert network_config[n]["roach_ppc_ip"] != network_config[n]["udp_dest_ip"], cm.FAIL + "IP conflict. Roach PPC and Dest have the same IP address" + cm.ENDC 
-        assert network_config[n]["roach_ppc_ip"] != network_config[n]["udp_source_ip"], cm.FAIL + "IP conflict. Roach PPC and Source have the same IP address" + cm.ENDC 
-        
-        assert network_config[n]["udp_source_ip"] != network_config[n]["udp_dest_ip"], cm.FAIL + "UDP IP conflict. Source and Dest have the same IP address" + cm.ENDC 
+        assert network_config[n]["roach_ppc_ip"] != network_config[n]["udp_dest_ip"], cm.FAIL + "IP conflict. Roach PPC and Dest have the same IP address" + cm.ENDC
+        assert network_config[n]["roach_ppc_ip"] != network_config[n]["udp_source_ip"], cm.FAIL + "IP conflict. Roach PPC and Source have the same IP address" + cm.ENDC
+
+        assert network_config[n]["udp_source_ip"] != network_config[n]["udp_dest_ip"], cm.FAIL + "UDP IP conflict. Source and Dest have the same IP address" + cm.ENDC
         assert network_config[n]["udp_source_mac"] != network_config[n]["udp_dest_mac"], cm.FAIL + "UDP MAC conflict. Source and Dest have the same MAC address" + cm.ENDC
-        
+
         print cm.OKBLUE + n + " no conflicts founded between source and dest" + cm.ENDC
 
-    """
-    Check values of UDP packages
-    """
-    assert network_config["MAXCHANNELS"] > 0, cm.FAIL + "It should be at least 1 channel" + cm.ENDC
-    assert network_config["MAXCHANNELS"] <= 1012, cm.FAIL + "The maximum number of channels is 1012 (20 are reserved)" + cm.ENDC 
-
-    print cm.OKBLUE + "Parameters in network_config.cfg are consistent." + cm.ENDC 
+    print cm.OKBLUE + "Parameters in network_config.cfg are consistent." + cm.ENDC
 
 def verify_roach_config(roach_config):
 
@@ -158,7 +152,7 @@ def verify_roach_config(roach_config):
     for roach in n_roaches:
 
         # This are unreal huge limits, it depends of the synthesizer used, but they are useful for KID applications
-        assert roach_config["roach_params"][roach]["center_freq"] > MIN_SYNTH_FREQ, cm.FAIL + "Center frequency should be higher than 0 Hz" + cm.ENDC 
+        assert roach_config["roach_params"][roach]["center_freq"] > MIN_SYNTH_FREQ, cm.FAIL + "Center frequency should be higher than 0 Hz" + cm.ENDC
         assert roach_config["roach_params"][roach]["center_freq"] <= MAX_SYNTH_FREQ, cm.FAIL + "Center frequency over range!" + cm.ENDC
 
         assert (np.float(roach_config["roach_params"][roach]["lo_step"])/MIN_STEP_SYNTH)%1==0, cm.FAIL + 'Resolution is %.2f dB!'%MIN_STEP_SYNTH + cm.ENDC
@@ -166,19 +160,22 @@ def verify_roach_config(roach_config):
         assert roach_config["roach_params"][roach]["Nfreq"] <= MAX_NUM_FREQS, cm.FAIL + "Number of frequencies are over range!" + cm.ENDC
         assert roach_config["roach_params"][roach]["Nfreq"] >= MIN_NUM_FREQS, cm.FAIL + "It should be at least one tone" + cm.ENDC
 
-        assert np.float(roach_config["roach_params"][roach]["max_pos_freq"]) - np.float(roach_config["roach_params"][roach]["min_pos_freq"]) > 0, cm.FAIL + "The positivie frequency range is wrong, minimum frequency is greater than maximum" + cm.ENDC 
-        assert np.float(roach_config["roach_params"][roach]["min_neg_freq"]) - np.float(roach_config["roach_params"][roach]["max_neg_freq"]) < 0, cm.FAIL + "The negative frequency range is wrong, maximum frequency is lower than minimum" + cm.ENDC 
+        assert np.float(roach_config["roach_params"][roach]["max_pos_freq"]) - np.float(roach_config["roach_params"][roach]["min_pos_freq"]) > 0, cm.FAIL + "The positivie frequency range is wrong, minimum frequency is greater than maximum" + cm.ENDC
+        assert np.float(roach_config["roach_params"][roach]["min_neg_freq"]) - np.float(roach_config["roach_params"][roach]["max_neg_freq"]) < 0, cm.FAIL + "The negative frequency range is wrong, maximum frequency is lower than minimum" + cm.ENDC
 
         assert np.float(roach_config["roach_params"][roach]["symm_offset"]) > 0, cm.FAIL + "Symm offset has to be positive!" + cm.ENDC
 
-        assert np.float(roach_config["roach_params"][roach]["test_freq"]) > MIN_SYNTH_FREQ*1.0e6, cm.FAIL + "Test frequency should be higher than 0 Hz" + cm.ENDC 
+        assert np.float(roach_config["roach_params"][roach]["test_freq"]) > MIN_SYNTH_FREQ*1.0e6, cm.FAIL + "Test frequency should be higher than 0 Hz" + cm.ENDC
         assert np.float(roach_config["roach_params"][roach]["test_freq"]) <= MAX_SYNTH_FREQ*1.0e6, cm.FAIL + "Test frequency over range!" + cm.ENDC
 
-        # Check buffer header size 
+        # Check buffer header size
         assert roach_config["roach_params"][roach]["buf_size"] > MIN_BUFFER and roach_config["roach_params"][roach]["buf_size"] <= MAX_BUFFER, cm.FAIL + "The buffer size is out of range!" + cm.ENDC
         assert roach_config["roach_params"][roach]["header_len"] > MIN_HEADER and roach_config["roach_params"][roach]["header_len"] <= MAX_HEADER, cm.FAIL + "The header length is out of range!" + cm.ENDC
 
-    print cm.OKBLUE + "Parameters in roach_config.cfg are consistent." + cm.ENDC 
+        assert roach_config["roach_params"][roach]["maxchannels"] > 0, cm.FAIL + "It should be at least 1 channel" + cm.ENDC
+        assert roach_config["roach_params"][roach]["maxchannels"] <= 1012, cm.FAIL + "The maximum number of channels is 1012 (20 are reserved)" + cm.ENDC
+
+    print cm.OKBLUE + "Parameters in roach_config.cfg are consistent." + cm.ENDC
 
 # functions to verify that the configuration files are consistent
 # - do they contain the same number of roaches in network, roach
@@ -222,9 +219,9 @@ def _cfgcheck_roachids(roach_config, network_config):
     for roach_id in id_vs_comp:
         if roach_id in id_to_comp:
             roach_match += 1
-            print cm.OKGREEN + roach_id + " matches in all files" + cm.ENDC    
+            print cm.OKGREEN + roach_id + " matches in all files" + cm.ENDC
         else:
-            print cm.WARNING + roach_id + " doesn't match in all the config files." + cm.ENDC    
+            print cm.WARNING + roach_id + " doesn't match in all the config files." + cm.ENDC
 
     assert roach_match != 0, cm.FAIL + "None of the ROACH ID matches, verify that they are written correctly in the config files." + cm.ENDC
 
@@ -244,7 +241,7 @@ def _cfgcheck_synthids(roach_config, hardware_config):
         if roach_config["roach_params"][roach]["synthid_clk"] in synth_id_hardware:
             _is_clk = True
 
-        if _is_lo and _is_clk:            
+        if _is_lo and _is_clk:
             if roach_config["roach_params"][roach]["synthid_lo"] == roach_config["roach_params"][roach]["synthid_clk"]:
                 synth = hardware_config["synth_config"][roach_config["roach_params"][roach]["synthid_lo"]]
                 if "channel" in synth:
@@ -282,7 +279,7 @@ def _cfgcheck_dupifaces(network_config):
             assert network_config[n_roaches[roach_1]]["udp_dest_mac"] != network_config[n_roaches[roach_2]]["udp_dest_mac"],  cm.FAIL + "There is a UDP dest IP conflict. There are two roaches with the same MAC dest address: " + n_roaches[roach_1] + "," + n_roaches[roach_2] + cm.ENDC
 
             assert network_config[n_roaches[roach_1]]["udp_dest_device"] != network_config[n_roaches[roach_2]]["udp_dest_device"],  cm.FAIL + "There is a UDP device conflict. There are two roaches with the same UDP device address: " + n_roaches[roach_1] + "," + n_roaches[roach_2] + cm.ENDC
-            
+
         start_comp += 1
 
     print cm.OKBLUE + "ROACH network parameters. No conflicts founded" + cm.ENDC
@@ -339,7 +336,8 @@ def _num_roaches(dict_file):
     """
     Number of Roaches defined in the configuration files
     """
-    return [n for n in dict_file.keys() if type(dict_file[n]) == dict and "device_id" in dict_file[n]]
+    return [n for n in dict_file.keys() if type(dict_file[n]) == dict]
+    # return dict_file.keys()
 
 def _num_synths(dict_file):
     """
@@ -356,7 +354,7 @@ def _num_attens(dict_file):
 def _is_valid_port(port):
     if port >= 0 and port <= 1023:
         return "reserved"
-    return port >= 0 and port <= 65535 
+    return port >= 0 and port <= 65535
 
 def _is_valid_ip(ip):
     if ip == "localhost":
@@ -368,6 +366,14 @@ def _is_valid_mac(mac):
     m = re.match("[0-9a-f]{2}([-:]?)[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", mac.lower())
     return bool(m)
 
+def verify_all_config(general_config, hardware_config, filesys_config,
+                      network_config, roach_config):
+    verify_general_config(general_config)
+    verify_hardware_config(hardware_config)
+    verify_filesys_config(filesys_config)
+    verify_network_config(network_config)
+    verify_config_consistency(roach_config, network_config, hardware_config)
+
 
 ############# General configuration #############
 general_config_file = _os.path.join(config_dir, 'general_config.cfg')
@@ -376,23 +382,17 @@ assert _os.path.exists(general_config_file)
 #general_config = roachConfig(general_config_file)
 general_config = load_config_file(general_config_file)
 
-verify_general_config(general_config)
-
 ############# Hardware configuration #############
 hardware_config_file = _os.path.join(config_dir, 'hardware_config.cfg')
 
 assert _os.path.exists(hardware_config_file)
 hardware_config = load_config_file(hardware_config_file)
 
-verify_hardware_config(hardware_config)
-
 ############# Filesystem configuration #############
 filesys_config_file = _os.path.join(config_dir, 'filesys_config.cfg')
 
 assert _os.path.exists(filesys_config_file)
 filesys_config = load_config_file(filesys_config_file)
-
-verify_filesys_config(filesys_config)
 
 ############# Logging configuration #############
 logging_config_file = _os.path.join(config_dir, 'logging_config.cfg')
@@ -406,8 +406,6 @@ network_config_file = _os.path.join(config_dir, 'network_config.cfg')
 assert _os.path.exists(network_config_file)
 network_config = load_config_file(network_config_file)
 
-verify_network_config(network_config)
-
 ############## Roach configuration ##############
 roach_config_file = _os.path.join(config_dir, 'roach_config.cfg')
 
@@ -420,4 +418,5 @@ firmware_registers = _os.path.join(config_dir, 'firmware_registers.cfg')
 assert _os.path.exists(firmware_registers)
 firmware_registers = load_config_file(firmware_registers)
 
-verify_config_consistency(roach_config, network_config, hardware_config)
+############## e.g. to Run verification #####################
+# verify_all_config(general_config, hardware_config, filesys_config, network_config, roach_config)
