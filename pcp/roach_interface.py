@@ -133,7 +133,7 @@ class roachInterface(object):
 
         if synthid_clk is not None:
             # get the dictionary of live synths and initialise
-            self.synth_clk = SYNTHS_IN_USE[synthid_clk]
+            self.synth_clk = SYNTHS_IN_USE[synthid_clk].synthobj()
             pass
         else:
             self.synth_clk = None
