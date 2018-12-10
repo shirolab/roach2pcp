@@ -40,7 +40,9 @@ def initialise_connected_synths():
     # get the unique synthids defined in the roach_config for both lo and clocks (clocks can be None, and will be discarded)
     synthids = set([roach[key] for roach in roach_params.values() \
                                 for key in roach.keys() if key.startswith("synthid") if roach[key] is not None])	
+
     #print '\n\n synthids',synthids
+
     # compare and check that all synthids are in the active synth_config dict
     synth_check = synthids.difference(synth_config.keys()) # should be empty
 
@@ -50,22 +52,48 @@ def initialise_connected_synths():
 entry in the configuration files and try again.".format(synthids=list(synth_check))
         return
 
-    # return a dictionary with initilased synth objects
+    
+    #identify physical synths, not repeating entries for multi-port devices
+    psynth_dict = {}
+    for synthid, synthcfg in synth_config.items():
+        vendor = str(synthcfg['vendor']).lower()
+        model = str(synthcfg['model']).lower()
+        serial = str(synthcfg['serial']).lower()
+        if serial in [None, 'none', '']:
+            physical_id = vendor + '_' + model
+        else:
+            physical_id = vendor + '_' + model + '_' + serial
+        psynth_dict[physical_id] = {'vendor':vendor, 'model':model, 'serial':serial}
+        psynth_dict[physical_id]['class_key'] = vendor + '_' + model  
+        synth_config[synthid]['physical_id'] = physical_id
 
+    
+    #instantiate the synth base classes for each physical device
+    psynth_instances = {}
+    for psynth in psynth_dict:
+        synth_dict_key = psynth_dict[psynth]['class_key']
+        synth_dict_class = _SYNTH_HW_DICT[synth_dict_key]
+        psynth_instances[psynth] = synth_dict_class() 
+        
+
+    # return a dictionary with initilased synth objects
     synth_object_dict = dict.fromkeys(synth_config, None)
     #print '\n\n _SYNTH_HW_DICT',_SYNTH_HW_DICT
+    #print '\n\n _synth_object_dict',synth_object_dict
     
     for synthid, synthcfg in synth_config.items():
-        # replace None with instantiated synthesiser object
 
-        # need dictionary of synth objects from synthesier
-        synth_dict_key = "_".join((synthcfg['vendor'], str(synthcfg['modelnum']))).lower()
-        #print '\n',synthid,synthcfg,synth_dict_key
+        
+        physical_id = synthcfg['physical_id']
+        synth_dict_key = "_".join((synthcfg['vendor'], str(synthcfg['model']))).lower()
+        print '\n',synthid,synthcfg,synth_dict_key
     
-        synth_object_dict[synthid] = _synthObj(config = synthcfg, synthobj = _SYNTH_HW_DICT[synth_dict_key] )
-        #synth_object_dict[synthid] = (synthcfg, _SYNTH_HW_DICT[synth_dict_key])# initialise_synth(synth_config[synthid])
-
-        # need initialise_synth function!
+        synth_object_dict[synthid] = _synthObj(config = synthcfg, synthobj = psynth_instances[physical_id])
+        
+        print '\n\n synth_object_dict[synthid]',synth_object_dict[synthid]
+        
+        #synth_object_dict[synthid] = (synthcfg, _SYNTH_HW_DICT[synth_dict_key])
+        
     return synth_object_dict
 
 # create synth object dict that is initialised and can be used by everything else

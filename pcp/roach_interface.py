@@ -15,6 +15,9 @@
 #           - this should have a live status update of whether saving is on/off...etc
 
 import os, sys, time, numpy as np
+
+import atexit
+
 import pygetdata as _gd
 try:
     import casperfpga
@@ -38,6 +41,8 @@ SYNTHS_IN_USE = _initialise_connected_synths()
 class roachInterface(object):
     def __init__(self, roachid):
 
+        atexit.register(self.shutdown)
+        
         self.roachid  = roachid
 
         self.fpga            = None
@@ -52,43 +57,43 @@ class roachInterface(object):
         self.current_sweep_dirfile = None
 
         # get configuration for specific roach
-        self.ROACH_CFG = roach_config['roach_params'][roachid]
+        self.ROACH_CFG = roach_config['roach_params'][self.roachid]
         # check configurations are all appropriate (this should be done in configuration __init__ )
 
         # generate directory path for data saving
-        self.save_data_dir  = os.path.join(ROOTDIR, filesys_config['savedatadir'], roachid)
+        self.save_data_dir  = os.path.join(ROOTDIR, filesys_config['savedatadir'], self.roachid)
         # create if doesn't exist already
         os.makedirs(self.save_data_dir) if not os.path.exists(self.save_data_dir) else None
 
         # initialise all the hardware and return objects
 
-        self._initialise_daemon_writer(roachid)
+        self._initialise_daemon_writer()
         #self.initialse_hardware()
 
 ################################################################################
 ################################################################################
 
-    def _initialise_daemon_writer(self, roachid):
-        self.writer_daemon = datalog_mp.dataLogger(roachid)
+    def _initialise_daemon_writer(self):
+        self.writer_daemon = datalog_mp.dataLogger(self.roachid)
         self.writer_daemon.start_daemon()
 
-    def initialse_hardware(self, roachid):
+    def initialse_hardware(self):
         # initialise the synthesisers
-        self._initialise_synth_clk(roachid)
-        self._initialise_synth_lo(roachid)
+        self._initialise_synth_clk()
+        self._initialise_synth_lo()
         
         # initialise all the hardware
-        self.fpga = self._initialise_fpga(roachid)
+        self.fpga = self._initialise_fpga()
 
 
-    def _initialise_fpga(self, roachid):
+    def _initialise_fpga(self):
 
         if casperfpga is None:
             print "casperfpga module not loaded. No active FPGA instance"
             return
 
         try:
-            fpga = casperfpga.katcp_fpga.KatcpFpga( network_config[roachid]['roach_ppc_ip'], timeout = 120. )
+            fpga = casperfpga.katcp_fpga.KatcpFpga( network_config[self.roachid]['roach_ppc_ip'], timeout = 120. )
         except RuntimeError:
             # bad things have happened, and nothing else should proceed
             print "Error, fpga not connected. "
@@ -114,32 +119,33 @@ class roachInterface(object):
             _lib_fpga.write_to_fpga_register(fpga, { 'write_qdr_status_reg': 1 } )
 
         # configure downlink
-        _lib_fpga.configure_downlink_registers(fpga, roachid)
+        _lib_fpga.configure_downlink_registers(fpga, self.roachid)
 
         return fpga
 
-    def _initialise_synth_lo(self, roachid):
+    def _initialise_synth_lo(self):
         # get configuration
         synthid_lo = self.ROACH_CFG["synthid_lo"]
-
+        
         try:
-            self.synth_lo = SYNTHS_IN_USE[synthid_lo].synthobj()
+            self.synth_lo = SYNTHS_IN_USE[synthid_lo]
         except KeyError:
             print "synthid not recognised. Check configuration file"
 
-    def _initialise_synth_clk(self, roachid):
+    def _initialise_synth_clk(self):
 
         synthid_clk = self.ROACH_CFG["synthid_clk"]
 
         if synthid_clk is not None:
             # get the dictionary of live synths and initialise
-            self.synth_clk = SYNTHS_IN_USE[synthid_clk].synthobj()
+            self.synth_clk = SYNTHS_IN_USE[synthid_clk]
+            self.synth_clk.synthobj.frequency = 512.0e6
             pass
         else:
             self.synth_clk = None
 
-    def _initialise_attenuation(self, roachid):
-        # get configuration for attenuators for roachid
+    def _initialise_attenuation(self):
+        # get configuration for attenuators for self.roachid
         pass
 
     def read_existing_sweep_file(self, path_to_sweep):

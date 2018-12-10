@@ -107,12 +107,13 @@ def calibrate_qdr(fpga):
     fpga.get_system_information()
     results = {}
     for qdr in fpga.qdrs:
-        print qdr
+        
+        print qdr, qdr.name
         mqdr = _lib_qdr.Qdr.from_qdr(qdr)
         results[qdr.name] = mqdr.qdr_cal2(fail_hard=bFailHard)
     print 'qdr cal results:',results
-    for qdrName in ['qdr0','qdr1']:
-        if not results[qdr.name]:
+    for result in results:
+        if not results:
             print 'Calibration Failed'
             return -1
     print '\n************ QDR Calibrated ************'
