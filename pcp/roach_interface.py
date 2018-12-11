@@ -99,14 +99,18 @@ class roachInterface(object):
             print "Error, fpga not connected. "
             return
         
-        firmware_file = os.path.join(filesys_config['rootdir'],general_config['firmware_file'])
+        we_uploaded_a_firmware = 0
         
+        firmware_file = os.path.join(filesys_config['rootdir'],general_config['firmware_file'])
+        v
         if not fpga.is_connected():
             print "it looks like the fpga is not connected"
             return fpga
         
         if not fpga.is_running():
             fpga = _lib_fpga.upload_firmware_file(fpga, firmware_file )
+            we_uploaded_a_firmware = 1
+        
         else:
             fpga.get_system_information()
             sysinfo = fpga.system_info['system']
@@ -114,17 +118,20 @@ class roachInterface(object):
                 print 'Firmware already running (but not checked build date)'
             else:
                 fpga = _lib_fpga.upload_firmware_file(fpga, firmware_file )
-            
+                we_uploaded_a_firmware = 0
+        
+        # calibrate qdr
+        if we_uploaded_a_firmware:
+            if _lib_fpga.calibrate_qdr(fpga) < 0:
+                print "qdr calibration failed."
+            else:
+                _lib_fpga.write_to_fpga_register(fpga, { 'write_qdr_status_reg': 1 } )
+
 
         # write registers (dds_shift + accum_len)
         _lib_fpga.write_to_fpga_register(fpga, { 'accum_len_reg': self.ROACH_CFG['roach_accum_len'], \
                                                 'dds_shift_reg': self.ROACH_CFG['dds_shift']  } )
-        # calibrate qdr
-        if _lib_fpga.calibrate_qdr(fpga) < 0:
-            print "qdr calibration failed."
-        else:
-            _lib_fpga.write_to_fpga_register(fpga, { 'write_qdr_status_reg': 1 } )
-
+        
         # configure downlink
         _lib_fpga.configure_downlink_registers(fpga, self.roachid)
 
