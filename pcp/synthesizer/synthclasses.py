@@ -75,7 +75,7 @@ class pcp_dummySynth(_dummy_synth.dummySynth):
     def frequency(self, frequency):
         self._frequency = frequency
         _time.sleep(0.001) # emulate time to switch frequency
-        print "frequency set to {f}".format(f=frequency)
+        print ("frequency set to {f}".format(f=frequency))
 
     # add a print status method for convenience
     def print_status(self):
@@ -122,6 +122,10 @@ import windfreaksynth as _windfreaksynth # hide the base class from the user by 
 
 class pcp_windfreaksynth(_windfreaksynth.SynthHDDevice):
 
+    ### TODO: lo and clock control channels are hard coded, this needs to be set based\
+    ### on the config files, note that windfreak channels start form zero ( ch0 and ch1) 
+
+
     # pass vendor and model nums as class attributes for checking
     VENDOR = _windfreaksynth.VENDOR
     MODELNUMS = _windfreaksynth.MODELNUMS
@@ -129,20 +133,57 @@ class pcp_windfreaksynth(_windfreaksynth.SynthHDDevice):
     def __init__(self):
         # instantiate class to get all of the factory provided methods
         super(pcp_windfreaksynth, self).__init__()
+        
+        #set all settings as required for muscat
+        self.setReferenceSelect(1) #int27 TODO: this will be external when synths locked
+        self.setAMRunContinuously(0)  
+        
+        self.setControlChannel(0)
+        self.setPLLPowerOn(True)
+        self.setPower(0)
+        self.setRFAmpOn(True)
+        
+        self.setControlChannel(1)
+        self.setPLLPowerOn(True)
+        self.setPower(14)
+        self.setRFAmpOn(True)
+                        
+        #keep track of which source is being controlled
+        #really needs to link to config file.
+        self.clk_or_lo='clk'
+        
 
     # make sure all methods are defined in the same way, and return the same item
 
     # only show example here, as the base class for dummySynth was written in this way
     @property
     def frequency(self): # getter
+        #clk_or_lo='lo'
         """Get or set the frequency of the synthesizer. Units should all be in Hz."""
-        self._frequency = self.getFrequency()
+        
+        if self.clk_or_lo == 'lo':
+            self._frequency = self.getFrequency()
+        elif self.clk_or_lo == 'clk':
+            self.setControlChannel(0)
+            self._frequency = self.getFrequency()
+            self.setControlChannel(1)
+            self.clk_or_lo = 'lo'
+        else:
+            raise ValueError('synthclasses.pcp_windfreak.clk_or_lo should be "clk" or "synth", not "%s"'%self.clk_or_lo)
         return self._frequency
         
     @frequency.setter
     def frequency(self, frequency):
-        self.setFrequencyFast(frequency)
-
+        if self.clk_or_lo=='lo':
+            self.setFrequencyFast(frequency)
+        elif self.clk_or_lo=='clk':
+            self.setControlChannel(0)
+            self._frequency = self.getFrequency()
+            self.setControlChannel(1)
+            self.clk_or_lo='lo'
+        else:
+            raise ValueError('synthclasses.pcp_windfreak.clk_or_lo should be "clk" or "synth", not "%s"'%self.clk_or_lo )
+        
     # add a print status method for convenience
     def print_status(self):
         _pprint.pprint(vars(self), width=1)
