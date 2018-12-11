@@ -102,7 +102,7 @@ class roachInterface(object):
         we_uploaded_a_firmware = 0
         
         firmware_file = os.path.join(filesys_config['rootdir'],general_config['firmware_file'])
-        v
+        
         if not fpga.is_connected():
             print "it looks like the fpga is not connected"
             return fpga
@@ -118,9 +118,9 @@ class roachInterface(object):
                 print 'Firmware already running (but not checked build date)'
             else:
                 fpga = _lib_fpga.upload_firmware_file(fpga, firmware_file )
-                we_uploaded_a_firmware = 0
+                we_uploaded_a_firmware = 1
         
-        # calibrate qdr
+        # calibrate qdr if uploading formware
         if we_uploaded_a_firmware:
             if _lib_fpga.calibrate_qdr(fpga) < 0:
                 print "qdr calibration failed."
