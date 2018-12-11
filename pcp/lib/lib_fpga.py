@@ -1,6 +1,8 @@
 # functions for control and configuration of the fpga/ppc
 
 import time as _time
+import struct as _struct
+from socket import inet_aton as _inet_aton
 from ..configuration import firmware_registers as _firmware_registers, roach_config as _roach_config, network_config as _network_config
 from . import lib_qdr as _lib_qdr
 
@@ -57,10 +59,10 @@ def configure_downlink_registers(fpga, roachid):
     udp_src_mac =  config['udp_source_mac']
     udp_dest_mac = config['udp_dest_mac']
 
-    udp_src_ip   = config['udp_source_ip']
+    udp_src_ip   = _struct.unpack('!L',_inet_aton(config['udp_source_ip']))[0]
     udp_src_port = config['udp_source_port']
 
-    udp_dest_ip   = config['udp_dest_ip']
+    udp_dest_ip   = _struct.unpack('!L',_inet_aton(config['udp_dest_ip']))[0]
     udp_dest_port = config['udp_dest_port']
 
     # Write the mac addresses for the udp source (fpga) and destination (computer)
@@ -74,6 +76,7 @@ def configure_downlink_registers(fpga, roachid):
     _time.sleep(0.05)
 
     # Write the ip addresses for the udp source (fpga) and destination (computer)
+    print udp_src_ip,type(udp_src_ip)
     fpga.write_int( _firmware_registers['udp_srcip_reg'], udp_src_ip)
     _time.sleep(0.05)
     fpga.write_int( _firmware_registers['udp_destip_reg'], udp_dest_ip)
