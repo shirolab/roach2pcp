@@ -93,10 +93,10 @@ def configure_downlink_registers(fpga, roachid):
 
 
 def calibrate_qdr(fpga):
-# Calibrates the QDRs. Run after writing to QDR.
+# Calibrates the QDRs. Run after loading firmware
     write_to_fpga_register(fpga, { 'dac_reset_reg': 1 } )
-
     print 'DAC on'
+    
     bFailHard = False
     calVerbosity = 1
 
@@ -107,16 +107,15 @@ def calibrate_qdr(fpga):
     fpga.get_system_information()
     results = {}
     for qdr in fpga.qdrs:
-        
         print qdr, qdr.name
         mqdr = _lib_qdr.Qdr.from_qdr(qdr)
         results[qdr.name] = mqdr.qdr_cal2(fail_hard=bFailHard)
     print 'qdr cal results:',results
-    for result in results:
-        if not results:
-            print 'Calibration Failed'
+    for qdr in fpga.qdrs:
+        if not results[qdr.name]:
+            print '\n************ QDR Calibration FAILED ************'
             return -1
-    print '\n************ QDR Calibrated ************'
+    print 'QDR Calibrated'
     return 0
 
 def define_DDS_LUT(self, freqs):

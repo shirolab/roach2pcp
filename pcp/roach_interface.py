@@ -98,16 +98,23 @@ class roachInterface(object):
             # bad things have happened, and nothing else should proceed
             print "Error, fpga not connected. "
             return
+        
         firmware_file = os.path.join(filesys_config['rootdir'],general_config['firmware_file'])
-        # upload fpg file if not already uploaded
-        if fpga.is_connected() and not fpga.is_running():
-            fpga = _lib_fpga.upload_firmware_file(fpga, firmware_file )
-
-        elif fpga.is_connected() and fpga.is_running():
-            print "firmware looks to be uploaded"
-
-        else:
+        
+        if not fpga.is_connected():
             print "it looks like the fpga is not connected"
+            return fpga
+        
+        if not fpga.is_running():
+            fpga = _lib_fpga.upload_firmware_file(fpga, firmware_file )
+        else:
+            fpga.get_system_information()
+            sysinfo = fpga.system_info['system']
+            if firmware_file.find(sysinfo)>=0:
+                print 'Firmware already running (but not checked build date)'
+            else:
+                fpga = _lib_fpga.upload_firmware_file(fpga, firmware_file )
+            
 
         # write registers (dds_shift + accum_len)
         _lib_fpga.write_to_fpga_register(fpga, { 'accum_len_reg': self.ROACH_CFG['roach_accum_len'], \
