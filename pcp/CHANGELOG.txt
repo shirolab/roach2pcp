@@ -3,6 +3,21 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
+2018-12-11 14:14 [SR] ==================
+
+Synth stuff:
+- Set up synth instantiation based on physcial devices (dummy synth is still physical)
+- Multi-source synths now share a common instance
+- Windfreak set up to use CLK on channel0 and LO on channel1 (muscat requirement)
+- RoachInterface now sets the CLK source to 512 Mhz before loading any firmware
+
+FPGA stuff:
+- RoachInterface uploads firmware if the currently running firmware does not match.
+- RoachInterface performs QDR calibration only when uploading firmware
+- QDR calibration actually runs now.
+- libFPGA.configure_downlink_registers now converts ip_addr strings to integers
+
+
 2018-12-07 13:30 [PB] ==================
 
 - Added this file.
