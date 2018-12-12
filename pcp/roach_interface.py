@@ -142,7 +142,7 @@ class roachInterface(object):
         synthid_lo = self.ROACH_CFG["synthid_lo"]
         
         try:
-            self.synth_lo = SYNTHS_IN_USE[synthid_lo]
+            self.synth_lo = SYNTHS_IN_USE[synthid_lo].synthobj
         except KeyError:
             print "synthid not recognised. Check configuration file"
 
@@ -152,10 +152,10 @@ class roachInterface(object):
 
         if synthid_clk is not None:
             # get the dictionary of live synths and initialise
-            self.synth_clk = SYNTHS_IN_USE[synthid_clk]
+            self.synth_clk = SYNTHS_IN_USE[synthid_clk].synthobj
             #set the clk frequency
-            self.synth_clk.synthobj.clk_or_lo = 'clk'
-            self.synth_clk.synthobj.frequency = 512.0e6
+            self.synth_clk.clk_or_lo = 'clk'
+            self.synth_clk.frequency = 512.0e6
             
         else:
             self.synth_clk = None
