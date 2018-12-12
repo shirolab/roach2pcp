@@ -83,14 +83,17 @@ entry in the configuration files and try again.".format(synthids=list(synth_chec
     
     for synthid, synthcfg in synth_config.items():
 
-        
+        #get the right labels
         physical_id = synthcfg['physical_id']
         synth_dict_key = "_".join((synthcfg['vendor'], str(synthcfg['model']))).lower()
-        print '\n',synthid,synthcfg,synth_dict_key
+        print ('\n',synthid,synthcfg,synth_dict_key)
     
+        #add the synth object to the dict
         synth_object_dict[synthid] = _synthObj(config = synthcfg, synthobj = psynth_instances[physical_id])
+
+        #NOTE: the synth object is currently a device-like object, but could be source-like to match the valon/windfreak drivers.
         
-        print '\n\n synth_object_dict[synthid]',synth_object_dict[synthid]
+        print ('\n\n synth_object_dict[synthid]',synth_object_dict[synthid])
         
         #synth_object_dict[synthid] = (synthcfg, _SYNTH_HW_DICT[synth_dict_key])
         

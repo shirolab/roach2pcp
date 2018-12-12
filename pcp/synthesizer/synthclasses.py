@@ -178,7 +178,8 @@ class pcp_windfreaksynth(_windfreaksynth.SynthHDDevice):
             self.setFrequencyFast(frequency)
         elif self.clk_or_lo=='clk':
             self.setControlChannel(0)
-            self._frequency = self.getFrequency()
+            self.setFrequencyFast(frequency)
+            self._frequency=frequency
             self.setControlChannel(1)
             self.clk_or_lo='lo'
         else:
