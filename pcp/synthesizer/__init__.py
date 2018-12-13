@@ -21,6 +21,8 @@ __all__ = [ _os.path.basename(_f)[:-3] for _f in _modlist if _os.path.isfile(_f)
 SYNTH_HW_DICT = {}
 
 for classname, synthobj in _inspect.getmembers(synthclasses, _inspect.isclass):
+    if not hasattr(synthobj.'MODELNUMS'):
+        continue
     for modelnum in getattr(synthobj, "MODELNUMS"):
         # join vendor and model numbers (all lower case)
         SYNTH_HW_DICT[ "_".join( (getattr(synthobj, "VENDOR"), str(modelnum).lower() ) )] = synthobj

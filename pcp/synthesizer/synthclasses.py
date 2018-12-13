@@ -54,14 +54,28 @@ import time as _time, pprint as _pprint
 # ===========================================================================================
 import dummy_synth as _dummy_synth # hide the base class from the user by prepending "_"
 
-class pcp_dummySynth(_dummy_synth.dummySynth):
+
+class pcp_dummySynthDevice(_dummy_synth.dummySynthDevice):
 
     VENDOR = _dummy_synth.VENDOR
     MODELNUMS = _dummy_synth.MODELNUMS
 
     def __init__(self):
         # instantiate class to get all of the factory provided methods
-        super(pcp_dummySynth, self).__init__()
+        super(pcp_dummySynthDevice, self).__init__()
+
+    # make sure all methods are defined in the same way, and return the same item
+
+
+
+class pcp_dummySynthSource(_dummy_synth.dummySynthSource):
+
+    VENDOR = _dummy_synth.VENDOR
+    MODELNUMS = _dummy_synth.MODELNUMS
+
+    def __init__(self):
+        # instantiate class to get all of the factory provided methods
+        super(pcp_dummySynthSource, self).__init__(device,source)
 
     # make sure all methods are defined in the same way, and return the same item
 
@@ -88,15 +102,21 @@ class pcp_dummySynth(_dummy_synth.dummySynth):
 
 import apsin as _apsin # hide the base class from the user by prepending "_"
 
-class pcp_apsin(_apsin.apsinSynth):
-
+class pcp_apsinDevice(_apsin.apsinSynthDevice):
     # pass vendor and model nums as class attributes for checking
     VENDOR = _apsin.VENDOR
     MODELNUMS = _apsin.MODELNUMS
 
     def __init__(self):
         # instantiate class to get all of the factory provided methods
-        super(pcp_apsin, self).__init__()
+        super(pcp_apsinDevice, self).__init__()
+
+
+class pcp_apsinSource(_apsin.apsinSynthSource):
+
+    def __init__(self):
+        # instantiate class to get all of the factory provided methods
+        super(pcp_apsinSource, self).__init__(device,source)
 
     # make sure all methods are defined in the same way, and return the same item
 
@@ -120,37 +140,41 @@ class pcp_apsin(_apsin.apsinSynth):
 
 import windfreaksynth as _windfreaksynth # hide the base class from the user by prepending "_"
 
-class pcp_windfreaksynth(_windfreaksynth.SynthHDDevice):
-
-    ### TODO: lo and clock control channels are hard coded, this needs to be set based\
-    ### on the config files, note that windfreak channels start form zero ( ch0 and ch1) 
-
-
-    # pass vendor and model nums as class attributes for checking
+class pcp_windfreaksynthDevice(_windfreaksynth.SynthHDDevice):
+    # pass vendor and model nums as class attributes for checking when creating SYNTH_HW_DICT
     VENDOR = _windfreaksynth.VENDOR
     MODELNUMS = _windfreaksynth.MODELNUMS
 
     def __init__(self):
         # instantiate class to get all of the factory provided methods
-        super(pcp_windfreaksynth, self).__init__()
+        super(pcp_windfreaksynthDevice, self).__init__()
+        
+        #TODO: this will be set to external when synths locked
+        self.setReferenceSelect(1) #internal 27MHz 
+    
+
+class pcp_windfreaksynthSource(_windfreaksynth.SynthHDSource):
+
+    def __init__(self,device,source):
+        # instantiate class to get all of the factory provided methods
+        super(pcp_windfreaksynthSource, self).__init__(device,source)
         
         #set all settings as required for muscat
-        self.setReferenceSelect(1) #int27 TODO: this will be external when synths locked
-        self.setAMRunContinuously(0)  
+        #self.setAMRunContinuously(0)  
         
-        self.setControlChannel(0)
-        self.setPLLPowerOn(True)
-        self.setPower(0)
-        self.setRFAmpOn(True)
+        #self.setControlChannel(0)
+        #self.setPLLPowerOn(True)
+        #self.setPower(0)
+        #self.setRFAmpOn(True)
         
-        self.setControlChannel(1)
-        self.setPLLPowerOn(True)
-        self.setPower(14)
-        self.setRFAmpOn(True)
+        #self.setControlChannel(1)
+        #self.setPLLPowerOn(True)
+        #self.setPower(14)
+        #self.setRFAmpOn(True)
                         
         #keep track of which source is being controlled
         #really needs to link to config file.
-        self.clk_or_lo='clk'
+        #self.clk_or_lo='clk'
         
 
     # make sure all methods are defined in the same way, and return the same item
@@ -160,30 +184,13 @@ class pcp_windfreaksynth(_windfreaksynth.SynthHDDevice):
     def frequency(self): # getter
         #clk_or_lo='lo'
         """Get or set the frequency of the synthesizer. Units should all be in Hz."""
-        
-        if self.clk_or_lo == 'lo':
-            self._frequency = self.getFrequency()
-        elif self.clk_or_lo == 'clk':
-            self.setControlChannel(0)
-            self._frequency = self.getFrequency()
-            self.setControlChannel(1)
-            self.clk_or_lo = 'lo'
-        else:
-            raise ValueError('synthclasses.pcp_windfreak.clk_or_lo should be "clk" or "synth", not "%s"'%self.clk_or_lo)
+        self._frequency = self.getFrequency()
         return self._frequency
         
     @frequency.setter
     def frequency(self, frequency):
-        if self.clk_or_lo=='lo':
-            self.setFrequencyFast(frequency)
-        elif self.clk_or_lo=='clk':
-            self.setControlChannel(0)
-            self.setFrequencyFast(frequency)
-            self._frequency=frequency
-            self.setControlChannel(1)
-            self.clk_or_lo='lo'
-        else:
-            raise ValueError('synthclasses.pcp_windfreak.clk_or_lo should be "clk" or "synth", not "%s"'%self.clk_or_lo )
+        self.setFrequencyFast(frequency)
+        self._frequency=frequency
         
     # add a print status method for convenience
     def print_status(self):

@@ -18,6 +18,10 @@ dev_snrs = ['656']
 class SynthHDDevice(object):
 
 	def __init__(self, dev_snr=dev_snrs[0], open_connection=True):
+		
+		self.vendor   = VENDOR
+                self.modelnum = MODELNUMS[0]
+        
 		print 'Connecting to WFT SynthHD Synthesiser...'
 		self.serialNumber   = dev_snr
 		self.FREQMIN        = 53e6
@@ -35,8 +39,8 @@ class SynthHDDevice(object):
                         
 		#keep track of which source is being controlled
 		#really needs to link to config file.
-		self.src0 = SynthHDSource(0, self)
-		self.src1 = SynthHDSource(1, self)
+		self.src0 = SynthHDSource(self,0)
+		self.src1 = SynthHDSource(self,1)
 		self.active_channel = self.getControlChannel()
 	
 	def _findSerialPort(self):
@@ -146,7 +150,7 @@ class SynthHDDevice(object):
 	      
 class SynthHDSource(object):
   
-	def __init__(self, sourceNumber, SynthHDDevice):
+	def __init__(self, SynthHDDevice, sourceNumber):
 	
 		self.SynthHDDevice = SynthHDDevice
 		self.sourceNumber = sourceNumber
