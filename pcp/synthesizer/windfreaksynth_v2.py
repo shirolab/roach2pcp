@@ -39,10 +39,11 @@ class SynthHDDevice(object):
                         
 		#keep track of which source is being controlled
 		#really needs to link to config file.
-		self.src0 = SynthHDSource(self,0)
-		self.src1 = SynthHDSource(self,1)
+		#self.src0 = SynthHDSource(self,0)
+		#self.src1 = SynthHDSource(self,1)
 		self.active_channel = self.getControlChannel()
 	
+
 	def _findSerialPort(self):
 		comports = serial.tools.list_ports.comports()
 		for port, desc, hwid in comports:

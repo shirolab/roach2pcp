@@ -19,6 +19,8 @@ class dummySynthDevice(object):
         return True
 
 
+
+
 class dummySynthSource(object):
     """
     Dummy synthesizer class for testing. Includes only basic synthesizer functionality, which will be the minimum

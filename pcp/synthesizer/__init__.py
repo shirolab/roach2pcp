@@ -16,12 +16,12 @@ __all__ = [ _os.path.basename(_f)[:-3] for _f in _modlist if _os.path.isfile(_f)
 
 # import all modules found by __all__
 
-# create a dictionary of available synth modules that will be used by lib_hardware
-# to create synth objects according to the information in the configuration files
+# create a dictionary of available synth device modules that will be used by lib_hardware
+# to create synth device and source objects according to the information in the configuration files
 SYNTH_HW_DICT = {}
 
 for classname, synthobj in _inspect.getmembers(synthclasses, _inspect.isclass):
-    if not hasattr(synthobj.'MODELNUMS'):
+    if not hasattr(synthobj,'MODELNUMS'):
         continue
     for modelnum in getattr(synthobj, "MODELNUMS"):
         # join vendor and model numbers (all lower case)

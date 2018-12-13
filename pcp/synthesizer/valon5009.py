@@ -48,10 +48,13 @@ class ValonDevice(object):
 		self.conn                 = serial.Serial(None, baudrate=baud,timeout=0.1)
 		self.conn.setPort(self.serialPort)
 		self.status=u''
+		self.s1=None
+		self.s2=None
 		if open_connection:
 			self.open_connection()
 		print 'OK :)'
 
+        
 	def _findSerialPort(self):
 		comports = serial.tools.list_ports.comports()
 		for port, desc, hwid in comports:
@@ -85,8 +88,8 @@ class ValonDevice(object):
 			self.clearSerialBuffer()
 
 		self.activeSource       = None
-		self.s1 = ValonSource(1,self)
-		self.s2 = ValonSource(2,self)
+		self.s1 = ValonSource(self,1)
+		self.s2 = ValonSource(self,2)
 		self._referenceSource   = None
 		self._referenceTrim     = None
 
@@ -181,7 +184,7 @@ class ValonDevice(object):
 
 
 class ValonSource(object):
-	def __init__(self,sourceNumber,valonDevice):
+	def __init__(self,valonDevice,sourceNumber):
 		if sourceNumber not in [1,2]:
 			raise ValueError, 'Must select source 1 or 2'
 		self.valonDevice          = valonDevice

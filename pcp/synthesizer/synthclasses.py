@@ -63,17 +63,16 @@ class pcp_dummySynthDevice(_dummy_synth.dummySynthDevice):
     def __init__(self):
         # instantiate class to get all of the factory provided methods
         super(pcp_dummySynthDevice, self).__init__()
-
     # make sure all methods are defined in the same way, and return the same item
+    def getSourceObj(self,channel):
+        return pcp_dummySynthSource(self,channel)
 
 
 
 class pcp_dummySynthSource(_dummy_synth.dummySynthSource):
 
-    VENDOR = _dummy_synth.VENDOR
-    MODELNUMS = _dummy_synth.MODELNUMS
-
-    def __init__(self):
+   
+    def __init__(self,device,source):
         # instantiate class to get all of the factory provided methods
         super(pcp_dummySynthSource, self).__init__(device,source)
 
@@ -110,11 +109,12 @@ class pcp_apsinDevice(_apsin.apsinSynthDevice):
     def __init__(self):
         # instantiate class to get all of the factory provided methods
         super(pcp_apsinDevice, self).__init__()
-
+    def getSourceObj(self,channel):
+        return pcp_apsinSynthSource(self,channel)
 
 class pcp_apsinSource(_apsin.apsinSynthSource):
 
-    def __init__(self):
+    def __init__(self,device,source):
         # instantiate class to get all of the factory provided methods
         super(pcp_apsinSource, self).__init__(device,source)
 
@@ -138,7 +138,7 @@ class pcp_apsinSource(_apsin.apsinSynthSource):
 # === WINDFREAK =============================================================================
 # ===========================================================================================
 
-import windfreaksynth as _windfreaksynth # hide the base class from the user by prepending "_"
+import windfreaksynth_v2 as _windfreaksynth # hide the base class from the user by prepending "_"
 
 class pcp_windfreaksynthDevice(_windfreaksynth.SynthHDDevice):
     # pass vendor and model nums as class attributes for checking when creating SYNTH_HW_DICT
@@ -151,6 +151,10 @@ class pcp_windfreaksynthDevice(_windfreaksynth.SynthHDDevice):
         
         #TODO: this will be set to external when synths locked
         self.setReferenceSelect(1) #internal 27MHz 
+
+    def getSourceObj(self,channel):
+        return pcp_windfreaksynthSource(self,channel)
+
     
 
 class pcp_windfreaksynthSource(_windfreaksynth.SynthHDSource):

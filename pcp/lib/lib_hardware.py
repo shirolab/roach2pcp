@@ -1,8 +1,11 @@
 #
 
 from ..configuration import hardware_config, roach_config
+#from pcp.configuration import hardware_config, roach_config
 
 from ..synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT
+#from pcp.synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT
+
 #from ..synthesizer import synth_class_dict
 
 from collections import namedtuple as _namedtuple
@@ -53,7 +56,7 @@ entry in the configuration files and try again.".format(synthids=list(synth_chec
         return
 
     
-    #identify physical synths, not repeating entries for multi-port devices
+    #identify physical synth devices, not repeating entries for multi-port devices
     psynth_dict = {}
     for synthid, synthcfg in synth_config.items():
         vendor = str(synthcfg['vendor']).lower()
@@ -66,18 +69,20 @@ entry in the configuration files and try again.".format(synthids=list(synth_chec
         psynth_dict[physical_id] = {'vendor':vendor, 'model':model, 'serial':serial}
         psynth_dict[physical_id]['class_key'] = vendor + '_' + model  
         synth_config[synthid]['physical_id'] = physical_id
-
+    print psynth_dict
     
     #instantiate the synth base classes for each physical device
-    psynth_instances = {}
+    psynth_device_instances = {}
     for psynth in psynth_dict:
         synth_dict_key = psynth_dict[psynth]['class_key']
         synth_dict_class = _SYNTH_HW_DICT[synth_dict_key]
-        psynth_instances[psynth] = synth_dict_class() 
+        print psynth, synth_dict_key, synth_dict_class
+        psynth_device_instances[psynth] = synth_dict_class() 
         
-
-    # return a dictionary with initilased synth objects
-    synth_object_dict = dict.fromkeys(synth_config, None)
+    
+    # return a dictionary with initilased synth device objects
+    synth_device_object_dict = dict.fromkeys(synth_config, None)
+    synth_source_object_dict = dict.fromkeys(synth_config, None)
     #print '\n\n _SYNTH_HW_DICT',_SYNTH_HW_DICT
     #print '\n\n _synth_object_dict',synth_object_dict
     
@@ -88,16 +93,18 @@ entry in the configuration files and try again.".format(synthids=list(synth_chec
         synth_dict_key = "_".join((synthcfg['vendor'], str(synthcfg['model']))).lower()
         print ('\n',synthid,synthcfg,synth_dict_key)
     
-        #add the synth object to the dict
-        synth_object_dict[synthid] = _synthObj(config = synthcfg, synthobj = psynth_instances[physical_id])
+        #add the synth device object to a dict
+        synth_device_object_dict[synthid] = _synthObj(config = synthcfg, synthobj = psynth_device_instances[physical_id])
+        
+        #add the synth source object to a dict
+        synth_source_object_dict[synthid] = _synthObj(config = synthcfg, synthobj = psynth_device_instances[physical_id].getSourceObj(channel=synthcfg['channel']))
 
         #NOTE: the synth object is currently a device-like object, but could be source-like to match the valon/windfreak drivers.
         
-        print ('\n\n synth_object_dict[synthid]',synth_object_dict[synthid])
+        print ('\n\n synth_device_object_dict[synthid]',synth_device_object_dict[synthid])
+        print ('\n\n synth_source_object_dict[synthid]',synth_source_object_dict[synthid])
         
-        #synth_object_dict[synthid] = (synthcfg, _SYNTH_HW_DICT[synth_dict_key])
-        
-    return synth_object_dict
+    return synth_source_object_dict
 
 # create synth object dict that is initialised and can be used by everything else
 
