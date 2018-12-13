@@ -26,13 +26,7 @@ VENDOR = 'anapico'
 MODELNUMS = ["apsin20g", "3000"]
 
 
-class apsinSynth(object):
-    """
-    Dummy synthesizer class for testing. Includes only basic synthesizer functionality, which will be the minimum
-    required a synth object in this package. Other functionality can be used interactively and in custom scripts, but the
-    code will not rely on additional functionality to operate.
-
-    """
+class apsinSynthDevice(object):
     def __init__(self):
 
         self.resource_string = "TCPIP{boardnum}::{ipaddress}::INSTR".format(boardnum = 0, ipaddress = "192.168.40.93")
@@ -44,13 +38,11 @@ class apsinSynth(object):
             # no link appears to be wrong ipaddress
             print "Error!", exc
             return
-        # initialise parameters
-        self.frequency = 1e6 # in Hz
-        self.output_power = 0 # in dBm
-        self.reference = "int" # ext, int
-        self.islocked  = False
+        
         self.vendor   = "dummy"
         self.modelnum = "0"
+        
+        self.src = apsinSynthSource(self,0)
 
     def _connect(self, resource_string):
         return _resouce_manager.open_resource(resource_string)
@@ -60,38 +52,60 @@ class apsinSynth(object):
         # checks that the VISA resource name read from the instrument matches the software value
         return self.instrument.resource_name == self.resource_string
 
+    def close(self):
+        self.instrument.close()
+
+
+class apsinSynthSource(object):
+    """
+    Dummy synthesizer class for testing. Includes only basic synthesizer functionality, which will be the minimum
+    required a synth object in this package. Other functionality can be used interactively and in custom scripts, but the
+    code will not rely on additional functionality to operate.
+
+    """
+    def __init__(self,device,source):
+        self.device = device
+        self.sourceNumber = source
+        
+        # initialise parameters
+        self.frequency = 1e6 # in Hz
+        self.output_power = 0 # in dBm
+        self.reference = "int" # ext, int
+        self.islocked  = False
+        
+    
     @property
     def rf_output(self):
         """Get or set the frequency of the synthesizer. Units should all be in Hz."""
         print "queried instrument"
-        return bool(int(self.instrument.query( "output?" ).rstrip()))
+        return bool(int(self.device.instrument.query( "output?" ).rstrip()))
 
     @rf_output.setter
     def rf_output(self, output_bool):
         self._output = output_bool
-        self.instrument.write( 'output {output:d}'.format(output = output_bool) ) # emulate time to switch frequency
+        self.device.instrument.write( 'output {output:d}'.format(output = output_bool) ) # emulate time to switch frequency
 
     @property
     def frequency(self):
         """Get or set the frequency of the synthesizer. Units should all be in Hz."""
         print "queried instrument"
-        return float(self.instrument.query( 'freq?' ))
+        return float(self.device.instrument.query( 'freq?' ))
 
     @frequency.setter
     def frequency(self, frequency):
         self._frequency = frequency
-        self.instrument.write( 'freq {freq:.2f}'.format(freq = frequency) ) # emulate time to switch frequency
+        self.device.instrument.write( 'freq {freq:.2f}'.format(freq = frequency) ) # emulate time to switch frequency
 
     @property
     def output_power(self):
         """Get or set the output power of the synthesizer. Units should be all in dBm."""
         print "queried instrument"
-        return float( self.instrument.query("pow:level?") )
+        return float( self.device.instrument.query("pow:level?") )
 
     @output_power.setter
     def output_power(self, output_power):
         self._output_power = output_power
-        self.instrument.write("pow:level {power:.1f} dbm".format(power = output_power))
+        self.device.instrument.write("pow:level {power:.1f} dbm".format(power = output_power))
 
     @property
     def reference(self):
@@ -100,13 +114,10 @@ class apsinSynth(object):
 
         # TODO: allow external reference to pass numeric arguement to pass different frequency references
         """
-        return bool(int(self.instrument.query( "roscillator:locked?" ).rstrip()))
+        return bool(int(self.device.instrument.query( "roscillator:locked?" ).rstrip()))
     @reference.setter
     def reference(self, which="int"):
         assert which in ["int", "ext"], "reference not recognised"
         self._reference = which
 
         self.islocked = True if which == 'ext' else False # emulated the reference locked state
-
-    def close(self):
-        self.instrument.close()

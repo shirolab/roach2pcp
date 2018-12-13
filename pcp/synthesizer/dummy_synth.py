@@ -6,27 +6,36 @@ MODELNUMS = ['dummy']
 
 import time as _time
 
-class dummySynth(object):
-    """
-    Dummy synthesizer class for testing. Includes only basic synthesizer functionality, which will be the minimum
-    required a synth object in this package. Other functionality can be used interactively and in custom scripts, but the
-    code will not rely on additional functionality to operate.
-
-    """
+class dummySynthDevice(object):
     def __init__(self):
-        # initialise parameters
-        self.frequency = 1e6 # in Hz
-        self.power    = 0 # in dBm
-        self.reference = "int" # ext, int
-        self.islocked  = False
         self.vendor   = "dummy"
         self.modelnum = "dummy"
+        self.src     = dummySynthSource(self,0)
 
     def test_connection(self):
         """Simple method to test to see if the hardware connection is alive. Returns True or False"""
 
         # for dummy synth, assume it is always connected
         return True
+
+
+class dummySynthSource(object):
+    """
+    Dummy synthesizer class for testing. Includes only basic synthesizer functionality, which will be the minimum
+    required a synth object in this package. Other functionality can be used interactively and in custom scripts, but the
+    code will not rely on additional functionality to operate.
+
+    """
+    def __init__(self,device,source):
+        
+        self.device = device
+        self.sourceNumber = source
+        # initialise parameters
+        self.frequency = 1e6 # in Hz
+        self.power    = 0 # in dBm
+        self.reference = "int" # ext, int
+        self.islocked  = False
+        
 
     @property
     def frequency(self):
