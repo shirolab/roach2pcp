@@ -3,6 +3,15 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
+commit 2d4a259596e2c836f65e70b77174b004c8551a44
+Author: sr-cdf <rowes@cardiff.ac.uk>
+Date:   Thu Dec 13 15:45:48 2018 +0000
+
+    finished synth devices and sources for independent control of single/multi port synths.
+    
+    Using Thomas's updated windfreaksynth_v2 we now have separate classes for synthesiser hardware devices and synthesiser sources for muscat. The lib_hardware.intiialise_connected_synths function returns a dict of the synth *sources* relating to the devices and their channels as named in the hardware_config.cfg and roach_config.cfg files, and no manual source switching is required. This did require adding synth devices and synth sources for all synths in the synthclasses submodule, including the dummy synth but should be fully backwards compatible with rest of the PCP code.
+
+
 2018-12-11 14:14 [SR] ==================
 
 Synth stuff:
