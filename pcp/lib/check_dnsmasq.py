@@ -15,7 +15,7 @@ def check_dnsmasq():
     ret = os.system('/bin/systemctl -l --no-pager status dnsmasq  >/dev/null')
     
     if ret:
-      
+        print 'Trying to start dnsmasq service for roach dhcp leasing'
         #try and start the service
         ret = os.system('/bin/systemctl -l --no-pager start dnsmasq')
         if ret:
