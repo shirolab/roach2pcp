@@ -15,15 +15,14 @@ def check_dnsmasq():
     ret = os.system('/bin/systemctl -l --no-pager status dnsmasq  >/dev/null')
     
     if ret:
-        #loudly check ;)
-        ret = os.system('/bin/systemctl -l --no-pager status dnsmasq')
-        
+      
         #try and start the service
         ret = os.system('/bin/systemctl -l --no-pager start dnsmasq')
         if ret:
-            raise SeriousError, 'Cannot start dnsmasq service'
+            print( 'Cannot start dnsmasq, may not find roaches')
+            return
         
-        #loudly check again!
+        #loudly and proudly print status!
         ret = os.system('/bin/systemctl -l --no-pager status dnsmasq ')
         
         print ('check_dnsmasq: started dnsmasq service')
