@@ -93,11 +93,13 @@ class roachInterface(object):
             return
 
         try:
-            fpga = casperfpga.katcp_fpga.KatcpFpga( network_config[self.roachid]['roach_ppc_ip'], timeout = 120. )
+            fpga = casperfpga.katcp_fpga.KatcpFpga( network_config[self.roachid]['roach_ppc_ip'], timeout = 10. )
         except RuntimeError:
             # bad things have happened, and nothing else should proceed
             print "Error, fpga not connected. "
             return
+	except:
+            print 'Error connecting to \'%s\'. Is it switched on? Check network settings!'%(self.roachid)
         
         we_uploaded_a_firmware = 0
         

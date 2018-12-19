@@ -18,10 +18,16 @@ Loading submodules...
 """
 )
 
+
 #import sub-libraries
 import configuration, lib, kid, synthesizer, unittests
 import logfile, roach_interface, datalog_mp#, toneslist
 
+
+
+#check dnsmasq is running
+from lib.check_dnsmasq import check_dnsmasq
+check_dnsmasq()
 
 # lists of important information defined at the top level for convenience (i.e. pcp.ROACH_LIST)
 # will show the list of roaches defined in the confiruation files
