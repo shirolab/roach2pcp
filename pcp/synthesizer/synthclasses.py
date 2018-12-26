@@ -68,10 +68,9 @@ class pcp_dummySynthDevice(_dummy_synth.dummySynthDevice):
         return pcp_dummySynthSource(self,channel)
 
 
-
 class pcp_dummySynthSource(_dummy_synth.dummySynthSource):
 
-   
+
     def __init__(self,device,source):
         # instantiate class to get all of the factory provided methods
         super(pcp_dummySynthSource, self).__init__(device,source)
@@ -148,38 +147,38 @@ class pcp_windfreaksynthDevice(_windfreaksynth.SynthHDDevice):
     def __init__(self):
         # instantiate class to get all of the factory provided methods
         super(pcp_windfreaksynthDevice, self).__init__()
-        
+
         #TODO: this will be set to external when synths locked
-        self.setReferenceSelect(1) #internal 27MHz 
+        self.setReferenceSelect(1) #internal 27MHz
 
     def getSourceObj(self,channel):
         return pcp_windfreaksynthSource(self,channel)
 
-    
+
 
 class pcp_windfreaksynthSource(_windfreaksynth.SynthHDSource):
 
     def __init__(self,device,source):
         # instantiate class to get all of the factory provided methods
         super(pcp_windfreaksynthSource, self).__init__(device,source)
-        
+
         #set all settings as required for muscat
-        #self.setAMRunContinuously(0)  
-        
+        #self.setAMRunContinuously(0)
+
         #self.setControlChannel(0)
         #self.setPLLPowerOn(True)
         #self.setPower(0)
         #self.setRFAmpOn(True)
-        
+
         #self.setControlChannel(1)
         #self.setPLLPowerOn(True)
         #self.setPower(14)
         #self.setRFAmpOn(True)
-                        
+
         #keep track of which source is being controlled
         #really needs to link to config file.
         #self.clk_or_lo='clk'
-        
+
 
     # make sure all methods are defined in the same way, and return the same item
 
@@ -190,7 +189,7 @@ class pcp_windfreaksynthSource(_windfreaksynth.SynthHDSource):
         """Get or set the frequency of the synthesizer. Units should all be in Hz."""
         self._frequency = self.getFrequency()
         return self._frequency
-        
+
     @frequency.setter
     def frequency(self, frequency):
         self.setFrequencyFast(frequency)

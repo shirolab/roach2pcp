@@ -29,7 +29,7 @@ class dummySynthSource(object):
 
     """
     def __init__(self,device,source):
-        
+
         self.device = device
         self.sourceNumber = source
         # initialise parameters
@@ -37,7 +37,7 @@ class dummySynthSource(object):
         self.power    = 0 # in dBm
         self.reference = "int" # ext, int
         self.islocked  = False
-        
+
 
     @property
     def frequency(self):

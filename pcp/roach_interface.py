@@ -42,7 +42,7 @@ class roachInterface(object):
     def __init__(self, roachid):
 
         atexit.register(self.shutdown)
-        
+
         self.roachid  = roachid
 
         self.fpga            = None
@@ -81,10 +81,9 @@ class roachInterface(object):
         # initialise the synthesisers
         self._initialise_synth_clk()
         self._initialise_synth_lo()
-        
+
         # initialise all the hardware
         self.fpga = self._initialise_fpga()
-
 
     def _initialise_fpga(self):
 
@@ -100,19 +99,19 @@ class roachInterface(object):
             return
 	except:
             print 'Error connecting to \'%s\'. Is it switched on? Check network settings!'%(self.roachid)
-        
+
         we_uploaded_a_firmware = 0
-        
+
         firmware_file = os.path.join(filesys_config['rootdir'],general_config['firmware_file'])
-        
+
         if not fpga.is_connected():
             print "it looks like the fpga is not connected"
             return fpga
-        
+
         if not fpga.is_running():
             fpga = _lib_fpga.upload_firmware_file(fpga, firmware_file )
             we_uploaded_a_firmware = 1
-        
+
         else:
             fpga.get_system_information()
             sysinfo = fpga.system_info['system']
@@ -121,19 +120,18 @@ class roachInterface(object):
             else:
                 fpga = _lib_fpga.upload_firmware_file(fpga, firmware_file )
                 we_uploaded_a_firmware = 1
-        
-        # calibrate qdr if uploading formware
+
+        # calibrate qdr if uploading firmware
         if we_uploaded_a_firmware:
             if _lib_fpga.calibrate_qdr(fpga) < 0:
                 print "qdr calibration failed."
             else:
                 _lib_fpga.write_to_fpga_register(fpga, { 'write_qdr_status_reg': 1 } )
 
-
         # write registers (dds_shift + accum_len)
         _lib_fpga.write_to_fpga_register(fpga, { 'accum_len_reg': self.ROACH_CFG['roach_accum_len'], \
                                                 'dds_shift_reg': self.ROACH_CFG['dds_shift']  } )
-        
+
         # configure downlink
         _lib_fpga.configure_downlink_registers(fpga, self.roachid)
 
@@ -142,7 +140,7 @@ class roachInterface(object):
     def _initialise_synth_lo(self):
         # get configuration
         synthid_lo = self.ROACH_CFG["synthid_lo"]
-        
+
         try:
             self.synth_lo = SYNTHS_IN_USE[synthid_lo].synthobj
         except KeyError:
@@ -158,7 +156,7 @@ class roachInterface(object):
             #set the clk frequency
             self.synth_clk.clk_or_lo = 'clk'
             self.synth_clk.frequency = 512.0e6
-            
+
         else:
             self.synth_clk = None
 
