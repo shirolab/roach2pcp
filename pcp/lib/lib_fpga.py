@@ -1,13 +1,16 @@
 # functions for control and configuration of the fpga/ppc
 
-import time as _time
+import time as _time, os as _os
 import struct as _struct
+
+import numpy as _np
 import socket as _socket # inet_aton as _inet_aton
 from ..configuration import firmware_registers as _firmware_registers,\
                             roach_config as _roach_config, \
                             network_config as _network_config
 
 from . import lib_qdr as _lib_qdr
+import casperfpga as _casperfpga
 
 
 def write_to_fpga_register(fpga, register_dict, sleep_time = 0.1):
@@ -17,19 +20,18 @@ def write_to_fpga_register(fpga, register_dict, sleep_time = 0.1):
     """
     try:
         # check that the register names match the ones defined in the firmware
-        if not set( fpga.listdev() ).issubset( register_dict.keys() ):
+        if not set( fpga.listdev() ).issuperset( [_firmware_registers[key] for key in register_dict.keys()] ):
             print "given register names are not included in the fpga devlist", register_dict.keys()
             return
 
-    except casperfpga.katcp_fpga.KatcpRequestFail:
+    except _casperfpga.katcp_fpga.KatcpRequestFail:
         print "There doesn't appear to be any firmware running. Check and try again. "
         return
 
     # write the registers
     for firmware_key, register_value in register_dict.items():
-        self.fpga.write_int( _firmware_registers[firmware_key],  int(register_value) )
+        fpga.write_int( _firmware_registers[firmware_key],  int(register_value) )
         _time.sleep(sleep_time)
-
 
 class roachInterface(object):
     """
@@ -39,8 +41,6 @@ class roachInterface(object):
         - hold the current firmware file (which is nominally read from the config file )
         - upload a firmware file
         - store and read QDR LUTs?
-
-
 
     """
 
@@ -52,20 +52,23 @@ class roachInterface(object):
 
         # get configuration from file for given roachid
 
-        self.firmware_file = None
 
         self.network_config = _network_config[roachid]
-        self.roach_config   = _roach_config[roachid]
+        self.roach_config   = _roach_config["roach_params"][roachid]
 
-        self.FPGA_SAMP_FREQ = None
-        self.FFT_LEN        = None
-        self.DAC_SAMP_FREQ  = None
-        self.LUTBUFFER_LEN  = None
-        self.DAC_FREQ_RES   = 2 * self.DAC_SAMP_FREQ / self.LUTBUFFER_LEN
+        self.firmware_file = self.roach_config["firmware_file"]; assert _os.path.exists(self.firmware_file)
 
+        self.FPGA_SAMP_FREQ = 256.e6
+        self.FFT_LEN        = 1024
+        self.DAC_SAMP_FREQ  = 512.e6
+        self.LUTBUF_LEN     = 2097152 # 2**21
+        self.DAC_FREQ_RES   = 2 * self.DAC_SAMP_FREQ / self.LUTBUF_LEN
 
     def initialise_fpga(self):
         pass
+        # upload fpg
+        # calibrate_qdr (if a new fpg file was uploaded)
+
 
 
     def upload_firmware_file(self, firmware_file = None, force_reupload=False):
@@ -88,7 +91,7 @@ class roachInterface(object):
         """
         # allow the user to use a different firmware file if required, else use the file in the config file
         # and perform some checks to see if the firmware file is sensible
-        if firmware_file != None and type(firmware_file) is str and os.path.splitext(firmware_file)[-1] == ".fpg":
+        if firmware_file != None and type(firmware_file) is str and _os.path.splitext(firmware_file)[-1] == ".fpg":
             pass
         else:
             firmware_file = self.firmware_file
@@ -109,10 +112,11 @@ class roachInterface(object):
             print "An existing firmware is already running. Checking versions..."
             # read info from new firmware file to compare?
             running_devinfo = self.fpga._read_design_info_from_host()["77777"] # <-- dictionary of metadata from fpg
-            new_devinfo     = casperfpga.utils.parse_fpg(firmware_file)[0]["77777"] # parse firmware file and return devinfo only
+            new_devinfo     = _casperfpga.utils.parse_fpg(firmware_file)[0]["77777"] # parse firmware file and return devinfo only
 
             if running_devinfo['builddate'] == new_devinfo['builddate'] and running_devinfo['system'] == new_devinfo['system']:
-                print "It looks like the same version."
+                print "It looks like the same version. Use 'force_reupload = True' to re-upload the same firmware. Returning. "
+                return
             else:
                 print "Currently running - " , running_devinfo
                 print "New file to upload - ", new_devinfo
@@ -121,15 +125,16 @@ class roachInterface(object):
                     "Operation cancelled. Nothing done. "
                     self.fpg_uploaded = True
                     return False
-
+        print "uploading firmware file {0} to roach".format(firmware_file)
         success = self.fpga.upload_to_ram_and_program(firmware_file, timeout = 10.)
         _time.sleep(0.5)
-        if success == True:
+        if success == None:
             print 'Successfully uploaded:', firmware_file
             self.firmware_file = firmware_file
             self.fpg_uploaded = True
             return True
         else:
+            print success
             self.fpg_uploaded = False
             raise RuntimeError("Firmware upload failed.")
 
@@ -167,10 +172,10 @@ class roachInterface(object):
         udp_src_mac =  self.network_config['udp_source_mac']
         udp_dest_mac = self.network_config['udp_dest_mac']
 
-        udp_src_ip   = _struct.unpack( '!L', _socket.inet_aton(network_config['udp_source_ip']) )[0]
+        udp_src_ip   = _struct.unpack( '!L', _socket.inet_aton(self.network_config['udp_source_ip']) )[0]
         udp_src_port = self.network_config['udp_source_port']
 
-        udp_dest_ip   = _struct.unpack( '!L', _socket.inet_aton(network_config['udp_dest_ip']) )[0]
+        udp_dest_ip   = _struct.unpack( '!L', _socket.inet_aton(self.network_config['udp_dest_ip']) )[0]
         udp_dest_port = self.network_config['udp_dest_port']
 
         # Write the mac addresses for the udp source (fpga) and destination (computer)
@@ -184,9 +189,9 @@ class roachInterface(object):
                                             'udp_destport_reg': udp_dest_port,\
                                             'udp_srcport_reg' : udp_src_port  }, sleep_time = 0.05 )
 
-        write_to_fpga_register(self.fpga, { 'udp_start_reg': 0, \
-                                            'udp_start_reg': 1, \
-                                            'udp_start_reg': 0  }, sleep_time = 0.1 )
+        write_to_fpga_register(self.fpga, { 'udp_start_reg': 0 }, sleep_time = 0.1 ) # require separate calls for the same register
+        write_to_fpga_register(self.fpga, { 'udp_start_reg': 1 }, sleep_time = 0.1 )
+        write_to_fpga_register(self.fpga, { 'udp_start_reg': 0 }, sleep_time = 0.1 )
 
         return
         # self.fpga.write_int( _firmware_registers['udp_srcmac0_reg'],  int(udp_src_mac[4:], 16)   )
@@ -221,7 +226,6 @@ class roachInterface(object):
     #def gen_dac_freqs(self, freqs, samp_freq, resolution, random_phase = True, DAC_LUT = True, apply_transfunc = False, **kwargs):
     # I, Q = self.freqComb(np.array([freq_residuals[m]]), self.fpga_samp_freq/(self.fft_len/2.), self.dac_freq_res, random_phase = False, DAC_LUT = False)
 
-
     def gen_waveform_from_freqs(self, freqs, amps = None, phases = None, which = "dac_lut"):
         """
         Method to generate the I and Q waveforms that will be sent to the DAC and DDS look-up tables.
@@ -247,43 +251,42 @@ class roachInterface(object):
             Arrays of I and Q waveforms ready to be written to the DAC and DDS.
         """
         # Generates a frequency comb for the DAC or DDS look-up-tables. DAC_LUT = True for the DAC LUT. Returns I and Q
-        amps   = np.ones_like(freqs)  if amps   is None else amps
-        phases = np.zeros_like(freqs) if phases is None else phases
+        amps   = _np.ones_like(freqs)  if amps   is None else amps
+        phases = _np.zeros_like(freqs) if phases is None else phases
 
-        freqs = np.round( freqs / self.DAC_FREQ_RES) * self.DAC_FREQ_RES
+        freqs = _np.round( freqs / self.DAC_FREQ_RES) * self.DAC_FREQ_RES
         amp_full_scale = (2**15 - 1)
 
         assert which in ['dac_lut', 'dds_lut']
 
         # For the DDS_LUT, there are two bins returned for every fpga clock, so the bin sample rate is 256 MHz / half the fft length
-
-        fft_len   = self.LUTBUF_LEN    if which == "dac_lut" else self.LUTBUF_LEN/self.FFT_LEN         if which == "dds_lut" else None
+        fft_len   = self.LUTBUF_LEN    if which == "dac_lut" else self.LUTBUF_LEN/self.FFT_LEN          if which == "dds_lut" else None
         samp_freq = self.DAC_SAMP_FREQ if which == "dac_lut" else self.FPGA_SAMP_FREQ/(self.FFT_LEN/2.) if which == "dds_lut" else None
 
-        phases, amps = ( np.zeros_like(k), np.ones_like(k) ) if which == "dds_lut" else (phases, amps)
+        fft_bin_index = _np.round((freqs / samp_freq) * fft_len).astype('int')
 
-        fft_bin_index = np.round((freqs / samp_freq) * fft_len).astype('int')
+        phases, amps = ( _np.zeros_like(fft_bin_index), _np.ones_like(fft_bin_index) ) if which == "dds_lut" else (phases, amps)
 
-        spec = np.zeros(fft_len, dtype='complex')
-        spec[fft_bin_index] = amps * np.exp( 1j * phases )
-        wave = np.fft.ifft(spec)
-        waveMax = np.max(np.abs(wave))
+        spec = _np.zeros(fft_len, dtype='complex')
+        spec[fft_bin_index] = amps * _np.exp( 1j * phases )
+        wave = _np.fft.ifft(spec)
+        waveMax = _np.max(_np.abs(wave))
 
     	return (wave.real/waveMax)*(amp_full_scale), (wave.imag/waveMax)*(amp_full_scale)  # <-- I, Q
 
-    def select_bins(self, bb_freqs):
-    # Calculates the offset from each bin center, to be used as the DDS LUT frequencies, and writes bin numbers to RAM
-
-        fft_bin_index = np.round( (bb_freqs/2/self.FPGA_SAMP_FREQ) * self.FFT_LEN ).astype('int')
+    def select_bins(self, freqs):
+        # Calculates the offset from each bin center, to be used as the DDS LUT frequencies, and writes bin numbers to RAM
+        fft_bin_index = _np.round( (freqs/2/self.FPGA_SAMP_FREQ) * self.FFT_LEN ).astype('int')
         f_bin = fft_bin_index * self.DAC_SAMP_FREQ/self.FFT_LEN
         fft_bin_index[ fft_bin_index < 0 ] += self.FFT_LEN
         freq_residuals = freqs - f_bin
-        bin_freqs = np.unique(f_bin)
+        bin_freqs = _np.unique(f_bin)
 
+        # this is a bit slow...
         for ch, idx in enumerate(fft_bin_index):
             write_to_fpga_register(self.fpga, { 'bins_reg': idx, \
-                                                'load_bins_reg': 2*ch + 1, \
-                                                'load_bins_reg': 0 }, sleep_time = 0. )
+                                                'load_bins_reg': 2*ch + 1}, sleep_time = 0. )
+            write_to_fpga_register(self.fpga, {'load_bins_reg': 0 }, sleep_time = 0. )
 
                                                 #enable write ram at address i
 
@@ -298,14 +301,15 @@ class roachInterface(object):
 
         return freq_residuals
 
-    def define_DDS_LUT(self, freqs):
+    def define_DDS_LUT(self, freqs): # SLOW - takes ~1 s to run with 101 tones
         # Builds the DDS look-up-table from I and Q given by freq_comb. freq_comb is called with the sample rate equal to the
         # sample rate for a single FFT bin.
         # There are two bins returned for every fpga clock, so the bin sample rate is 256 MHz / half the fft length
         freq_residuals = self.select_bins(freqs)
-        I_dds, Q_dds = np.array([0.]*(self.LUTBUFFER_LEN)), np.array([0.]*(self.LUTBUFFER_LEN))
+        I_dds, Q_dds = _np.zeros( (2, self.LUTBUF_LEN) )
+
         for idx, freq in enumerate(freq_residuals):
-            I, Q = self.gen_waveform_from_freqs(np.array(freq), amps, phases, self.DAC_FREQ_RES)
+            I, Q = self.gen_waveform_from_freqs(freq, amps=None, phases=None, which='dds_lut')
             I_dds[idx::self.FFT_LEN] = I
             Q_dds[idx::self.FFT_LEN] = Q
         # store this somewhere useful?
@@ -322,7 +326,7 @@ class roachInterface(object):
         self._I_dds = I_dds
         self._Q_dds = Q_dds
 
-        I_lut, Q_lut = np.zeros(2 * self.LUTBUF_LEN), np.zeros(2 * self.LUTBUF_LEN)
+        I_lut, Q_lut = _np.zeros((2, 2 * self.LUTBUF_LEN) )
         I_lut[0::4] = I_dac[1::2]
         I_lut[1::4] = I_dac[0::2]
         I_lut[2::4] = I_dds[1::2]
@@ -334,21 +338,56 @@ class roachInterface(object):
 
         return I_lut.astype('>i2').tostring(), Q_lut.astype('>i2').tostring() # I_lut_packed, Q_lut_packed
 
-    def write_freqs_to_qdr(self, freqs):
+    def write_freqs_to_qdr(self, freqs, amps, phases):
         # Writes packed LUTs to QDR
-        I_lut_packed, Q_lut_packed = self.pack_luts(freqs, amp, phases)
 
-        write_to_fpga_register(self.fpga, { "dac_reset_reg": 1, \
-                                            "dac_reset_reg": 0, \
+        #write fft_shift ?
+        fft_shift = 2**5 if len(freqs) >= 400 else 2**9
+        write_to_fpga_register(self.fpga, { "fft_shift_reg": fft_shift - 1} , sleep_time = 0. )
+
+        I_lut_packed, Q_lut_packed = self.pack_luts(freqs, amps, phases)
+        write_to_fpga_register(self.fpga, { "dac_reset_reg": 1} , sleep_time = 0. )
+        write_to_fpga_register(self.fpga, { "dac_reset_reg": 0, \
                                             "start_dac_reg": 0 }, sleep_time = 0. )
-
-        self.fpga.blindwrite(_firmware_registers['qdr0_reg'], I_lut_packed, 0)
-        self.fpga.blindwrite(_firmware_registers['qdr1_reg'], Q_lut_packed, 0)
+        # blindwrites takes around 8-9 seconds each
+        self.fpga.blindwrite(_firmware_registers['qdr0_reg'], I_lut_packed, offset = 0)
+        self.fpga.blindwrite(_firmware_registers['qdr1_reg'], Q_lut_packed, offset = 0)
 
         write_to_fpga_register(self.fpga, { "start_dac_reg"  : 1, \
-                                            "accum_reset_reg": 0, \
-                                            "accum_reset_reg": 1}, sleep_time = 0. )
+                                            "accum_reset_reg": 0 }, sleep_time = 0. )
 
-        write_to_fpga_register(self.fpga, { "write_comb_len_reg": len(freqs) },  sleep_time = 0. )
-
+        write_to_fpga_register(self.fpga, { "accum_reset_reg": 1, \
+                                            "write_comb_len_reg": len(freqs) },  sleep_time = 0. )
         print 'Done.'
+
+
+
+
+    def make_freq_comb(self, nfreq = 101):
+
+        # Number of frequencies in test comb
+        #Nfreq = 101
+        # Maximum positive frequency, Hz
+        max_pos_freq = 246.001234e6
+        # Minimum positive frequency, Hz
+        min_pos_freq = 1.02342e6
+        # Maximum negative frequency, Hz
+        max_neg_freq = -1.02342e6
+        # Minimum negative frequency, Hz
+        min_neg_freq = -246.001234e6
+        # Offset between positive and negative combs, Hz
+        symm_offset = 250.0e3
+
+        neg_freqs, neg_delta = _np.linspace(min_neg_freq + symm_offset, max_neg_freq + symm_offset, nfreq/2, retstep = True)
+        pos_freqs, pos_delta = _np.linspace(min_pos_freq, max_pos_freq, nfreq/2, retstep = True)
+        freq_comb = _np.concatenate((neg_freqs, pos_freqs))
+        freq_comb = freq_comb[freq_comb != 0]
+        freq_comb = _np.roll(freq_comb, - _np.argmin(_np.abs(freq_comb)) - 1)
+        #if len(freq_comb) > 400:
+        #    self.fpga.write_int(self.regs[np.where(self.regs == 'fft_shift_reg')[0][0]][1], 2**5 -1)
+        #    time.sleep(0.1)
+        #else:
+        #    self.fpga.write_int(self.regs[np.where(self.regs == 'fft_shift_reg')[0][0]][1], 2**9 -1)
+        #    time.sleep(0.1)
+        #self.freq_comb = freq_comb
+        return freq_comb
