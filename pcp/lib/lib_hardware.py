@@ -57,6 +57,7 @@ def initialise_connected_synths():
 entry in the configuration files and try again.".format(synthids=list(synth_check))
         return
 
+    #print synth_config
 
     #identify physical synth devices, not repeating entries for multi-port devices
     psynth_dict = {}
