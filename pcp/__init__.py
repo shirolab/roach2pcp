@@ -21,8 +21,7 @@ Loading submodules...
 
 #import sub-libraries
 import configuration, lib, kid, synthesizer, unittests
-import logfile, roach_interface, datalog_mp#, toneslist
-
+import logfile, mux_channel, datalog_mp#, toneslist
 
 
 #check dnsmasq is running

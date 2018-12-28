@@ -10,8 +10,14 @@ from ..configuration import firmware_registers as _firmware_registers,\
                             network_config as _network_config
 
 from . import lib_qdr as _lib_qdr
-import casperfpga as _casperfpga
 
+try:
+    import casperfpga as _casperfpga
+
+except ImportError:
+    print "can't find casperfpga module - limited functionality available"
+    _casperfpga = None
+    pass
 
 def write_to_fpga_register(fpga, register_dict, sleep_time = 0.1):
     """
@@ -33,6 +39,28 @@ def write_to_fpga_register(fpga, register_dict, sleep_time = 0.1):
         fpga.write_int( _firmware_registers[firmware_key],  int(register_value) )
         _time.sleep(sleep_time)
 
+def get_fpga_instance(roachid):
+    """
+
+    Function to return an fpga instance for a given roachid. Parameters are read from the configuration
+    file.
+
+    Returns _casperfpga.katcp_fpga.KatcpFpga instance if successful, None otherwise.
+
+    """
+    if _casperfpga is None:
+        print "casperfpga module not loaded. No active FPGA instance"
+        return
+
+    try:
+        return _casperfpga.katcp_fpga.KatcpFpga( _network_config[roachid]['roach_ppc_ip'], timeout = 10. )
+    except RuntimeError:
+        # bad things have happened, and nothing else should proceed
+        print "Error, fpga not connected."
+        return
+    except:
+        print 'Error connecting to \'{0}\'. Is it switched on? Check network settings!'.format(roachid)
+
 class roachInterface(object):
     """
     Object to handle all the functions that interact directly with the PPC on a single Roach channel.
@@ -46,18 +74,22 @@ class roachInterface(object):
 
     def __init__(self, fpga, roachid):
 
-        # can we run this with no fpga, or casperfpga?
+        # check if fpga is not None, and if so, return without doing much more
+        if fpga == None:
+            print "it doesn't look like there is a valid fpga instance. Extremely limited functionality. Returning."
+            return
+
         self.fpga          = fpga
         self.fpg_uploaded  = fpga.is_running()
 
         # get configuration from file for given roachid
-
 
         self.network_config = _network_config[roachid]
         self.roach_config   = _roach_config["roach_params"][roachid]
 
         self.firmware_file = self.roach_config["firmware_file"]; assert _os.path.exists(self.firmware_file)
 
+        # these should be read from the config file
         self.FPGA_SAMP_FREQ = 256.e6
         self.FFT_LEN        = 1024
         self.DAC_SAMP_FREQ  = 512.e6
@@ -65,11 +97,12 @@ class roachInterface(object):
         self.DAC_FREQ_RES   = 2 * self.DAC_SAMP_FREQ / self.LUTBUF_LEN
 
     def initialise_fpga(self):
+        """
+        High level function to run all of the functions to intialise the roach
+        """
         pass
         # upload fpg
         # calibrate_qdr (if a new fpg file was uploaded)
-
-
 
     def upload_firmware_file(self, firmware_file = None, force_reupload=False):
         """
@@ -106,7 +139,7 @@ class roachInterface(object):
         _time.sleep(0.1)
         print 'Connected to', self.fpga.host
 
-        # check if firmware is running
+        # check if a firmware is running, and if so, check if it is the same version as we're trying to upload
         if self.fpga.is_running() and not force_reupload:
 
             print "An existing firmware is already running. Checking versions..."
@@ -125,7 +158,8 @@ class roachInterface(object):
                     "Operation cancelled. Nothing done. "
                     self.fpg_uploaded = True
                     return False
-        print "uploading firmware file {0} to roach".format(firmware_file)
+
+        print "uploading firmware file \'{0}\' to roach".format(firmware_file)
         success = self.fpga.upload_to_ram_and_program(firmware_file, timeout = 10.)
         _time.sleep(0.5)
         if success == None:
@@ -301,7 +335,7 @@ class roachInterface(object):
 
         return freq_residuals
 
-    def define_DDS_LUT(self, freqs): # SLOW - takes ~1 s to run with 101 tones
+    def define_dds_lut(self, freqs): # SLOW - takes ~1 s to run with 101 tones
         # Builds the DDS look-up-table from I and Q given by freq_comb. freq_comb is called with the sample rate equal to the
         # sample rate for a single FFT bin.
         # There are two bins returned for every fpga clock, so the bin sample rate is 256 MHz / half the fft length
@@ -321,12 +355,12 @@ class roachInterface(object):
         # Returns the string-packed look-up-tables
 
         I_dac, Q_dac = self.gen_waveform_from_freqs(freqs, amps, phases, which = "dac_lut")
-        I_dds, Q_dds = self.define_DDS_LUT(freqs)
+        I_dds, Q_dds = self.define_dds_lut(freqs)
 
         self._I_dds = I_dds
         self._Q_dds = Q_dds
 
-        I_lut, Q_lut = _np.zeros((2, 2 * self.LUTBUF_LEN) )
+        I_lut, Q_lut = _np.zeros( (2, 2 * self.LUTBUF_LEN) )
         I_lut[0::4] = I_dac[1::2]
         I_lut[1::4] = I_dac[0::2]
         I_lut[2::4] = I_dds[1::2]
@@ -360,9 +394,6 @@ class roachInterface(object):
                                             "write_comb_len_reg": len(freqs) },  sleep_time = 0. )
         print 'Done.'
 
-
-
-
     def make_freq_comb(self, nfreq = 101):
 
         # Number of frequencies in test comb
@@ -391,3 +422,58 @@ class roachInterface(object):
         #    time.sleep(0.1)
         #self.freq_comb = freq_comb
         return freq_comb
+
+
+
+# Moved and saved from mux_channel
+    # def _initialise_fpga(self):
+    #
+    #     if casperfpga is None:
+    #         print "casperfpga module not loaded. No active FPGA instance"
+    #         return
+    #
+    #     try:
+    #         fpga = casperfpga.katcp_fpga.KatcpFpga( network_config[self.roachid]['roach_ppc_ip'], timeout = 10. )
+    #     except RuntimeError:
+    #         # bad things have happened, and nothing else should proceed
+    #         print "Error, fpga not connected. "
+    #         return
+	# except:
+    #         print 'Error connecting to \'%s\'. Is it switched on? Check network settings!'%(self.roachid)
+    #
+    #     we_uploaded_a_firmware = 0
+    #
+    #     firmware_file = os.path.join(filesys_config['rootdir'],general_config['firmware_file'])
+    #
+    #     if not fpga.is_connected():
+    #         print "it looks like the fpga is not connected"
+    #         return fpga
+    #
+    #     if not fpga.is_running():
+    #         fpga = _lib_fpga.upload_firmware_file(fpga, firmware_file )
+    #         we_uploaded_a_firmware = 1
+    #
+    #     else:
+    #         fpga.get_system_information()
+    #         sysinfo = fpga.system_info['system']
+    #         if firmware_file.find(sysinfo)>=0:
+    #             print 'Firmware already running (but not checked build date)'
+    #         else:
+    #             fpga = _lib_fpga.upload_firmware_file(fpga, firmware_file )
+    #             we_uploaded_a_firmware = 1
+    #
+    #     # calibrate qdr if uploading firmware
+    #     if we_uploaded_a_firmware:
+    #         if _lib_fpga.calibrate_qdr(fpga) < 0:
+    #             print "qdr calibration failed."
+    #         else:
+    #             _lib_fpga.write_to_fpga_register(fpga, { 'write_qdr_status_reg': 1 } )
+    #
+    #     # write registers (dds_shift + accum_len)
+    #     _lib_fpga.write_to_fpga_register(fpga, { 'accum_len_reg': self.ROACH_CFG['roach_accum_len'], \
+    #                                             'dds_shift_reg': self.ROACH_CFG['dds_shift']  } )
+    #
+    #     # configure downlink
+    #     _lib_fpga.configure_downlink_registers(fpga, self.roachid)
+    #
+    #     return fpga

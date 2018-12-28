@@ -3,7 +3,27 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
-commit 2d4a259596e2c836f65e70b77174b004c8551a44
+2018-12-27 17:30 [PB] ==================
+
+- Included a roachInterface object in lib_fpga to handle all of the interactions with the ppc and fpga.
+The code is similar to the kidPy implementation, with a couple of small tweaks.
+    - tidied up upload_fpg function to now check if a running firmware is identical to the one being uploaded
+    - sensible renaming of functions (freqComb --> gen_waveform_from_freqs)
+    - simplified functionality of gen_waveform_from_freqs (prev freqComb in kidpy). It now doesn't include the
+    option to account for a transfer function. This should all be handled in the object ToneList.
+    - implemented code to write tones (same workflow as kidPy). Code has been checked with hardware and runs
+without errors. Need now to confirm that the results remain consistent with kidPy.
+
+- Renamed roach_interface.py --> mux_channel.py and roachInterface class --> muxChannel so as not to confuse
+the roachInterface now defined in lib/lib_fpga.
+
+- Modified muxChannel to use the new roachInterface object.
+
+- [CONFIG FILE CHANGE] Added a firmware_file parameter to each roach entry
+
+- Fixed the AttributeError when muxChannel.shutdown() was called when a dirfile wasn't yet set
+
+commit 2d4a259596e2c836f65e70b77174b004c8551a44 ==================
 Author: sr-cdf <rowes@cardiff.ac.uk>
 Date:   Thu Dec 13 15:45:48 2018 +0000
 

@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
-# holds the code for the Roach interface class.
+# holds the code for the muxChannel class, an object that will contain all of the functionality to
+# control a single roach and associated hardware (synth, attenuator...etc)
 
-# Each ri will have the following data
+# Each mc will have the following data
 #       - fpga (as before, class defined in capserfpga)
 #       - synth - generic object that will control the various synths
 #            - in an attempt to handle Nroaches != Nsynths, each roach defined in network_config
@@ -19,6 +20,7 @@ import os, sys, time, numpy as np
 import atexit
 
 import pygetdata as _gd
+
 try:
     import casperfpga
 except ImportError:
@@ -31,21 +33,22 @@ from .configuration import ROOTDIR, filesys_config, roach_config, network_config
 # import the synth dictionary from
 from .synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT # note that we might need to e careful of import order here
 
-import datalog_mp
+from . import datalog_mp
 
 from .lib import lib_dirfiles as _lib_dirfiles, lib_fpga as _lib_fpga
 
 from .lib.lib_hardware import initialise_connected_synths as _initialise_connected_synths
 SYNTHS_IN_USE = _initialise_connected_synths()
 
-class roachInterface(object):
+class muxChannel(object):
     def __init__(self, roachid):
 
         atexit.register(self.shutdown)
 
         self.roachid  = roachid
 
-        self.fpga            = None
+        self.fpga            = _lib_fpga.get_fpga_instance(roachid)
+        self.roach_iface     = _lib_fpga.roachInterface(self.fpga, roachid)
         self.tonelist        = None
         self.writer_daemon   = None
         self.synth_lo        = None
@@ -81,61 +84,6 @@ class roachInterface(object):
         # initialise the synthesisers
         self._initialise_synth_clk()
         self._initialise_synth_lo()
-
-        # initialise all the hardware
-        self.fpga = self._initialise_fpga()
-
-    def _initialise_fpga(self):
-
-        if casperfpga is None:
-            print "casperfpga module not loaded. No active FPGA instance"
-            return
-
-        try:
-            fpga = casperfpga.katcp_fpga.KatcpFpga( network_config[self.roachid]['roach_ppc_ip'], timeout = 10. )
-        except RuntimeError:
-            # bad things have happened, and nothing else should proceed
-            print "Error, fpga not connected. "
-            return
-	except:
-            print 'Error connecting to \'%s\'. Is it switched on? Check network settings!'%(self.roachid)
-
-        we_uploaded_a_firmware = 0
-
-        firmware_file = os.path.join(filesys_config['rootdir'],general_config['firmware_file'])
-
-        if not fpga.is_connected():
-            print "it looks like the fpga is not connected"
-            return fpga
-
-        if not fpga.is_running():
-            fpga = _lib_fpga.upload_firmware_file(fpga, firmware_file )
-            we_uploaded_a_firmware = 1
-
-        else:
-            fpga.get_system_information()
-            sysinfo = fpga.system_info['system']
-            if firmware_file.find(sysinfo)>=0:
-                print 'Firmware already running (but not checked build date)'
-            else:
-                fpga = _lib_fpga.upload_firmware_file(fpga, firmware_file )
-                we_uploaded_a_firmware = 1
-
-        # calibrate qdr if uploading firmware
-        if we_uploaded_a_firmware:
-            if _lib_fpga.calibrate_qdr(fpga) < 0:
-                print "qdr calibration failed."
-            else:
-                _lib_fpga.write_to_fpga_register(fpga, { 'write_qdr_status_reg': 1 } )
-
-        # write registers (dds_shift + accum_len)
-        _lib_fpga.write_to_fpga_register(fpga, { 'accum_len_reg': self.ROACH_CFG['roach_accum_len'], \
-                                                'dds_shift_reg': self.ROACH_CFG['dds_shift']  } )
-
-        # configure downlink
-        _lib_fpga.configure_downlink_registers(fpga, self.roachid)
-
-        return fpga
 
     def _initialise_synth_lo(self):
         # get configuration

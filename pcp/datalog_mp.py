@@ -432,7 +432,8 @@ class dataLogger(object):
         # by design, writer thread will die after the daemon process is temrinated
         self.is_writing = False
         # close the current dirfile so as not to leave dangling file references
-        self.current_dirfile.close()
+        if self.current_dirfile is not None:
+            self.current_dirfile.close()
 
     def pause_writing(self):
         #self._eventqueue.put( ("STOP_WRITE",0) )
