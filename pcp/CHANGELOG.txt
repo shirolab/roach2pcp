@@ -3,6 +3,31 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
+2019-01-07 15:30 CST [PB] ==================
+
+- Added some convenience definitions for filesys paths in configuration/__init__.py. Now checks for absolute path in filesys_config before joining to rootdir.
+    - added new firmwarefiledir value as a path to a directory to store firmware files
+    - upon initialisation, it checks that at least 1 .fpg exists. Raises error otherwise.
+
+- [CONFIG FILE CHANGE] added tonelist entry to roach_config with key "tonelist_file". This can be an empty
+- [CONFIG FILE CHANGE] added dac_bandwidth key to roach_config (used by tonelist).
+
+- added custom yaml resolver to parse floats of format 1e6 correctly (borrowed from SO)
+- changed entry for accumulator length to now be the number of bits required.
+    old: "roach_accum_len: 2**21 - 1"
+    new: "roach_accum_len: 21  # 2**roach_accum_len - 1"
+
+- modified lib_dirfiles to remove eval statements for parsing the pygetdata constants. Added two mappings
+_GDDATAMAP and _GDENTRYMAP to perform the translation. It should be backward compatible.
+
+- Added new functionality to tonelist class.
+    - allows the user to pass a "loader function" that can be used to load in custom tone list files
+    - implemented "optimum" lo placement for a given a tonelist.
+    - kept degree of user customisation - i.e. the user can set the lo to anthing, and bb_freqs will automatically
+    be updated
+    - simple plotting routine to check tonelist
+    - check to see if bb_freqs are outside the bandwidth, and clips the bb_freq list appropriately.
+
 2018-12-27 17:30 [PB] ==================
 
 - Included a roachInterface object in lib_fpga to handle all of the interactions with the ppc and fpga.
@@ -19,7 +44,7 @@ the roachInterface now defined in lib/lib_fpga.
 
 - Modified muxChannel to use the new roachInterface object.
 
-- [CONFIG FILE CHANGE] Added a firmware_file parameter to each roach entry
+- [CONFIG FILE CHANGE] Added a firmware_file parameter to each roach entry with key:
 
 - Fixed the AttributeError when muxChannel.shutdown() was called when a dirfile wasn't yet set
 

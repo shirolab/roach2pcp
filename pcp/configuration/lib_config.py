@@ -5,7 +5,7 @@ Library containing functions used to handle and manipulate configuration files
 # TODO
 # Log messages (but handle the configuration of the logger correctly (i.e. we can't log if it hasn't been configured!) )
 
-import os as _os, sys as _sys, yaml as _yaml
+import os as _os, sys as _sys, re as _re, yaml as _yaml
 import re
 
 import numpy as np
@@ -27,10 +27,23 @@ MIN_NUM_FREQS = 1
 
 config_dir = _os.path.dirname(__file__) # returns this directory, regardless of the cwd
 
+# adds additional functionality to
+pcp_yaml_loader = _yaml.SafeLoader
+pcp_yaml_loader.add_implicit_resolver(  u'tag:yaml.org,2002:float', _re.compile(u'''^(?:
+                                        [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
+                                        |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
+                                        |\\.[0-9_]+(?:[eE][-+][0-9]+)?
+                                        |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
+                                        |[-+]?\\.(?:inf|Inf|INF)
+                                        |\\.(?:nan|NaN|NAN))$''', _re.X),
+                                    list(u'-+0123456789.')
+                                    )
+
 def load_config_file(config_file):
     with open(config_file, "r") as f:
         print( "Loaded {0}".format(config_file) )
-        return _yaml.safe_load(f)
+        #return _yaml.safe_load(f)
+        return _yaml.load(f, Loader=pcp_yaml_loader)
 
 #NOTE [20180728] that this has now been superseeded by a reload function within the main directory (left for now jic, will remove later)
 def reload_configfiles():

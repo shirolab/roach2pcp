@@ -17,5 +17,35 @@ from .lib_config import reload_configfiles
 
 from .lib_config import verify_config_consistency
 
+
+# define some constants for convenience
 ROOTDIR = filesys_config['rootdir']
-if not _os.path.exists(ROOTDIR): _os.mkdir(ROOTDIR)
+
+FIRMWAREDIR = filesys_config['firmwaredir'] if _os.path.isabs(filesys_config['firmwaredir']) \
+                                            else _os.path.join(ROOTDIR, filesys_config['firmwaredir'])
+SAVEDATADIR = filesys_config['savedatadir'] if _os.path.isabs(filesys_config['savedatadir']) \
+                                            else _os.path.join(ROOTDIR, filesys_config['savedatadir'])
+TONELISTDIR = filesys_config['tonelistdir'] if _os.path.isabs(filesys_config['tonelistdir']) \
+                                            else _os.path.join(ROOTDIR, filesys_config['tonelistdir'])
+LOGFILEDIR  = filesys_config['logfiledir'] if _os.path.isabs(filesys_config['logfiledir']) \
+                                            else _os.path.join(ROOTDIR, filesys_config['logfiledir'])
+PIDFILEDIR  = filesys_config['pidfiledir'] if _os.path.isabs(filesys_config['pidfiledir']) \
+                                            else _os.path.join(ROOTDIR, filesys_config['pidfiledir'])
+LIVEFILEDIR = filesys_config['livefiledir'] if _os.path.isabs(filesys_config['livefiledir']) \
+                                            else _os.path.join(ROOTDIR, filesys_config['livefiledir'])
+
+# no checks on permissions...
+if not _os.path.exists(ROOTDIR)    : _os.makedirs(ROOTDIR)
+if not _os.path.exists(PIDFILEDIR) : _os.makedirs(PIDFILEDIR)
+if not _os.path.exists(LOGFILEDIR) : _os.makedirs(LOGFILEDIR)
+if not _os.path.exists(SAVEDATADIR): _os.makedirs(SAVEDATADIR)
+if not _os.path.exists(TONELISTDIR): _os.makedirs(TONELISTDIR)
+if not _os.path.exists(LIVEFILEDIR): _os.makedirs(LIVEFILEDIR)
+
+# if the firmware directory doesn't exist already, there will likely be a problem, so raise an exception
+# (this should be moved to the filesys consistency checking code )
+
+if not _os.path.exists(FIRMWAREDIR):
+    raise OSError("Firmware directory doesn't exist. Please point to a valid directory ")
+elif not any( map(lambda x: _os.path.splitext(x)[-1]=='.fpg', _os.listdir(FIRMWAREDIR) ) ):
+    raise AttributeError("Firmware directory doesn't appear to contain any .fpg files. Please point to a valid directory ")

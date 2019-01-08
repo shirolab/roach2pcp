@@ -18,6 +18,17 @@ import pygetdata as _gd
 from ..configuration import filesys_config, roach_config, general_config
 from . import lib_datapackets
 
+# maps made using pygetdata 0.10.0 - this hopefully won't change in the future...
+_GDDATAMAP = { "_gd.UINT8":1, "_gd.UINT16":2, "_gd.UINT32":4, "_gd.UINT64":8,
+               "_gd.INT":36, "_gd.INT8":33, "_gd.INT16":34, "_gd.INT32":36, "_gd.INT64":40,
+               "_gd.FLOAT":136, "_gd.FLOAT32":132, "_gd.FLOAT64":136,
+               "_gd.NULL":0 }
+
+_GDENTRYMAP = { "_gd.NO_ENTRY":0, "_gd.BIT_ENTRY":4, "_gd.CARRAY_ENTRY":18, "_gd.CONST_ENTRY":16, "_gd.DIVIDE_ENTRY":10,
+                "_gd.LINCOM_ENTRY":2, "_gd.LINTERP_ENTRY":3, "_gd.MPLEX_ENTRY":13, "_gd.MULTIPLY_ENTRY":5, "_gd.PHASE_ENTRY":6,
+                "_gd.POLYNOM_ENTRY":8, "_gd.RAW_ENTRY":1, "_gd.RECIP_ENTRY":11, "_gd.SBIT_ENTRY":9, "_gd.STRING_ENTRY":17,
+                "_gd.WINDOW_ENTRY":12, "_gd.INDEX_ENTRY":7 }
+
 def create_pcp_dirfile(dirfilename, ntones, *dirfileflags):
     """
     High level function to create a new dirfile according to the pcp standards. This creates a format file with a number of tones
@@ -190,8 +201,9 @@ def generate_main_rawfields(dirfile, ntones, fragnum=0, datatag=""):
 
     for field_name, (entry_type, field_datatype, __, __, __, __) in aux_fields.items():
         print eval(entry_type), eval(field_datatype)
-        aux_entries_to_write.append( _gd.entry( eval(entry_type), field_name + datatag, fragnum, (eval(field_datatype), 1)) ) # field_type, name, fragment_idx, (data_type, sample_rate)
-
+        print _GDENTRYMAP[entry_type], _GDENTRYMAP[field_datatype]
+        #aux_entries_to_write.append( _gd.entry( eval(entry_type), field_name + datatag, fragnum, (eval(field_datatype), 1)) ) # field_type, name, fragment_idx, (data_type, sample_rate)
+        aux_entries_to_write.append( _gd.entry( _GDENTRYMAP[entry_type], field_name + datatag, fragnum, (_GDDATAMAP[field_datatype], 1)) ) # field_type, name, fragment_idx, (data_type, sample_rate)
     # kst can't read complex numbers easily - so save as I, Q onto disk (would prefer complex data here though )
     kid_fields_I = ["K{kidnum:04d}_I{datatag}".format(kidnum=i, datatag=datatag) for i in range(ntones)]
     kid_fields_Q = ["K{kidnum:04d}_Q{datatag}".format(kidnum=i, datatag=datatag) for i in range(ntones)]

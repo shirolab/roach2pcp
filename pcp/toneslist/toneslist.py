@@ -21,115 +21,165 @@ Date: 19.10.2018
 
 import numpy as np
 import pandas as pd
-from .. import configuration as configuration; reload(configuration)
+from . import configuration as _configuration#; reload(_configuration)
 
 # Read in relevant config files
-from ..configuration import toneslist_config
+#from ..configuration import toneslist_config
 #
+
+
+def load_pcp_tonelist(tonelist_file):
+	"""
+
+	Function used to load in the pcp tonelist file, and return a standardised format
+	that will be read in by the tonesList class.
+
+	"""
+	return
 
 ### === Toneslist class === ###
 
 class Toneslist(object):
+	# -- basic functionality --
+	# read in an array of resonator frequencies (GHz)
+	# convert to bb_freqs for writing to roach (need LO)
+	# placement of blind tones
+	# plot routines to visualise toneslist
+	# include "phases"
+	#	- random
+	#	- other? Sam R has nice routines to reduce sideband leakage (sacrificing 500 tones)
 
-	def __init__(self):
-		self.toneslist_config = configuration.toneslist_config
+	# include "amplitudes"
+	#	- for each tone, specify a tone power (normalised to 1) --> used when writing to roach
+	#	- have this connected to dBm bifurcation powers
+	# calibration routines
+		# - add functions to pass in a file of calibration data in order to offset tones
+
+	# -- ideal functionality --
+	# interactive modification of toneslist to include/exclude tones (code exists in kidpy by JW)
+	# have a "loader" that allows anyone to write a loader function and provide a
+
+
+	def __init__(self, loader_function ):
+
+		self.loader_function = loader_function
+
+		assert( callable(loader_function) ) # this should probably go further down
+
+		self.rf_freqs    = None
+		self.lo_freq     = None
+		self.blind_freqs = None
+
+		self.bb_freqs    = None
+
+		self.amps   = None
+		self.phases = None
+
+
+		#self.toneslist_config = configuration.toneslist_config
 		# set dirfile here
 	#
 
 	### = Toneslist generation functions = ###
+	@staticmethod
+	def convert_rf_to_bb_freqs(rf_freqs, lo_freq):
+		return rf_freqs - lo_freq
 
-	def compile_toneslist(self):
+	def place_blind_tones(self):
+		return
 
-		"""
-			Description:
-				Generate the toneslist as a pandas dataframe containing, for each instance:
-
-					roach_id (string): Identification of the ROACHs,
-					date (time): Date when the broadband VNA sweep has been operated,
-					time (time): Time when the broadband VNA sweep has been operated,
-					run (string): Identification of the run from which the chip has been issued (eg.: CU-R001),
-					array (string): Identification of the array from which the chip has been issued (eg.: INAOE-A3 -SiW20nm),
-					chip (string): Identification of the chip (eg.: A3),
-					temp (float): Temperature at which the resonant frequencies have been measured, in C,
-					pow_in_cryo (float): Power of the attenuation sat up for the signal going into the cryostat, in dBm,
-					pow_out_cryo (float): Power of the attenuation sat up for the signal coming out of the crystat, in dBm,
-
-					res_id_design (array of string): Identification of the resonator associated with a resonance frequency (eg.: KID000),
-					f_res_design (array of float): Design resonnant frequency of a resonator, in Hz,
-					res_q_design (array of int): Estimated Q for each resonators, from design data,
-
-					res_id_sweep (array of string): Identification of the resonator associated with a resonance frequency (eg.: RES000),
-					f_res_sweep (array of float): Measured resonnant frequency of a resonator, in Hz,
-					pow_res_sweep (array of int): Output optimal power from cryostat measured, in dBm,
-					res_q_sweep (array of int): Estimated Q for each measured resonators,
-
-					lo_frequency (float): Median frequency to be taken as the Local Oscillator [LO] lo_frequency,
-					bb_freqs (array of floats): Baseband resonnant frequencies to be used to generate the frequency comb.
-
-			Return:
-				toneslist (pandas dataframe): The desired toneslist.
-		"""
-
-		toneslist = pd.DataFrame()
-
-		# Generate the toneslist's base , incorporate global data
-		toneslist_config = self.toneslist_config["toneslist_config"].copy()
-		for roach_id, param in toneslist_config.items():
-
-			idx = [roach_id]
-
-			content = [(param["date"], param["time"], param["run"], param["array"], param["chip"], param["temp"], param["pow_in_cryo"], param["pow_out_cryo"])]
-			col_names = ['date', 'time', 'run', 'array', 'chip', 'temp', 'pow_in_cryo', 'pow_out_cryo']
-			sub_toneslist_param = pd.DataFrame(content, columns = col_names, index = idx)
-
-			# Add the design toneslist data
-			res_id_design = []
-			f_res_design = []
-			res_q_design = []
-
-
-			res_data_design = np.load(param["toneslist_init_design_path"]) # ??? path needs to be changed for something more accurate, regarding dirfile lib
-			res_id_design.append(res_data_design[0, :].astype(str))
-			f_res_design.append(res_data_design[1, :].astype(float))
-			res_q_design.append(res_data_design[2, :].astype(int))
-
-			content = [(res_id_design, f_res_design, res_q_design)]
-			col_names = ['res_id_design', 'f_res_design', 'q_res_design']
-			sub_toneslist_design = pd.DataFrame(content, columns = col_names, index = idx)
-
-			# Add the broadband VNA sweep toneslist data and their BB transformation
-			res_id_sweep = []
-			f_res_sweep = []
-			pow_res_sweep = []
-			res_q_sweep = []
-			f_center = []
-			bb_freqs = []
-
-			res_data_sweep = np.load(param["toneslist_init_sweep_path"]) # ??? path needs to be changed for something more accurate, regarding dirfile lib
-			f_res_tmp = res_data_sweep[1, :].astype(float)
-			res_id_sweep.append(res_data_sweep[0, :].astype(str))
-			f_res_sweep.append(res_data_sweep[1, :].astype(float))
-			pow_res_sweep.append(res_data_sweep[2, :].astype(int))
-			res_q_sweep.append(res_data_sweep[3, :].astype(int))
-
-			# LO calculation
-			lo_frequency = sum(f_res_tmp) / len(f_res_tmp)
-
-			# Baseband frequency tranformation
-			bb_freqs.append(f_res_tmp - lo_frequency)
-
-			content = [(res_id_sweep, f_res_sweep, pow_res_sweep, res_q_sweep)]
-			col_names = ['res_id_sweep', 'f_res_sweep',, 'pow_res_sweep', 'q_res_sweep']
-			sub_toneslist_sweep = pd.DataFrame(content, columns = col_names, index = idx)
-
-			content = [(lo_frequency, bb_freqs)]
-			col_names = ['lo_frequency', 'bb_freqs']
-			sub_toneslist_bb = pd.DataFrame(content, columns = col_names, index = idx)
-
-			sub_toneslist = pd.concat([sub_toneslist_param, sub_toneslist_design, sub_toneslist_sweep, sub_toneslist_bb], axis = 1)
-			toneslist = pd.concat([toneslist, sub_toneslist])
-
-		return toneslist
+	# def compile_toneslist(self):
+	#
+	# 	"""
+	# 		Description:
+	# 			Generate the toneslist as a pandas dataframe containing, for each instance:
+	#
+	# 				roach_id (string): Identification of the ROACHs,
+	# 				date (time): Date when the broadband VNA sweep has been operated,
+	# 				time (time): Time when the broadband VNA sweep has been operated,
+	# 				run (string): Identification of the run from which the chip has been issued (eg.: CU-R001),
+	# 				array (string): Identification of the array from which the chip has been issued (eg.: INAOE-A3 -SiW20nm),
+	# 				chip (string): Identification of the chip (eg.: A3),
+	# 				temp (float): Temperature at which the resonant frequencies have been measured, in C,
+	# 				pow_in_cryo (float): Power of the attenuation sat up for the signal going into the cryostat, in dBm,
+	# 				pow_out_cryo (float): Power of the attenuation sat up for the signal coming out of the crystat, in dBm,
+	#
+	# 				res_id_design (array of string): Identification of the resonator associated with a resonance frequency (eg.: KID000),
+	# 				f_res_design (array of float): Design resonnant frequency of a resonator, in Hz,
+	# 				res_q_design (array of int): Estimated Q for each resonators, from design data,
+	#
+	# 				res_id_sweep (array of string): Identification of the resonator associated with a resonance frequency (eg.: RES000),
+	# 				f_res_sweep (array of float): Measured resonnant frequency of a resonator, in Hz,
+	# 				pow_res_sweep (array of int): Output optimal power from cryostat measured, in dBm,
+	# 				res_q_sweep (array of int): Estimated Q for each measured resonators,
+	#
+	# 				lo_frequency (float): Median frequency to be taken as the Local Oscillator [LO] lo_frequency,
+	# 				bb_freqs (array of floats): Baseband resonnant frequencies to be used to generate the frequency comb.
+	#
+	# 		Return:
+	# 			toneslist (pandas dataframe): The desired toneslist.
+	# 	"""
+	#
+	# 	toneslist = pd.DataFrame()
+	#
+	# 	# Generate the toneslist's base , incorporate global data
+	# 	toneslist_config = self.toneslist_config["toneslist_config"].copy()
+	# 	for roach_id, param in toneslist_config.items():
+	#
+	# 		idx = [roach_id]
+	#
+	# 		content = [(param["date"], param["time"], param["run"], param["array"], param["chip"], param["temp"], param["pow_in_cryo"], param["pow_out_cryo"])]
+	# 		col_names = ['date', 'time', 'run', 'array', 'chip', 'temp', 'pow_in_cryo', 'pow_out_cryo']
+	# 		sub_toneslist_param = pd.DataFrame(content, columns = col_names, index = idx)
+	#
+	# 		# Add the design toneslist data
+	# 		res_id_design = []
+	# 		f_res_design = []
+	# 		res_q_design = []
+	#
+	#
+	# 		res_data_design = np.load(param["toneslist_init_design_path"]) # ??? path needs to be changed for something more accurate, regarding dirfile lib
+	# 		res_id_design.append(res_data_design[0, :].astype(str))
+	# 		f_res_design.append(res_data_design[1, :].astype(float))
+	# 		res_q_design.append(res_data_design[2, :].astype(int))
+	#
+	# 		content = [(res_id_design, f_res_design, res_q_design)]
+	# 		col_names = ['res_id_design', 'f_res_design', 'q_res_design']
+	# 		sub_toneslist_design = pd.DataFrame(content, columns = col_names, index = idx)
+	#
+	# 		# Add the broadband VNA sweep toneslist data and their BB transformation
+	# 		res_id_sweep = []
+	# 		f_res_sweep = []
+	# 		pow_res_sweep = []
+	# 		res_q_sweep = []
+	# 		f_center = []
+	# 		bb_freqs = []
+	#
+	# 		res_data_sweep = np.load(param["toneslist_init_sweep_path"]) # ??? path needs to be changed for something more accurate, regarding dirfile lib
+	# 		f_res_tmp = res_data_sweep[1, :].astype(float)
+	# 		res_id_sweep.append(res_data_sweep[0, :].astype(str))
+	# 		f_res_sweep.append(res_data_sweep[1, :].astype(float))
+	# 		pow_res_sweep.append(res_data_sweep[2, :].astype(int))
+	# 		res_q_sweep.append(res_data_sweep[3, :].astype(int))
+	#
+	# 		# LO calculation
+	# 		lo_frequency = sum(f_res_tmp) / len(f_res_tmp)
+	#
+	# 		# Baseband frequency tranformation
+	# 		bb_freqs.append(f_res_tmp - lo_frequency)
+	#
+	# 		content = [(res_id_sweep, f_res_sweep, pow_res_sweep, res_q_sweep)]
+	# 		col_names = ['res_id_sweep', 'f_res_sweep', 'pow_res_sweep', 'q_res_sweep']
+	# 		sub_toneslist_sweep = pd.DataFrame(content, columns = col_names, index = idx)
+	#
+	# 		content = [(lo_frequency, bb_freqs)]
+	# 		col_names = ['lo_frequency', 'bb_freqs']
+	# 		sub_toneslist_bb = pd.DataFrame(content, columns = col_names, index = idx)
+	#
+	# 		sub_toneslist = pd.concat([sub_toneslist_param, sub_toneslist_design, sub_toneslist_sweep, sub_toneslist_bb], axis = 1)
+	# 		toneslist = pd.concat([toneslist, sub_toneslist])
+	#
+	# 	return toneslist
 	#
 	##
 
@@ -388,41 +438,41 @@ class Toneslist(object):
 	### === Design and Sweep Toneslist generation === ###
 
 	def compile_sd_toneslist(self, sd_data, save_sd_toneslist = False):
-	  
+
 		"""
 			Description:
 				Compile sweep or design toneslist in a numpy array format, from data either in txt, csv, list or array format
 
 			Parameters:
 				sd_data (txt, csv, list or array): The toneslist data containing:
-					resonators ID (list of string), 
-					resonnance frequency (list of floats) in Hz, 
+					resonators ID (list of string),
+					resonnance frequency (list of floats) in Hz,
 					absolute power if sweep (list of int), in dBm,
 					Qs (list of int).
 				save_sd_toneslist (bool): Option to save the compiled sweep / design toneslist.
 
 			Return:
 				sd_toneslist (numpy array): The compiled toneslist in the right format to be used by the compile_toneslist function
-				
+
 		"""
-		
+
 		# Parameter validation
 		if sd_data.endswith('.txt') or sd_data.endswith('.csv'):
-			
+
 			# Reading data
 			data = pd.read_csv(sd_data, delim_whitespace=True, skipinitialspace=True)
-			
+
 			if len(data.columns) == 4: datatype_flag = 1
 			elif len(data.columns) == 3: datatype_flag = 1
 			else: datatype_flag = 0
-		
+
 		elif type(sd_data) == list or type(sd_data) == numpy.ndarray:
 			if len(sd_data) == 3 or len(sd_data) == 4: datatype_flag = 1
-				
+
 		else: datatype_flag = 0
-		
+
 		assert datatype_flag == 1, "Data format error."
-		
+
 		# Compilation from txt or csv
 		if sd_data.endswith('.txt') or sd_data.endswith('.csv'):
 			sd_data_header = data.columns
@@ -430,16 +480,16 @@ class Toneslist(object):
 				sd_toneslist = np.array([data[sd_data_header[0]],data[sd_data_header[1]], data[sd_data_header[2]], data[sd_data_header[3]]])
 			elif len(sd_data_header) == 3:
 				sd_toneslist = np.array([data[sd_data_header[0]],data[sd_data_header[1]], data[sd_data_header[2]]])
-		
+
 		# Compilation from list
 		elif type(sd_data) == list:
 			sd_toneslist = np.array(sd_data)
-			
+
 		# Saving the compiled toneslist
 		if save_sd_toneslist == True:
 			if len(sd_toneslist) == 3: np.save('./last_design_toneslist.npy',sd_toneslist)
 			elif len(sd_toneslist) == 4: np.save('./last_sweep_toneslist.npy',sd_toneslist)
-	  
+
 		return sd_toneslist
 
 ### END ###

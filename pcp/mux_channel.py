@@ -142,7 +142,7 @@ class muxChannel(object):
             Flag to turn off data writing. Mainly for testing purposes. Default is, of course, True.
 
         # TODO:
-            - implement a method to determine if packets are being captured correctly?
+            - implement a method to determine if packets are being captured correctly? this is done!
 
         """
         valid_kwargs = ["sweep_span", "sweep_step", "sweep_avgs", "save_data"]
