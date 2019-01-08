@@ -21,7 +21,7 @@ Date: 19.10.2018
 
 import numpy as np
 import pandas as pd
-from . import configuration as _configuration#; reload(_configuration)
+from .. import configuration as configuration; reload(configuration)
 
 # Read in relevant config files
 #from ..configuration import toneslist_config
