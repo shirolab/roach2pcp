@@ -21,7 +21,7 @@ Loading submodules...
 
 #import sub-libraries
 import configuration, lib, kid, synthesizer, unittests
-import logfile, mux_channel, datalog_mp#, toneslist
+import logfile, mux_channel, datalog_mp, toneslist
 
 
 #check dnsmasq is running
@@ -31,16 +31,9 @@ check_dnsmasq()
 # lists of important information defined at the top level for convenience (i.e. pcp.ROACH_LIST)
 # will show the list of roaches defined in the confiruation files
 
-ROACH_LIST = configuration.roach_config['roach_params'].keys()
+ROACH_LIST = configuration.roach_config.keys()
 SYNTH_LIST = configuration.hardware_config['synth_config'].keys()
 ATTEN_LIST = configuration.hardware_config['atten_config'].keys()
-
-
-
-
-
-
-
 
 # MOVE OUT OF INIT - maybe create file called funcs_convenience
 def reload_all_packages():

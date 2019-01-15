@@ -32,13 +32,17 @@ from .configuration import ROOTDIR, filesys_config, roach_config, network_config
 
 # import the synth dictionary from
 from .synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT # note that we might need to e careful of import order here
-
+from . import toneslist
 from . import datalog_mp
 
 from .lib import lib_dirfiles as _lib_dirfiles, lib_fpga as _lib_fpga
 
 from .lib.lib_hardware import initialise_connected_synths as _initialise_connected_synths
 SYNTHS_IN_USE = _initialise_connected_synths()
+
+class newTonelist (toneslist.Toneslist):
+    def __init__(self, roachid, loader_function):
+        super(newTonelist, self).__init__(roachid, loader_function)
 
 class muxChannel(object):
     def __init__(self, roachid):
@@ -75,6 +79,19 @@ class muxChannel(object):
 
 ################################################################################
 ################################################################################
+    def _decorate_tonelist_loader(self, original_loader_function):
+        def load_and_update_datapacket_dict(*args, **kwargs):
+            original_loader_function(*args, **kwargs)
+            self._refresh_datapacket_dict()
+        return load_and_update_datapacket_dict
+
+    def _refresh_datapacket_dict(self):
+        print "i did something else in a new function"
+        # this function is run when a new toneslist is loaded
+        # check writer_daemon is running correctly
+
+        # refresh datapacket_dict
+        self.writer_daemon.reinitialise_datapacket_dict( self.toneslist )
 
     def _initialise_daemon_writer(self):
         self.writer_daemon = datalog_mp.dataLogger(self.roachid)
@@ -111,6 +128,35 @@ class muxChannel(object):
     def _initialise_attenuation(self):
         # get configuration for attenuators for self.roachid
         pass
+
+
+    def set_active_dirfile(new_dirfile = ""):
+        # if an empty string is given (default), then we pass the DIRFILE_SAVEDIR as the filename to lib_dirfile.create_dirfile,
+        # which generates a new filename with the filename format given general_config['default_datafilename_format']).
+        # This is likely to be the most used case
+        new_dirfile = self.DIRFILE_SAVEDIR if not new_dirfile else new_dirfile
+
+        # store last open filename for convenience
+        self._last_closed_dirfile  = self.current_dirfile
+        self._last_closed_filename = self.current_filename
+
+        # check type of new_dirfile
+        if type(new_dirfile) == _gd.dirfile:
+            print "dirfile file handle given. Nothing done"
+            pass # unnecessary, but just to be explicit
+
+        elif type(new_dirfile) == str: #and not os.path.exists(new_dirfile):
+            # create new dirfile with max tones assuming newdirfile is a path. lib_dirfiles.create_dirfile handles existing paths
+            field_names = roach_config["packet_structure"]["max_ntones"] if not field_names else field_names
+
+            # create a new dirfile with the field names taken from the currently loaded tones-list
+            new_dirfile = lib_dirfiles.create_dirfile(dirfilename = new_dirfile, tones = field_names, datatag = datatag)
+
+            # close previous dirfile
+            lib_dirfiles.close_dirfile(self._last_closed_dirfile)
+
+        else:
+            print "Unrecognised input - {0}. Try again.".format(new_dirfile)
 
     def read_existing_sweep_file(self, path_to_sweep):
         # check if filename appears to be a valid dirfile
@@ -235,6 +281,7 @@ class muxChannel(object):
 
         for field in self.current_dirfile.field_list():
 
+            # currently are only averaging the tones K <- this is not good enough...
             if field.startswith("K"):
 
                 # get the field data, split and average the lo switch indexes, taking data between startidx and stopidx, and pass to an array

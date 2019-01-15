@@ -32,8 +32,9 @@ def initialise_connected_synths():
 
     # read in synth configuration (make copies here to not alter the live configuration dict, may not be a bad thing?)
     synth_config = hardware_config["synth_config"].copy()
-    roach_params = roach_config["roach_params"].copy()
-
+    #roach_params = roach_config["roach_params"].copy()
+    roach_params = roach_config.copy()
+    
     # for each entry, return the key, if active is true
     for key, cfg in synth_config.items():
         if cfg["active"] is not True:

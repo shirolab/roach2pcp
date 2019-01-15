@@ -9,16 +9,14 @@
 #- TONES -> derived fields to constant can easily be configured
 # timing info x 7?
 
-# TODO:
-# - find a neat way of reading field lists from configuration file
-
 # create a new dirfile, and populate with correct fieldnames
-import os, sys, time, shutil, numpy as np
+import os, sys, time, shutil, numpy as np, pandas as _pd
 import pygetdata as _gd
-from ..configuration import filesys_config, roach_config, general_config
+from ..configuration import filesys_config, roach_config, general_config, lib_config, firmware_registers
+from .. import toneslist
 from . import lib_datapackets
 
-# maps made using pygetdata 0.10.0 - this hopefully won't change in the future...
+# maps made using pygetdata 0.10.0 - hopefully this won't change in future version of pygetdata...
 _GDDATAMAP = { "_gd.UINT8":1, "_gd.UINT16":2, "_gd.UINT32":4, "_gd.UINT64":8,
                "_gd.INT":36, "_gd.INT8":33, "_gd.INT16":34, "_gd.INT32":36, "_gd.INT64":40,
                "_gd.FLOAT":136, "_gd.FLOAT32":132, "_gd.FLOAT64":136,
@@ -28,48 +26,6 @@ _GDENTRYMAP = { "_gd.NO_ENTRY":0, "_gd.BIT_ENTRY":4, "_gd.CARRAY_ENTRY":18, "_gd
                 "_gd.LINCOM_ENTRY":2, "_gd.LINTERP_ENTRY":3, "_gd.MPLEX_ENTRY":13, "_gd.MULTIPLY_ENTRY":5, "_gd.PHASE_ENTRY":6,
                 "_gd.POLYNOM_ENTRY":8, "_gd.RAW_ENTRY":1, "_gd.RECIP_ENTRY":11, "_gd.SBIT_ENTRY":9, "_gd.STRING_ENTRY":17,
                 "_gd.WINDOW_ENTRY":12, "_gd.INDEX_ENTRY":7 }
-
-def create_pcp_dirfile(dirfilename, ntones, *dirfileflags):
-    """
-    High level function to create a new dirfile according to the pcp standards. This creates a format file with a number of tones
-    (to be standardised), and other packet information, read from roach_config (to be implmented).
-
-    It then creates a new dirfile, that contains an empty sweep sweep dirfile (which has an identical format file). This sweep dirfile
-    will be used to store the raw data from a sweep, and will then be used to store a reduced version by the sweep function.
-
-
-    """
-    #
-    # parse user specified set of dirfile flags, else use defaults (note _gd.EXCL prevents accidental overwriting)
-    dirfileflagint = np.bitwise_or.reduce(dirfileflags) if dirfileflags \
-                                                        else _gd.CREAT|_gd.RDWR|_gd.UNENCODED|_gd.EXCL
-    # create dirfile
-    maindirfile = _gd.dirfile(dirfilename, dirfileflagint)
-    # add main fields
-    maindirfile = generate_main_rawfields(maindirfile, ntones)
-
-    # create sweep subdirfile
-    sweepdirfilename = os.path.join(maindirfile.name, "sweep")
-    sweepdirfile = _gd.dirfile(sweepdirfilename, dirfileflagint)
-
-    sweepdirfile = generate_main_rawfields(sweepdirfile, ntones, fragnum = 0, datatag = "_swp")
-
-    swpfragment = maindirfile.include("sweep_data", flags = _gd.CREAT|_gd.EXCL)
-
-
-    #raw_sweep_frag = maindirfile.include(os.path.join( os.path.basename(sweepdirfilename), "format"), flags = _gd.RDWR|_gd.CREAT)
-
-    # add sweep files that will be saved later ()
-
-    # include sweep format file to maindir. Note that adds a fragment_index = 1 for the sweep
-    #maindirfile.include("sweep_data", flags = _gd.CREAT|_gd.EXCL|_gd.RDWR)
-
-
-    # set up sweep fields in main directory - can we calculate from derived fields?
-    #maindirfile.add(gd.entry( _gd.RAW_ENTRY, K000_LO, 0,(_gd.FLOAT64, 1) ))
-    return maindirfile, sweepdirfile
-    # derived fields
-    # calbration fragment
 
 def is_path_a_dirfile(path_to_check):
     """
@@ -109,7 +65,30 @@ def is_path_a_dirfile(path_to_check):
         print "{0} doesn't look like a valid dirfile".format(path_to_check)
         return False
 
-def create_dirfile(dirfilename="", dirfile_type = "stream", ntones=1012, *dirfile_creation_flags, **kwargs):
+def is_dirfile_valid(dirfile):
+
+    """
+    Function to check if a given dirfile is open/valid and ready to be written to.
+
+    Parameters
+    ----------
+    dirfile : pygetdata.dirfile
+        Input dirfile to check. Must be a pygetdata dirfile.
+
+    Returns
+    -------
+    isvalid : bool
+        True or False depending on whether the dirfile is open.
+
+    """
+    assert type(dirfile) == _gd.dirfile, "'{0}' doesn't appear to be a dirfile ".format(dirfile)
+
+    try:
+        return dirfile.name != "" # calling dirfile.name checks if the dirfile is valid
+    except _gd.BadDirfileError:
+        return False
+
+def create_pcp_dirfile(roachid, dirfilename="", dirfile_type = "stream", tones=1012, *dirfile_creation_flags, **kwargs):
     """
     High level function to create a new dirfile according to the pcp standards. This creates a format file with a number of tones
     (to be standardised), and other packet information, read from roach_config (to be implmented).
@@ -129,8 +108,12 @@ def create_dirfile(dirfilename="", dirfile_type = "stream", ntones=1012, *dirfil
 
     # handle kwargs
     datatag = kwargs.pop("datatag", ""); sep = "_" if datatag else "" # str to add to file path (only applies to new filenames)
+    #datatag = kwargs.pop("datatag", ""); sep = "_" if datatag else "" # str to add to file path (only applies to new filenames)
+
     array_size = kwargs.pop("array_size", 101) # default size used for sweep file creation
 
+    if kwargs:
+        raise NameError("Unknown kwarg given {0}".format(kwargs.keys()))
 
     # parse user specified set of dirfile flags, else use defaults (note _gd.EXCL prevents accidental overwriting)
     dirfileflagint = np.bitwise_or.reduce(dirfileflags) if dirfile_creation_flags \
@@ -154,10 +137,10 @@ def create_dirfile(dirfilename="", dirfile_type = "stream", ntones=1012, *dirfil
     # add main fields according to the type required
 
     if dirfile_type == "stream":
-        dirfile = generate_main_rawfields(dirfile, ntones)
+        dirfile = generate_main_rawfields(dirfile, roachid, tones, fragnum = 0, field_suffix = datatag)
 
     elif dirfile_type == "sweep":
-        dirfile = generate_sweep_fields(dirfile, ntones, array_size = array_size, datatag = "sweep")
+        dirfile = generate_sweep_fields(dirfile, tones, array_size = array_size, datatag = "sweep" + datatag)
 
     return dirfile
 
@@ -178,35 +161,35 @@ def close_dirfile(dirfilename):
     else:
         return
 
-def generate_main_rawfields(dirfile, ntones, fragnum=0, datatag=""):
+def generate_main_rawfields(dirfile, roachid, tones, fragnum=0, field_suffix = ""):
     # function to generate a standard set of dirfile entries for the roach readout
     # will be used for both timestreams and raw sweep files
 
-    # fields to save (read from config file?) # note first field will set which field is the "reference" (also from config file)
-    # aux_fields = {
-    #             "raw_packet" :(_gd.STRING_ENTRY, None), # save raw packets as strings (requires no type parameter)
-    #             "python_timestamp" :(_gd.RAW_ENTRY, _gd.UINT32), # rough python timestamp in seconds after epoch (see kidpy )
-    #             "pps_timestamp" :(_gd.RAW_ENTRY, _gd.UINT32), # seconds elapsed since 'pps_start'
-    #             "fine_timestamp" :(_gd.RAW_ENTRY, _gd.UINT32), # milliseconds since PPS
-    #             "packet_count" :(_gd.RAW_ENTRY, _gd.UINT32), # packet count since 'pps_start'
-    #             "packet_info_reg":(_gd.RAW_ENTRY, _gd.UINT32),  # 32-bit int written to the info_register
-    #             "roach_checksum" :(_gd.RAW_ENTRY, _gd.UINT32),
-    #             "gpio_reg" :(_gd.RAW_ENTRY, _gd.UINT8) # hardware controlled 8-bit gpio pins
-    #             }
+    if type(dirfile) != _gd.dirfile:
+        print "given dirfile is of type {0}, and not a valid dirfile. Nothing done.".format(type(dirfile))
+        return
+    elif roachid not in roach_config.keys():
+        print "Unrecognised roachid = {0}".format(roachid)
+        return
+    # str to add to file path (only applies to new filenames)
+    field_suffix = "_" + field_suffix if field_suffix else ""
 
-    sep = "_" if datatag else ""; datatag = sep + datatag # str to add to file path (only applies to new filenames)
+    # get the appropriate namespace for the fragment to add to the fields
+    namespace = dirfile.fragment(fragnum).namespace
 
-    aux_fields = roach_config["packet_structure"]["aux_field_cfg"]
+    # read in auxillary fields as defined in the configuration file and create getdata entries
+    firmware_dict = lib_config.get_firmware_register_dict( firmware_registers, roach_config[roachid]["firmware_file"] )
+    aux_fields = firmware_dict["packet_structure"]["aux_field_cfg"]
+
     aux_entries_to_write = []
 
     for field_name, (entry_type, field_datatype, __, __, __, __) in aux_fields.items():
         print eval(entry_type), eval(field_datatype)
-        print _GDENTRYMAP[entry_type], _GDENTRYMAP[field_datatype]
-        #aux_entries_to_write.append( _gd.entry( eval(entry_type), field_name + datatag, fragnum, (eval(field_datatype), 1)) ) # field_type, name, fragment_idx, (data_type, sample_rate)
-        aux_entries_to_write.append( _gd.entry( _GDENTRYMAP[entry_type], field_name + datatag, fragnum, (_GDDATAMAP[field_datatype], 1)) ) # field_type, name, fragment_idx, (data_type, sample_rate)
-    # kst can't read complex numbers easily - so save as I, Q onto disk (would prefer complex data here though )
-    kid_fields_I = ["K{kidnum:04d}_I{datatag}".format(kidnum=i, datatag=datatag) for i in range(ntones)]
-    kid_fields_Q = ["K{kidnum:04d}_Q{datatag}".format(kidnum=i, datatag=datatag) for i in range(ntones)]
+        print _GDENTRYMAP[entry_type], _GDDATAMAP[field_datatype]
+        aux_entries_to_write.append( _gd.entry( _GDENTRYMAP[entry_type], namespace + field_name + field_suffix, fragnum, (_GDDATAMAP[field_datatype], 1)) ) # field_type, name, fragment_idx, (data_type, sample_rate)
+
+    # generate the field names for tones
+    kid_fields_I, kid_fields_Q = toneslist.gen_tone_iq_fields(tones, namespace=namespace, field_suffix = field_suffix)
 
     kid_entries_to_write = [ _gd.entry(_gd.RAW_ENTRY, field_name, fragnum, (_gd.FLOAT64, 1)) for field_name in kid_fields_I ] \
                          + [ _gd.entry(_gd.RAW_ENTRY, field_name, fragnum, (_gd.FLOAT64, 1)) for field_name in kid_fields_Q ]
@@ -218,7 +201,8 @@ def generate_main_rawfields(dirfile, ntones, fragnum=0, datatag=""):
     dirfile.sync()
     return dirfile
 
-def generate_sweep_fields(dirfile, ntones, array_size = 501, datatag=""):
+
+def generate_sweep_fields(dirfile, tones, array_size = 501, datatag=""):
     """Generate fragment file for the derived sweep file """
 
     # can get rid of F files, as the frequency should be the same for all
@@ -228,7 +212,9 @@ def generate_sweep_fields(dirfile, ntones, array_size = 501, datatag=""):
 
     sep = "." if datatag else ""; datatag = datatag + sep # str to add to file path (only applies to new filenames)
 
-    swp_fields = ["K{kidnum:04d}".format(kidnum=i) for i in range(ntones)]
+    # create list of field names
+    swp_fields = toneslist.get_tone_fields( tones )
+    #swp_fields = ["K{kidnum:04d}".format(kidnum=i) for i in range(tones)]
 
     sweep_entry_freq       = [ _gd.entry(_gd.CARRAY_ENTRY, datatag + "lo_freqs", 0, (_gd.FLOAT64,   array_size)) ]
     sweep_entries_to_write = [ _gd.entry(_gd.CARRAY_ENTRY, datatag + field_name, 0, (_gd.COMPLEX64, array_size)) for field_name in swp_fields ]
@@ -241,18 +227,18 @@ def generate_sweep_fields(dirfile, ntones, array_size = 501, datatag=""):
 
     return dirfile
 
-def generate_sweep_fragment(dirfile, ntones, array_size = 501, datatag=""):
+def generate_sweep_fragment(dirfile, tones, array_size = 501, datatag=""):
     """Generate fragment file for the derived sweep file """
 
-    # can get rid of F files, as the frequency should be the same for all
-    #swp_fields_F = ["SWP_F_K{kidnum:04d}{datatag}".format(kidnum=i, datatag=datatag) for i in range(ntones)]
     namespace = "sweep"
 
     sweep_frag = dirfile.include("sweep_frag", namespace = namespace, flags = _gd.CREAT|_gd.EXCL)
 
     sep = "_" if datatag else ""; datatag = sep + datatag # str to add to file path (only applies to new filenames)
 
-    swp_fields = ["K{kidnum:04d}{datatag}".format(kidnum=i, datatag=datatag) for i in range(ntones)]
+    swp_fields = check_tones_type(tones)
+    # old - to delete -
+    #swp_fields = ["K{kidnum:04d}{datatag}".format(kidnum=i, datatag=datatag) for i in range(ntones)]
 
     sweep_entry_freq       = [ _gd.entry(_gd.CARRAY_ENTRY, ".".join((namespace, "lo_freqs")), sweep_frag, (_gd.FLOAT64, array_size)) ]
     sweep_entries_to_write = [ _gd.entry(_gd.CARRAY_ENTRY, ".".join((namespace, field_name)), sweep_frag, (_gd.COMPLEX64, array_size)) for field_name in swp_fields ]
@@ -267,9 +253,6 @@ def generate_sweep_fragment(dirfile, ntones, array_size = 501, datatag=""):
 
 def generate_main_derivedfields(dirfile):
     pass
-
-
-
 
 def check_dirfile_is_empty(dirfile):
     """Returns True if dirfile is empty (len(INDEX) == 0), otherwise, False"""
@@ -320,6 +303,7 @@ def add_subdirfile_to_existing_dirfile(subdirfile, dirfile, namespace = "", over
     # add a the subdrifile as a new fragment
     ## TODO: this should probably be in a try - except statement
     newfrag = dirfile.include(os.path.join(os.path.basename(subdirfile.name), "format"), namespace = namespace, flags = _gd.EXCL|_gd.RDWR)
+    # could change above to df.fragment(0).name
 
     # flush the changes and update the format file
     dirfile.flush()
@@ -422,7 +406,7 @@ def get_data_from_datapacket_dict(datapacket_dict, field_name):
     data = datapacket_dict[field_name][-1]
     return np.ascontiguousarray( [data.pop(0) for i in range(len(data))] ).flatten() # pop to remove data from the data list
 
-def append_to_dirfile(dirfile, datapacket_dict, datatag=""):
+def append_to_dirfile(dirfile, datapacket_dict): #, datatag=""):
     """Function to act as the consumer, that will be given a 2d array of data
     comprising multiple packets, and will write the data to disk.
     """
@@ -443,7 +427,8 @@ def append_to_dirfile(dirfile, datapacket_dict, datatag=""):
     for field_name in dirfile.field_list(_gd.RAW_ENTRY):
         # pop out the data container
         #datatowrite = [datatowrite.pop(0) for i in range(len(packet_data))]
-        dirfile.putdata(field_name + datatag, get_data_from_datapacket_dict(datapacket_dict, field_name), first_sample = currentsize ) #+ 1)
+        #dirfile.putdata(field_name + datatag, get_data_from_datapacket_dict(datapacket_dict, field_name), first_sample = currentsize ) #+ 1)
+        dirfile.putdata(field_name, get_data_from_datapacket_dict(datapacket_dict, field_name), first_sample = currentsize ) #+ 1)
 
     dirfile.flush()
 
@@ -456,10 +441,10 @@ def generate_sweep_dirfile( dirfilename, lo_frequencies, complex_sweep_data_dict
     input is an array of lo frequencies and a dictionary of complex I + 1j*Q for each tone vs lo freq.
 
     """
-    num_tones        = len(complex_sweep_data_dict)
+    num_tones        = complex_sweep_data_dict.keys()#len(complex_sweep_data_dict)
     num_sweep_points = len(lo_frequencies)
     # create new dirfile for derived sweep
-    sweep_dirfile = create_dirfile(dirfilename, dirfile_type = "sweep", ntones = num_tones, array_size = num_sweep_points, datatag = "sweep")
+    sweep_dirfile = create_dirfile(dirfilename, dirfile_type = "sweep", tones = num_tones, array_size = num_sweep_points, datatag = "sweep")
 
     sweep_dirfile.put_carray("sweep." + "lo_freqs", lo_frequencies)
 
@@ -489,3 +474,62 @@ def add_metadata_to_dirfile(dirfile, metadata_dict):
         dirfile.put_string(".".join(("metadata", field_name)), str(metadata))
 
     dirfile.flush()
+
+
+######################################################################################################
+################################################# Graveyard #####################################################
+
+# def create_pcp_dirfile(dirfilename, ntones, *dirfileflags):
+#     """
+#     High level function to create a new dirfile according to the pcp standards. This creates a format file with a number of tones
+#     (to be standardised), and other packet information, read from roach_config (to be implmented).
+#
+#     It then creates a new dirfile, that contains an empty sweep sweep dirfile (which has an identical format file). This sweep dirfile
+#     will be used to store the raw data from a sweep, and will then be used to store a reduced version by the sweep function.
+#
+#
+#     """
+#     #
+#     # parse user specified set of dirfile flags, else use defaults (note _gd.EXCL prevents accidental overwriting)
+#     dirfileflagint = np.bitwise_or.reduce(dirfileflags) if dirfileflags \
+#                                                         else _gd.CREAT|_gd.RDWR|_gd.UNENCODED|_gd.EXCL
+#     # create dirfile
+#     maindirfile = _gd.dirfile(dirfilename, dirfileflagint)
+#     # add main fields
+#     maindirfile = generate_main_rawfields(maindirfile, ntones)
+#
+#     # create sweep subdirfile
+#     sweepdirfilename = os.path.join(maindirfile.name, "sweep")
+#     sweepdirfile = _gd.dirfile(sweepdirfilename, dirfileflagint)
+#
+#     sweepdirfile = generate_main_rawfields(sweepdirfile, ntones, fragnum = 0, datatag = "_swp")
+#
+#     swpfragment = maindirfile.include("sweep_data", flags = _gd.CREAT|_gd.EXCL)
+#
+#     #raw_sweep_frag = maindirfile.include(os.path.join( os.path.basename(sweepdirfilename), "format"), flags = _gd.RDWR|_gd.CREAT)
+#
+#     # add sweep files that will be saved later ()
+#
+#     # include sweep format file to maindir. Note that adds a fragment_index = 1 for the sweep
+#     #maindirfile.include("sweep_data", flags = _gd.CREAT|_gd.EXCL|_gd.RDWR)
+#
+#
+#     # set up sweep fields in main directory - can we calculate from derived fields?
+#     #maindirfile.add(gd.entry( _gd.RAW_ENTRY, K000_LO, 0,(_gd.FLOAT64, 1) ))
+#     return maindirfile, sweepdirfile
+    # derived fields
+    # calbration fragment
+
+
+
+# fields to save (read from config file?) # note first field will set which field is the "reference" (also from config file)
+# aux_fields = {
+#             "raw_packet" :(_gd.STRING_ENTRY, None), # save raw packets as strings (requires no type parameter)
+#             "python_timestamp" :(_gd.RAW_ENTRY, _gd.UINT32), # rough python timestamp in seconds after epoch (see kidpy )
+#             "pps_timestamp" :(_gd.RAW_ENTRY, _gd.UINT32), # seconds elapsed since 'pps_start'
+#             "fine_timestamp" :(_gd.RAW_ENTRY, _gd.UINT32), # milliseconds since PPS
+#             "packet_count" :(_gd.RAW_ENTRY, _gd.UINT32), # packet count since 'pps_start'
+#             "packet_info_reg":(_gd.RAW_ENTRY, _gd.UINT32),  # 32-bit int written to the info_register
+#             "roach_checksum" :(_gd.RAW_ENTRY, _gd.UINT32),
+#             "gpio_reg" :(_gd.RAW_ENTRY, _gd.UINT8) # hardware controlled 8-bit gpio pins
+#             }

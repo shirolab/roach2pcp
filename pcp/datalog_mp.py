@@ -102,6 +102,20 @@ class dataLogger(object):
     care must be take to remain cognisant of which process the function will run in, and therefore which set of vairables you have access
     to.
 
+    There are three Events used to maintain synchronisation between the main and daemon processes, and a Queue (_eventqueue) to pass data
+    between processes;
+        1. _ctrlevent
+        2. _cmdevent
+        3. _exitevent
+
+    Communication between processes follows a simple producer - consumer design;
+        - the main process puts a command into the
+        - the main process sets _ctrlevent which breaks out of the inner loop in the daemon process (_data_logger_main) and allows
+        the daemon to read the queue and parse the command (_process_command)
+        - in the case of functions that expect a response, _read_response_from_eventqueue is used
+        - _read_response_from_eventqueue waits for a _cmdevent to be set before reading the event queue
+
+
     # TODO:
     -x implement a check to see whether packets are being collected
     -x add flush/empty data queue function
@@ -114,19 +128,24 @@ class dataLogger(object):
 
         # get logger instance
         self.logger = logging.getLogger("logging.daemon.{name}".format(name = roachid))
+        self.roachid = roachid
 
         # make sure roachid is a string
         assert type(roachid) == str, "identifier is not a string"
         self.process_name = roachid
 
-        # setup up attribute for dirfiles
+        # container for datapacket_dict. Used by the writer process to parse and save packet data
+        self._datapacket_dict = None
+        #self._toneslist       = None
 
-        self.DIRFILE_SAVEDIR = os.path.join(DIRFILE_SAVEDIR, roachid)
+        # setup up attribute for dirfiles
+        self.DIRFILE_SAVEDIR  = os.path.join(DIRFILE_SAVEDIR, roachid) # <- (this might not be needed )
         self.current_filename = None
         self.current_dirfile  = None
 
-        self._last_closed_dirfile  = None
-        self._last_closed_filename = None
+        # moved to muxChannel
+        #self._last_closed_dirfile  = None
+        #self._last_closed_filename = None
 
         # setup up network handles
         self._sockethandle = None
@@ -188,7 +207,7 @@ class dataLogger(object):
                                     args = (function_args) )
 
         # for convenience, add handle to process start method
-        self.start_daemon      = self.process.start
+        #self.start_daemon      = self.process.start
         self.is_daemon_running = self.process.is_alive
 
     def _initialise_network_config(self, roachid):
@@ -219,7 +238,7 @@ class dataLogger(object):
     def _initialise_writer_thread(self, roachid):
 
         # set maximum queue length from configuration file (default = 1000 = 8 MB)
-        self._writer_queue = deque(maxlen = roach_config["max_queue_len"])
+        self._writer_queue = deque(maxlen = roach_config[roachid]["max_queue_len"])
         self._filewritethread = threading.Thread(name = roachid + 'writer_thread', \
                                                 target = self._writer_thread_function)#, args=(dirf, dq,) )
 
@@ -245,9 +264,7 @@ class dataLogger(object):
                 rd,wr,err = select.select([self._sockethandle],[],[], 0.1)
                 if rd:
                     #print rd[0]
-                    #pass to parallel thread for writing to disk
                     packet = self._sockethandle.recv(9000)
-                    # check packet is real
 
                     # append (packet, time.time()) to queue which passes to packet to _writer_thread_function
                     self._writer_queue.appendleft( ( packet, time.time() ) )
@@ -255,8 +272,6 @@ class dataLogger(object):
                 continue
 
             # event has been set, broken out of main loop
-                # stop or pause saving thread (should be able to stop and start )
-
             self._ctrlevent.clear() # clear event and continue to process command
 
             self._process_command() # process event
@@ -272,39 +287,24 @@ class dataLogger(object):
         """
         Function to act as the worker thread for parsing packets and writing data to a dirfile.
 
+        Handles both a single packet or a list of packets.
+
         Parameters
         ----------
-        dirfile : str
-            Filename to an existing dirfile that will be written to. Note that in the pursuit of efficiency,
-            this function does not check if the file exists, or that it is of the correct form. This will
-            be done in "self.set_active_dirfile"
+        datatowrite : str, or list of strs
 
-        queue : collections.deque
-            Deque object with a list-like interface to act as the queue to pass data between concurrent threads.
+            List of raw packet data to be parsed. The raw packet is read from the socket and will
+            be a raw binary string.
 
         Notes
         -----
 
-
         """
-        # gets passed the raw string data from the queue
-        # handle empty queue?
-        #while self.is_writing:
-        # read current length of queue - "max_queue_len" is used to limit the maximum number of packets to read at once
-        #sizetoread = min(len(self._writer_queue), roach_config["max_queue_len"])
-        # get all packets in the current queue
-        #datatowrite = [self._writer_queue.pop() for i in range(sizetoread)]
-        #if len(datatowrite) > 0:
-            # parse packets into dictionary
-        datapacket_dict = lib_datapackets.parse_datapacket_dict(datatowrite)
-        # append to dirfile
-        lib_dirfiles.append_to_dirfile(self.current_dirfile, datapacket_dict)
 
+        self._datapacket_dict = lib_datapackets.parse_datapacket_dict(datatowrite, self._datapacket_dict)
+        # append to dirfile
+        lib_dirfiles.append_to_dirfile(self.current_dirfile, self._datapacket_dict)
         return 0
-        #else:
-            #print "no packets in queue"
-            #time.sleep(5)
-        #    return -1
 
     def _writer_thread_function(self):
         """
@@ -335,18 +335,11 @@ class dataLogger(object):
 
             while self.is_writing:
 
-                sizetoread = min(len(self._writer_queue), roach_config["max_queue_len"])
+                sizetoread = min(len(self._writer_queue), roach_config[self.roachid]["max_queue_len"])
                 bufferlen_to_write = 10
 
                 # get all packets in the current queue
                 datatowrite += [self._writer_queue.pop() for i in range(sizetoread)]
-
-                #datatowrite = [0]*11
-                #sys.stdout.write("{0} packets in queue".format( len(datatowrite) ) )
-                #sys.stdout.flush()
-
-                #print "length of data to write", len(datatowrite)
-                #time.sleep(1)
 
                 if ( len(datatowrite) >= bufferlen_to_write ) or not self.is_writing :
                     # the is_writing state above is to ensure that if the writer is paused, the current buffer get written to disk
@@ -367,22 +360,30 @@ class dataLogger(object):
     def _add_to_queue_and_wait(self, command_to_send):
 
         if self.is_daemon_running():
-            self._eventqueue.put( command_to_send )
-            print "command put into queue"
-        #time.sleep(0.1)
 
-            while not self._cmdevent.is_set():
-                sys.stdout.write("waiting for command queue to empty\r")
+            self._ctrlevent.set()
+            print "mainthread: command put into queue"
+            self._eventqueue.put( command_to_send )
+
+            # wait for the _ctrlevent to be reset by the daemon process (see _data_logger_main)
+            while not self._ctrlevent.is_set():
                 continue
-            self._cmdevent.clear()
 
         else:
-            print "data logging daemon doesn't appear to running."
+            print "mainthread: data logging daemon doesn't appear to running."
 
     def _read_response_from_eventqueue(self, initial_command):
         # check if write status is the same as the command we sent. How to properly handle it if so? It most likely is due to the main daemon process being terminated
         #self.writer_alive = writer_status if writer_status != command_to_send else self.writer_alive
         #return self.writer_alive
+
+        while not self._cmdevent.is_set():
+            sys.stdout.write("waiting for queue to empty\r")
+            continue
+
+        sys.stdout.write("\ncommand queue empty - moving on.")
+        self._cmdevent.clear()
+
         try:
             value_from_queue = self._eventqueue.get( timeout=.1 )
             return value_from_queue if value_from_queue != initial_command else False
@@ -390,6 +391,45 @@ class dataLogger(object):
         except mp.queues.Empty:
             print "queue empty, no data returned."
             return False
+
+    def _check_dirfile_and_datapacket_dict_match(self):
+        """Function to check that the field names of the current dirfile match the fields in the datapacket_dict."""
+
+        field_name_set = set( self.current_dirfile.field_list( _gd.RAW_ENTRY ) )
+        return len( field_name_set.difference( self._datapacket_dict.keys() ) ) == 0
+
+    def start_daemon(self):
+        # check process isn't already running
+        assert not self.process.is_alive(), "writer daemon appears to be already running"
+
+        # clear all the events before starting the process.
+        #self._ctrlevent.clear()
+        #self._exitevent.clear()
+        #self._cmdevent.clear()
+
+        return self.process.start()
+
+    def initialise_datapacket_dict(self, tones):
+        """
+        (Re)initialise the datapacket dictionary according to the given list of tones. Passes new datapacket_dict
+        to writer process.
+
+        Parameters
+        ----------
+        tones : toneslist.Toneslist
+
+            A pcp.tonelist.Toneslist object that is used to generate the correct field names that will be
+            used to parse datapackets and write to disk.
+        """
+
+        if self.is_writing:
+            print "Warning, it appears a dirfile is currently being written. Stop and retry."
+            return
+
+        self._datapacket_dict = lib_datapackets.generate_datapacket_dict( self.roachid, tones )
+
+        command_to_send = ("SET_DATAPACKET_DICT", self._datapacket_dict)
+        self._add_to_queue_and_wait( command_to_send )
 
     def is_writer_thread_running(self):
         """
@@ -404,8 +444,9 @@ class dataLogger(object):
         """
         command_to_send = ("STATUS_WRITER",0)
         # set the event to read the command
-        self._ctrlevent.set()
+        #self._ctrlevent.set()
         self._add_to_queue_and_wait( command_to_send ) # need to be careful that we don't have race conditions?
+
         return self._read_response_from_eventqueue( command_to_send )
 
         # Read queue to get values returned
@@ -435,14 +476,6 @@ class dataLogger(object):
         if self.current_dirfile is not None:
             self.current_dirfile.close()
 
-    def pause_writing(self):
-        #self._eventqueue.put( ("STOP_WRITE",0) )
-        command_to_send = ("STOP_WRITE", 0)
-        self._ctrlevent.set()
-        self._add_to_queue_and_wait( command_to_send )
-        self.is_writing = False
-        return self._read_response_from_eventqueue( command_to_send )
-
     def start_writing(self):
         """
         Sets the "is_writing" flag to True to being wirting to a dirfile.
@@ -450,19 +483,30 @@ class dataLogger(object):
         Checks that a valid dirfile is set, otherwise prints warning, returns and does nothing.
 
         """
-        # check that a dirfile exists and create one if neccessary
-        if self.current_dirfile is None:
-            print "No dirfile set. Use self.set_active_dirfile() to create and set a new dirfile and re-run"
+        # check that a dirfile exists and is valid
+        if not lib_dirfiles.is_dirfile_valid( self.current_dirfile ):
+            return
+
+        # check that the datapacket_dict looks like it should
+        if type( self._datapacket_dict ) != dict:
+            print "datapacket_dict does not appear to be valid."
+            return
+
+        # check that fields of dirfile and dtapacket dict match - important!
+        if not self._check_dirfile_and_datapacket_dict_match():
             return
 
         command_to_send = ("START_WRITE", 0)
-        self._ctrlevent.set()
         self._add_to_queue_and_wait( command_to_send ) # need to be careful that we don't have race conditions?
-        #time.sleep(1)
-
-        #self.is_writing = True
-        #time.sleep(0.2)
         self.is_writing = self._read_response_from_eventqueue( command_to_send )
+
+    def pause_writing(self):
+        #self._eventqueue.put( ("STOP_WRITE",0) )
+        command_to_send = ("STOP_WRITE", 0)
+        self._ctrlevent.set()
+        self._add_to_queue_and_wait( command_to_send )
+        self.is_writing = False
+        return self._read_response_from_eventqueue( command_to_send )
 
     def terminate(self):
         # setting the exitevent allows the functions to exit the main while loops in the daemon and writer thread
@@ -479,24 +523,17 @@ class dataLogger(object):
         # run clean up script
         self._clean_up()
 
-    def set_active_dirfile(self, new_dirfile = "", datatag = ""):
+    def set_active_dirfile(self, new_dirfile):#{}, field_names = [],  datatag = ""):
         """
-        Function to set the current dirfile that will be used to write.
+
+        Function to set the current dirfile that will be used to write data.
+
+        Scope : mainthread
 
         Parameters
         ----------
-        new_dirfile : str or pygetdata.dirfile (default = "")
-            Either a filename path or an existing dirfile. The following scenarios are handled cleanlyself.
-
-                - If an empty string is given (default), then a new file path is generated in the "DIRFILE_SAVEDIR + roachid" directory,
-                with the filename given by the format in the general_config file.
-                - If a file path is given, a new dirfile will be created at the given path. If a dirfile already exists at that path, a warning
-                is printed to screen, and the existing dirfile is returned.
-                - If a dirfile object is given, a check to determine if the dirfile is valid is made and will be returned.
-
-        datatag : str (optional)
-            Allows the user to provide a string that will be appended to the dirfile. Note that if data is to be appended to an existing dirfile,
-            then care should be taken to ensure that the dirfile paths are the same. If not, a new dirfile will be created.
+        new_dirfile : pygetdata.dirfile
+            An existing dirfile
 
         Provides
         --------
@@ -512,47 +549,18 @@ class dataLogger(object):
             print "Warning, it appears a dirfile is currently being written. Stop and retry."
             return
 
-        # if an empty string is given (default), then a new file is generated (this is likely to be the most used case)
-        new_dirfile = self.DIRFILE_SAVEDIR if not new_dirfile else new_dirfile
-
-        # store last open filename for convenience
-        self._last_closed_dirfile  = self.current_dirfile
-        self._last_closed_filename  = self.current_filename
-
-        # check type of new_dirfile
-        if type(new_dirfile) == _gd.dirfile:
-            print "dirfile file handle given. Nothing done"
-            pass # unnecessary, but just to be explicit
-
-        elif type(new_dirfile) == str: #and not os.path.exists(new_dirfile):
-            # create new dirfile with max tones assuming newdirfile is a path. lib_dirfiles.create_dirfile handles existing paths
-            ntones = roach_config["packet_structure"]["ntones"]
-            new_dirfile = lib_dirfiles.create_dirfile(dirfilename = new_dirfile, ntones = ntones, datatag = datatag)
-
-            # close previous dirfile
-            lib_dirfiles.close_dirfile(self._last_closed_dirfile)
-
-        else:
-            print "Unrecognised input - {0}. Try again.".format(new_dirfile)
-
-        # check new_dirfile is valid
-        try:
-        # create new filename and open new dirfile
-            self.current_dirfile = new_dirfile
-            self.current_filename = new_dirfile.name # <-- this checks if the dirfile is valid
-
-        except _gd.BadDirfileError:
-            print "invalid dirfile, maybe it is closed? Returning"
+        # check new_dirfile is valid - required to access dirfile.name to pass the filename between processes
+        if not lib_dirfiles.is_dirfile_valid ( new_dirfile ):
+            print "dirfile {0} not valid".format(new_dirfile)
             return
 
-        print "new dirfile filename", self.current_filename
-        # sending event. This will trigger the _process_command method
-        # and it should wait until there is an item in the queue to read
-        print "event queue is empty?", self._eventqueue.empty()
-        self._ctrlevent.set()
-        # send new filename to worker process
-        print self.current_dirfile
-        self._eventqueue.put( ("SET_FILE", self.current_dirfile.name) )
+        print "new dirfile filename", new_dirfile.name
+
+        command_to_send = ("SET_FILE", new_dirfile.name)
+        self._add_to_queue_and_wait ( command_to_send )
+
+        self.current_filename = self._read_response_from_eventqueue(command_to_send)
+        self.current_dirfile = new_dirfile if self.current_filename == new_dirfile.name else None
 
     def print_status(self):
         """
@@ -576,19 +584,29 @@ class dataLogger(object):
         else:
             print "No dirfile set"
 
+    def get_active_dirfile(self):
+        """
+
+        Diagnositic function to check the currently loaded dirfile
+
+        """
+        command_to_send = ("GET_FILE", 0)
+        self._add_to_queue_and_wait(command_to_send)
+        self.current_filename = self._read_response_from_eventqueue(command_to_send)
+        print "active dirfile {0}".format(self.current_filename)
+
     def check_packets_received(self, num_packets= 101):
         """
 
         Diagnositic function to determine if packets are being received and collected.
 
+        Scope : mainthread
+
         """
         # check that the file writer is not running
         command_to_send = ("CHECK_PACKET", num_packets)
         if not self.is_writing:
-            self._ctrlevent.set()
             self._add_to_queue_and_wait(command_to_send)
-            #self._ctrlevent.set()
-            #self._eventqueue.put( command_to_send )
         else:
             print "currently saving data. Stop and retry"
 
@@ -605,15 +623,14 @@ class dataLogger(object):
     def clear_queue(self):
         """
 
-        Helper function used to flush packets from the queue.
+        Function used to flush the queue.
 
+        Scope : mainthread
         """
+        command_to_send = ("CLEAR_QUEUE", 0)
         # check that the file writer is not running
         if not self.is_writing:
-            self._ctrlevent.set()
-            self._eventqueue.put( ("CLEAR_QUEUE", 0) )
-        else:
-            print "currently saving data. Stop and retry"
+            self._add_to_queue_and_wait(command_to_send)
 
     def _process_command(self):
         """
@@ -623,7 +640,12 @@ class dataLogger(object):
 
         """
 
-        print "event handled"
+        def send_response_to_eventqueue( data_to_send ):
+            if self._eventqueue.empty():
+                self._cmdevent.set()
+                self._eventqueue.put( data_to_send )
+            else:
+                print "queue not empty - something bad has happened - nothing done"
 
         # try to read from queue/pipe to read
         try:
@@ -633,91 +655,109 @@ class dataLogger(object):
             print "queue empty, nothing done"
             return
 
+        print "daemonthread: received command "
         # make sure that the command conforms to some simple requirements
-        assert type(command_to_process) == tuple \
+        assert  type(command_to_process) == tuple \
             and len(command_to_process) == 2 \
             and type(command_to_process[0]) == str
 
         command, args = command_to_process
 
-        print "Received command ", command, args
+        print "\nReceived command ({0}, {1})\n".format( command, args )
 
-        # a bunch of if statements to handle all options
-        if command == "SET_FILE":
+        #  a set of if statements to handle all available options.
+        if command == "SET_DATAPACKET_DICT":
+            # reinitialise datapacket_dict
+            self._datapacket_dict = args if type(args) == dict else None
 
-            # re-write last file name (note that when running, this will be run in parallel thread, and "self" will be a different object)
-            self._last_closed_filename = self.current_filename
-            # close old file (this might not work as expected)
-            lib_dirfiles.close_dirfile( self.current_filename )
-            print "stored and closed old dirfile", self._last_closed_filename
+        elif command == "SET_FILE":
+
+            # don't proceed if the writer is currently saving data. Return the current dirfile name
+            if self.is_writing:
+                print "writer is currently saving data. Stop and try again."
+                send_response_to_eventqueue( self.current_filename )
+                return
+
+            # close the current dirfile - this will probably be done in the main thread too
+            lib_dirfiles.close_dirfile( self.current_dirfile )
 
             # extract new dirfile path from queue arguments
-            self.current_filename = args if type(args) == str else ""
+            new_filename = args if type(args) == str else args[0] if type(args) == tuple else None
 
             # open dirfile (note that for some reason we can't pass an open dirfilehandle between proceses)
-            self.current_dirfile  = _gd.dirfile(self.current_filename, _gd.RDWR)
-            try: # this will
+            self.current_dirfile  = _gd.dirfile(new_filename, _gd.RDWR)
+
+            try:
                 print "current dirfile is {0}".format(self.current_dirfile.name)
+                self.current_filename = self.current_dirfile.name
+
             except:
                 print "Bad dirfile. Possibly the dirfile is closed?"
+                self.current_filename = None
+
+            # send new dirfile filename to main process
+            send_response_to_eventqueue( self.current_filename )
 
             # open new dirfile
             #self.current_dirfile = dirfile_lib.( self.current_filename )
+        elif command == "GET_FILE":
+            send_response_to_eventqueue( self.current_filename )
 
         elif command == "START_WRITE":
 
             # clear all packets currently in data queue
             self._writer_queue.clear()
-
             print "starting writing"
+
             # sets the writing flag to True (see inner loop of _writer_thread_function)
             self.is_writing = True
-
             # set cmd event to indicate that the main thread can read the queue
-            if self._eventqueue.empty():
-                self._cmdevent.set()
-                self._eventqueue.put( self.is_writing )
-            else:
-                print "queue not empty - something bad has happened - nothing done"
+            send_response_to_eventqueue( self.is_writing )
 
         elif command == "STOP_WRITE":
             self.is_writing = False
             print "stopping writing"
 
-            # how to tell if writing has stopped?
-            time.sleep(0.5)
-            if self._eventqueue.empty():
-                self._cmdevent.set()
-                self._eventqueue.put( self.is_writing )
-            else:
-                print "queue not empty - something bad has happened - nothing done"
+            # how do we know if writing is stopped - this should be it...
+            send_response_to_eventqueue( self.is_writing )
 
         elif command == "STATUS_WRITER":
-            # handle the request for the status of the writer
-
-            # make sure the event queue is empty and return the status of the filewriter
-            if self._eventqueue.empty():
-                self._cmdevent.set()
-                self._eventqueue.put( self._filewritethread.is_alive() )
-            else:
-                print "queue not empty - something bad has happened - nothing done"
+            send_response_to_eventqueue( self._filewritethread.is_alive() )
 
         elif command == "CHECK_PACKET":
+            # select on the socket to see if there packets are being received. Doesn't do anything with
+            # the packet, and so this could be triggered by stray packets if using SOCK_RAW
 
-            if self._eventqueue.empty():
-                # select on the socket to see if there packets are being received. Doesn't do anything with
-                # the packet, and so this could be triggered by stray packets
-                rd,wr,err = select.select([self._sockethandle],[],[], 2)
+            rd,wr,err = select.select([self._sockethandle],[],[], 1.)
 
-                self._cmdevent.set()
-                self._eventqueue.put( bool(rd) )
-
-            else:
-                print "queue not empty - something bad has happened - nothing done"
+            send_response_to_eventqueue( bool(rd) )
 
         elif command == "CLEAR_QUEUE":
             print "Queue cleared"
             self._writer_queue.clear()
 
+        elif command == "TERMINATE":
+            print "Terminating datalogger. Goodbye."
+
         else:
-            print "command not recognised"
+            print "command not recognised - nothing done "
+
+
+
+
+# ----- graveyard ----
+
+#         - If an empty string is given (default), then a new file path is generated in the "DIRFILE_SAVEDIR + roachid" directory,
+#         with the filename given by the format in the general_config file.
+#         - If a file path is given, a new dirfile will be created at the given path. If a dirfile already exists at that path, a warning
+#         is printed to screen, and the existing dirfile is returned.
+#         - If a dirfile object is given, a check to determine if the dirfile is valid is made and will be returned.
+#
+# field_names : array-like or int
+#     Either a list of field names (i.e. names given in the tonelist), or a int to use the default [K000, ...K(N)]. If an empty array
+#     is given (default), then roach_config["max_ntones"] is used as a default fallback.
+#     Checks are carried out in lib.lib_dirfiles to make sure the correct types are given.
+#
+# datatag : str (optional)
+#     Allows the user to provide a string that will be appended to the dirfile. Note that if data is to be appended to an existing dirfile,
+#     then care should be taken to ensure that the dirfile paths are the same. If not, a new dirfile will be created.

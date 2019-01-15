@@ -5,102 +5,146 @@
 
 import os, sys, socket, time, string, struct # stdlib imports
 from random import choice
-import numpy as np
-import pygetdata as _gd
+import numpy as np, pygetdata as _gd
 
-from .. import configuration as configuration; reload(configuration)
+from .. import toneslist
 
 # read in relevant config files
+from ..configuration import roach_config, firmware_registers
+from ..configuration.lib_config import get_firmware_register_dict
 
-from ..configuration import roach_config
+def generate_datapacket_dict( roachid, tones ):
+    """
+    Function to generate the datapacket dictionary. This function should be run everytime a new tonelist is loaded
+    in order to update the field names appropriately.
 
-# parse configuration input to get slice objects and list for data
+    The entry types, field datatypes are read from the configuration file. To update, both the config file and this submodule
+    will need to be reloaded.
 
-ntones        = configuration.roach_config["packet_structure"]["ntones"]
-#ntones = 7 # for testing
-header_len     = configuration.roach_config["packet_structure"]["header_len"]
-aux_field_cfg = configuration.roach_config["packet_structure"]["aux_field_cfg"]
-kid_field_cfg = configuration.roach_config["packet_structure"]["kid_field_cfg"]
+    # how to map these correctly...
+    # if tones is sorted by frequency, then it is fine (should tones be the full tonelist? )
 
-kidentry_type       = kid_field_cfg["entry_type"]
-kid_field_datatype  = kid_field_cfg["field_datatype"]
-kid_datatype        = kid_field_cfg["datatype"]
+    Parameters
+    -----------
 
-kid_fields_Ieven = {"K{kidnum:04d}_I".format(kidnum=i): [kidentry_type, kid_field_datatype, (i/2), (i/2+4), None, kid_datatype] for i in range(ntones)[::2]}
-kid_fields_Qeven = {"K{kidnum:04d}_Q".format(kidnum=i): [kidentry_type, kid_field_datatype, (512 + i/2), (512+i/2 + 4), None, kid_datatype] for i in range(ntones)[::2]}
+    """
+    assert type(roachid) == str and roachid in roach_config.keys()
 
-kid_fields_Iodd = {"K{kidnum:04d}_I".format(kidnum=i): [kidentry_type, kid_field_datatype, (1024 + i/2), (1024+i/2 + 4), None, kid_datatype] for i in range(ntones)[1::2]}
-kid_fields_Qodd = {"K{kidnum:04d}_Q".format(kidnum=i): [kidentry_type, kid_field_datatype, (1536 + i/2), (1536+i/2 + 4), None, kid_datatype] for i in range(ntones)[1::2]}
+    if type(tones) != toneslist.Toneslist:
+        raise TypeError("Input toneslist does not appear to be a pcp.tonelist.Tonelist object. To ensure that data is correctly mapped to disk, a Tonelist is required.")
 
-# concatenate all the dicts together to make a master kid_field list that contains the correct slicing information
-kid_fields = reduce(lambda x,y: dict(x, **y), (kid_fields_Ieven, kid_fields_Qeven, kid_fields_Iodd, kid_fields_Qodd))
+    # get firmware registers for the given roachid
+    firmware_dict = get_firmware_register_dict( firmware_registers, roach_config[roachid]["firmware_file"] )
 
-# construct a dictionary that contains the dirfile field names as keys, and values comprise [slice object, data_container]
-# can either use single fields for kids using single slice object, or sort into ordered list (but, dictionary isn't ordered)
+    datapacket_dict = {}
 
-datapacket_dict = {}
-for field_name, (entry_type, field_datatype, startidx, stopidx, stepidx, datatype) in aux_field_cfg.items() + kid_fields.items():
-    datapacket_dict.update( {field_name:[str(entry_type), str(field_datatype), datatype, slice(startidx,stopidx,stepidx), []] } )
+    datapacket_dict["_header_len"] = firmware_dict["packet_structure"]["header_len"]
+    datapacket_dict["_max_ntones"] = firmware_dict["packet_structure"]["max_ntones"]
+
+    assert len(tones.data) < datapacket_dict["_max_ntones"], "Number of tones exceeds maximum number allowed."
+
+    # get slice objects and list for aux data from configuration (note this currently assumes all roaches have same packet information )
+    aux_field_cfg = firmware_dict["packet_structure"]["aux_field_cfg"]
+    kid_field_cfg = firmware_dict["packet_structure"]["kid_field_cfg"]
+
+    kidentry_type       = kid_field_cfg["entry_type"]
+    kid_field_datatype  = kid_field_cfg["field_datatype"]
+    kid_datatype        = kid_field_cfg["datatype"]
+
+    # sort the tonelist by increasing frequency to ensure that data is parsed in the correct order
+    kid_fields_I, kid_fields_Q = toneslist.gen_tone_iq_fields( tones.data.sort_values('freq', ascending=True)['name'] )
+
+    # configure the datatype and indicies that are used to extract the data from the packet. The indicies will be used to create a slice object
+    kid_fields_Ieven = {fn: [kidentry_type, kid_field_datatype, (i/2),        (i/2+4),        None, kid_datatype] for i,fn in enumerate(kid_fields_I[::2]) }
+    kid_fields_Qeven = {fn: [kidentry_type, kid_field_datatype, (512 + i/2),  (512+i/2 + 4),  None, kid_datatype] for i,fn in enumerate(kid_fields_Q[::2]) }
+    kid_fields_Iodd  = {fn: [kidentry_type, kid_field_datatype, (1024 + i/2), (1024+i/2 + 4), None, kid_datatype] for i,fn in enumerate(kid_fields_I[1::2])}
+    kid_fields_Qodd  = {fn: [kidentry_type, kid_field_datatype, (1536 + i/2), (1536+i/2 + 4), None, kid_datatype] for i,fn in enumerate(kid_fields_Q[1::2])}
+
+    # -- old code - to delete --
+    # kid_fields_Ieven = {"K{kidnum:04d}_I".format(kidnum=i): [kidentry_type, kid_field_datatype, (i/2), (i/2+4), None, kid_datatype]              for i in range(ntones)[::2]}
+    # kid_fields_Qeven = {"K{kidnum:04d}_Q".format(kidnum=i): [kidentry_type, kid_field_datatype, (512 + i/2), (512+i/2 + 4), None, kid_datatype]  for i in range(ntones)[::2]}
+    # kid_fields_Iodd = {"K{kidnum:04d}_I".format(kidnum=i): [kidentry_type, kid_field_datatype, (1024 + i/2), (1024+i/2 + 4), None, kid_datatype] for i in range(ntones)[1::2]}
+    # kid_fields_Qodd = {"K{kidnum:04d}_Q".format(kidnum=i): [kidentry_type, kid_field_datatype, (1536 + i/2), (1536+i/2 + 4), None, kid_datatype] for i in range(ntones)[1::2]}
+
+    # concatenate all the dicts together to make a master kid_field list that contains the correct slicing information
+    kid_fields = reduce(lambda x,y: dict(x, **y), (kid_fields_Ieven, kid_fields_Qeven, kid_fields_Iodd, kid_fields_Qodd))
+
+    # construct the dictionary that contains the dirfile field names as keys, and values comprise [slice object, data_container]
+    for field_name, (entry_type, field_datatype, startidx, stopidx, stepidx, datatype) in aux_field_cfg.items() + kid_fields.items():
+        datapacket_dict.update( {field_name:[str(entry_type), str(field_datatype), datatype, slice(startidx, stopidx, stepidx), []] } )
+
+    return datapacket_dict
 
 # now parse the data and put it into this structure !
+def parse_datapacket_dict(packets, datapacket_dict):
+    """
 
-def parse_datapacket_dict(packets):
+    Function to parse data packets and place them into the datapacket dictionary defined by gen_datapacket_dict().
+
+    """
     # handle both single and multiple packets
     packets = packets if isinstance(packets, list) else [packets] # fast way to ensure input is a list
+
+    header_len = datapacket_dict["_header_len"]
 
     for packet in packets:
         assert len(packet) == 2 and type(packet) == tuple
         packet, python_time = packet
 
-        for field_name, item in datapacket_dict.items():
-            data = np.frombuffer( packet[header_len:][item[-2]], dtype = item[2] )
-            item[-1].append( data ) if data.size > 0 else None
-            #item[-1].append( struct.unpack( item[2], packet[header_len:][item[-2]] ) )
+        for field_name, item in datapacket_dict.iteritems():
+            # "item" is a list containing [entry_type, field_datatype, datatype, slice(startidx,stopidx,stepidx), DATA]
+            if field_name.startswith("_"):
+                pass
+            else:
+                data = np.frombuffer( packet[header_len:][item[-2]], dtype = item[2] )  # <-- converts data from binary to the specified dtype
+                item[-1].append( data ) if data.size > 0 else None                      # <-- appending the data to the data container
 
         # write python_timestamp and raw_packet manually
         datapacket_dict["raw_packet"][-1].append(packet)
         datapacket_dict["python_timestamp"][-1].append(python_time)
+
         print python_time
+
     return datapacket_dict
 
-
-def parse_datapacket(rawpacket):
-    """Parses packet data, filters reception based on source IP outputs:
-    packet: The original data packet
-       float data: Array of channel data
-       header: String packed IP/ETH header
-       saddr: The packet source address"""
-
-    if not rawpacket:
-        print "Non-Roach packet received"
-        return
-    data = np.fromstring(rawpacket[header_len:], dtype = '<i').astype('float')
-    ### Parse Header ###
-    header = rawpacket[:header_len]
-    saddr = np.fromstring(header[26:30], dtype = "<I")
-    saddr = socket.inet_ntoa(saddr) # source addr
-    daddr = np.fromstring(header[30:34], dtype = "<I")
-    daddr = socket.inet_ntoa(daddr) # dest addr
-    smac = np.fromstring(header[6:12], dtype = "<B")
-    dmac = np.fromstring(header[:6], dtype = "<B")
-    src = np.fromstring(header[34:36], dtype = ">H")[0]
-    dst = np.fromstring(header[36:38], dtype = ">H")[0]
-    ### Parse packet data ###
-    roach_checksum = (np.fromstring(rawpacket[-21:-17],dtype = '>I'))
-    # seconds elapsed since 'pps_start'
-    sec_ts = (np.fromstring(rawpacket[-17:-13],dtype = '>I'))
-    # milliseconds since PPS
-    fine_ts = np.round((np.fromstring(rawpacket[-13:-9],dtype = '>I').astype('float')/256.0e6)*1.0e3,3)
-    # raw packet count since 'pps_start'
-    packet_count = (np.fromstring(rawpacket[-9:-5],dtype = '>I'))
-    packet_info_reg = (np.fromstring(rawpacket[-5:-1],dtype = '>I'))
-    gpio_reg = (np.fromstring(rawpacket[-1:],dtype = np.uint8))
-    #print gpio_reg
-        ### Filter on source IP ###
-    #if (saddr != self.nc['udp_source_ip']):
-    #    print "Non-Roach packet received"
-    #    return
-    return rawpacket, data, header, saddr, daddr, smac, dmac, src, dst, roach_checksum, sec_ts, fine_ts, packet_count, packet_info_reg, gpio_reg
+# old code from KIDpy - included here to check pcp code
+# def parse_datapacket(rawpacket):
+#     """Parses packet data, filters reception based on source IP outputs:
+#     packet: The original data packet
+#        float data: Array of channel data
+#        header: String packed IP/ETH header
+#        saddr: The packet source address"""
+#
+#     if not rawpacket:
+#         print "Non-Roach packet received"
+#         return
+#     data = np.fromstring(rawpacket[header_len:], dtype = '<i').astype('float')
+#     ### Parse Header ###
+#     header = rawpacket[:header_len]
+#     saddr = np.fromstring(header[26:30], dtype = "<I")
+#     saddr = socket.inet_ntoa(saddr) # source addr
+#     daddr = np.fromstring(header[30:34], dtype = "<I")
+#     daddr = socket.inet_ntoa(daddr) # dest addr
+#     smac = np.fromstring(header[6:12], dtype = "<B")
+#     dmac = np.fromstring(header[:6], dtype = "<B")
+#     src = np.fromstring(header[34:36], dtype = ">H")[0]
+#     dst = np.fromstring(header[36:38], dtype = ">H")[0]
+#     ### Parse packet data ###
+#     roach_checksum = (np.fromstring(rawpacket[-21:-17],dtype = '>I'))
+#     # seconds elapsed since 'pps_start'
+#     sec_ts = (np.fromstring(rawpacket[-17:-13],dtype = '>I'))
+#     # milliseconds since PPS
+#     fine_ts = np.round((np.fromstring(rawpacket[-13:-9],dtype = '>I').astype('float')/256.0e6)*1.0e3,3)
+#     # raw packet count since 'pps_start'
+#     packet_count = (np.fromstring(rawpacket[-9:-5],dtype = '>I'))
+#     packet_info_reg = (np.fromstring(rawpacket[-5:-1],dtype = '>I'))
+#     gpio_reg = (np.fromstring(rawpacket[-1:],dtype = np.uint8))
+#     #print gpio_reg
+#         ### Filter on source IP ###
+#     #if (saddr != self.nc['udp_source_ip']):
+#     #    print "Non-Roach packet received"
+#     #    return
+#     return rawpacket, data, header, saddr, daddr, smac, dmac, src, dst, roach_checksum, sec_ts, fine_ts, packet_count, packet_info_reg, gpio_reg
 
 
 # ---- Function for generating fake roach packet - for testing purposes only
@@ -117,7 +161,7 @@ def gen_fake_roach_packet(use_test_packet = False):
     ROACHUDPADDR = "192.168.40.1" # this mimics the source address contained in the packet, used to filter received packets
 
     HDRLEN = 42
-    NTONES = 1000 # i think with timestamps, there are acutally only 1023 tones
+    NTONES = 1000 # i think with timestamps, there are acutally only 1012 tones
     DATALEN = NTONES * 4 * 2 # in bytes = 1024 4 byte (32 bit) i,q numbers
     PACKETLEN =  DATALEN + HDRLEN
 

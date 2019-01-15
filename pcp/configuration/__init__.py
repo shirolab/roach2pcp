@@ -17,7 +17,6 @@ from .lib_config import reload_configfiles
 
 from .lib_config import verify_config_consistency
 
-
 # define some constants for convenience
 ROOTDIR = filesys_config['rootdir']
 

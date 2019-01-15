@@ -3,11 +3,31 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
+2019-01-09 15:30 CST [PB] ==================
+- Based on the muscat readout meeting, made the following changes to the tonelist.Tonelist
+    - included max_pos_freq and min_neg_freq to calculate usable bandwidth baseband
+    - include list of "excluded" frequencies that the LO shouldn't be set to (for PLL generated sources)
+    - useful roach_interface functions - get current qdr, get regsiter names...etc
+
+- check mapping of tonelist to dirfile generation
+- modified functions in lib_dirfiles to replace 'ntones' with 'tones', which can accept either a number, or
+a list of tone names
+    - changed generate_sweep_dirfile, generate_sweep_fragment, generate_sweep_fields, generate_main_rawfields, create_dirfile
+
+    [CONFIG FILE CHANGE] roach_config - replaced "tones" with "max_ntones" in packet structure
+- TODO
+    - in mux_channel.py, in the sweep averaging code, there is a check to see if the field name starts with "K" - this is not ideal
+    and will cause problems - needs to be changed. How to only choose tones? maybe something in the format file?
+        - using an 'onres' namespace for tones might be the easiest way to do this
+    - fix defaults for datalog_mp.py - set_active_dirfile function
+    - remove ntones from packet_structure (as it could be different for different roaches)
+
 2019-01-07 15:30 CST [PB] ==================
 
 - Added some convenience definitions for filesys paths in configuration/__init__.py. Now checks for absolute path in filesys_config before joining to rootdir.
     - added new firmwarefiledir value as a path to a directory to store firmware files
     - upon initialisation, it checks that at least 1 .fpg exists. Raises error otherwise.
+    -
 
 - [CONFIG FILE CHANGE] added tonelist entry to roach_config with key "tonelist_file". This can be an empty
 - [CONFIG FILE CHANGE] added dac_bandwidth key to roach_config (used by tonelist).

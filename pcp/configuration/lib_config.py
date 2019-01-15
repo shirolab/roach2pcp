@@ -45,13 +45,28 @@ def load_config_file(config_file):
         #return _yaml.safe_load(f)
         return _yaml.load(f, Loader=pcp_yaml_loader)
 
+
+def get_firmware_register_dict(firmware_registers, firmware_filename):
+    """Given an .fpg filename, return a dictionary containing the corresponding data from firmware_registers.cfg """
+
+    assert type(firmware_registers) == dict, "given firmware_registers dict not valid"
+    # read all entries and check if fileame is present
+    for key, firmware_dict in firmware_registers.iteritems():
+
+        if firmware_filename in firmware_dict["filenames"]:
+            break
+
+    else:
+        raise AttributeError("firmware file {0} not present in firmware_registers.cfg".format(firmware_filename))
+
+    return firmware_dict
+
 #NOTE [20180728] that this has now been superseeded by a reload function within the main directory (left for now jic, will remove later)
 def reload_configfiles():
    """Function to reload all configuration files. The easiest way to this is to
    reload the module."""
    reload(_sys.modules[__name__])
    print "Module reloaded"
-
 
 def save_current_config():
     """

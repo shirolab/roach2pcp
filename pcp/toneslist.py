@@ -36,6 +36,38 @@ def load_pcp_tonelist(tonelist_file):
 	"""
 	return
 
+def get_tone_fields( tones ):
+    """
+    Function to return an array of field names for a tone list. Can be either a number, for a number of tones,
+    or an array-type containing the required the fields that will be used in the dirfiles. If a number is given,
+    then a default [K0000...K{ntones}] list will be generated.
+    """
+
+    tonetype = type(tones)
+    if type(tones) in [int, _np.int32, _np.int64]:
+        tones = _np.array( [ "K{kidnum:04d}".format(kidnum = i) for i in range(int(tones)) ]  )
+
+    elif type(tones) in [list, _np.ndarray, _pd.Series]:
+        tones = _np.array(tones, dtype = str) # convert type to string (will allow list of frequencies)
+
+    else:
+        raise TypeError( "Type of tones ({0}) is not recognised".format( type(tones) ) )
+
+    return tones
+#
+def gen_tone_iq_fields(tones, namespace="", field_suffix=""):
+
+	# str to add to end of field names
+	field_suffix = "_" + field_suffix if field_suffix is not "" else ""
+	namespace    = namespace + "."    if namespace    is not "" else ""
+
+	# get array of field names from either tonelist, or automatically generated
+	field_names = _np.core.defchararray.add( "{namespace}".format(namespace=namespace), get_tone_fields(tones) )
+
+	kid_fields_I = _np.core.defchararray.add(field_names, "_I{suffix}".format(suffix = field_suffix))
+	kid_fields_Q = _np.core.defchararray.add(field_names, "_Q{suffix}".format(suffix = field_suffix))
+
+	return kid_fields_I, kid_fields_Q
 
 ### === Toneslist class === ###
 
@@ -128,9 +160,10 @@ class Toneslist(object):
 
 		# load config for given roachid
 		self.roachid   = roachid
-		self.ROACH_CFG = roach_config['roach_params'][self.roachid]
+		self.ROACH_CFG = roach_config[self.roachid]
 
-		self._bandwidth = self.ROACH_CFG["dac_bandwidth"]
+		# set usable bandwidth
+		self._bandwidth = self.ROACH_CFG["max_pos_freq"] - self.ROACH_CFG["min_neg_freq"]
 
 		# load the tonelist given in
 		self.tonelistfile = _os.path.join(TONELISTDIR, self.ROACH_CFG["tonelist_file"])
