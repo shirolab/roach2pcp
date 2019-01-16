@@ -15,7 +15,7 @@
 #       - daemon tracker - associated information regarding the daemon packet receiving daemonself.
 #           - this should have a live status update of whether saving is on/off...etc
 
-import os, sys, time, numpy as np
+import os, sys, time, numpy as np, pandas as _pd
 
 import atexit
 
@@ -32,17 +32,16 @@ from .configuration import ROOTDIR, filesys_config, roach_config, network_config
 
 # import the synth dictionary from
 from .synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT # note that we might need to e careful of import order here
-from . import toneslist
-from . import datalog_mp
 
+from . import toneslist, datalog_mp
 from .lib import lib_dirfiles as _lib_dirfiles, lib_fpga as _lib_fpga
 
 from .lib.lib_hardware import initialise_connected_synths as _initialise_connected_synths
 SYNTHS_IN_USE = _initialise_connected_synths()
 
-class newTonelist (toneslist.Toneslist):
-    def __init__(self, roachid, loader_function):
-        super(newTonelist, self).__init__(roachid, loader_function)
+# class newTonelist (toneslist.Toneslist):
+#     def __init__(self, roachid, loader_function):
+#         super(newTonelist, self).__init__(roachid, loader_function)
 
 class muxChannel(object):
     def __init__(self, roachid):
@@ -53,7 +52,13 @@ class muxChannel(object):
 
         self.fpga            = _lib_fpga.get_fpga_instance(roachid)
         self.roach_iface     = _lib_fpga.roachInterface(self.fpga, roachid)
-        self.tonelist        = None
+
+        # configure the tonelist - add functionality to modify datapacket_dict when the toneslist changes
+        self.toneslist       = toneslist.Toneslist
+        @self._decorate_tonelist_loader
+        self.toneslist.load_tonelist
+        self.toneslist       = toneslist.Toneslist(roachid, loader_function = _pd.read_csv)
+
         self.writer_daemon   = None
         self.synth_lo        = None
         self.synth_clk       = None
@@ -64,8 +69,7 @@ class muxChannel(object):
         self.current_sweep_dirfile = None
 
         # get configuration for specific roach
-        self.ROACH_CFG = roach_config['roach_params'][self.roachid]
-        # check configurations are all appropriate (this should be done in configuration __init__ )
+        self.ROACH_CFG = roach_config[self.roachid]
 
         # generate directory path for data saving
         self.save_data_dir  = os.path.join(ROOTDIR, filesys_config['savedatadir'], self.roachid)
@@ -73,7 +77,6 @@ class muxChannel(object):
         os.makedirs(self.save_data_dir) if not os.path.exists(self.save_data_dir) else None
 
         # initialise all the hardware and return objects
-
         self._initialise_daemon_writer()
         #self.initialse_hardware()
 
@@ -91,7 +94,7 @@ class muxChannel(object):
         # check writer_daemon is running correctly
 
         # refresh datapacket_dict
-        self.writer_daemon.reinitialise_datapacket_dict( self.toneslist )
+        self.writer_daemon.initialise_datapacket_dict( self.toneslist )
 
     def _initialise_daemon_writer(self):
         self.writer_daemon = datalog_mp.dataLogger(self.roachid)
@@ -129,7 +132,6 @@ class muxChannel(object):
         # get configuration for attenuators for self.roachid
         pass
 
-
     def set_active_dirfile(new_dirfile = ""):
         # if an empty string is given (default), then we pass the DIRFILE_SAVEDIR as the filename to lib_dirfile.create_dirfile,
         # which generates a new filename with the filename format given general_config['default_datafilename_format']).
@@ -157,6 +159,7 @@ class muxChannel(object):
 
         else:
             print "Unrecognised input - {0}. Try again.".format(new_dirfile)
+
 
     def read_existing_sweep_file(self, path_to_sweep):
         # check if filename appears to be a valid dirfile

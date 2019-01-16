@@ -50,6 +50,9 @@ def get_tone_fields( tones ):
     elif type(tones) in [list, _np.ndarray, _pd.Series]:
         tones = _np.array(tones, dtype = str) # convert type to string (will allow list of frequencies)
 
+    elif type(tones) == Toneslist:
+        tones = _np.array(tones.data.name, dtype = str)# convert type to string (will allow list of frequencies)
+
     else:
         raise TypeError( "Type of tones ({0}) is not recognised".format( type(tones) ) )
 
