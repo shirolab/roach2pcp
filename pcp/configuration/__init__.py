@@ -41,6 +41,12 @@ if not _os.path.exists(SAVEDATADIR): _os.makedirs(SAVEDATADIR)
 if not _os.path.exists(TONELISTDIR): _os.makedirs(TONELISTDIR)
 if not _os.path.exists(LIVEFILEDIR): _os.makedirs(LIVEFILEDIR)
 
+# create a dictionary that contains the firmware regsiters for each roachid
+FIRMWARE_REG_DICT = {}
+for roachid in roach_config.keys():
+    FIRMWARE_REG_DICT[roachid] = _lib_config.get_firmware_register_dict(firmware_registers, roach_config[roachid]["firmware_file"]) ["registers"]
+
+
 # if the firmware directory doesn't exist already, there will likely be a problem, so raise an exception
 # (this should be moved to the filesys consistency checking code )
 

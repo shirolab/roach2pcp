@@ -7,7 +7,9 @@ import numpy as _np
 import socket as _socket # inet_aton as _inet_aton
 from ..configuration import firmware_registers as _firmware_registers,\
                             roach_config as _roach_config, \
-                            network_config as _network_config
+                            network_config as _network_config,\
+                            filesys_config as _filesys_config,\
+                            FIRMWARE_REG_DICT
 
 from . import lib_qdr as _lib_qdr
 
@@ -19,15 +21,15 @@ except ImportError:
     _casperfpga = None
     pass
 
-def write_to_fpga_register(fpga, register_dict, sleep_time = 0.1):
+def write_to_fpga_register(fpga, regs_to_write, firmware_reg_list, sleep_time = 0.1):
     """
     General function to write a set of registers from a dictionary.
 
     """
     try:
         # check that the register names match the ones defined in the firmware
-        if not set( fpga.listdev() ).issuperset( [_firmware_registers[key] for key in register_dict.keys()] ):
-            print "given register names are not included in the fpga devlist", register_dict.keys()
+        if not set( fpga.listdev() ).issuperset( [firmware_reg_list[key] for key in regs_to_write.keys()] ):
+            print "given register names are not included in the fpga devlist", regs_to_write.keys()
             return
 
     except _casperfpga.katcp_fpga.KatcpRequestFail:
@@ -35,8 +37,8 @@ def write_to_fpga_register(fpga, register_dict, sleep_time = 0.1):
         return
 
     # write the registers
-    for firmware_key, register_value in register_dict.items():
-        fpga.write_int( _firmware_registers[firmware_key],  int(register_value) )
+    for firmware_key, register_value in regs_to_write.items():
+        fpga.write_int( firmware_reg_list[firmware_key],  int(register_value) )
         _time.sleep(sleep_time)
 
 def get_fpga_instance(roachid):
@@ -84,10 +86,12 @@ class roachInterface(object):
 
         # get configuration from file for given roachid
 
-        self.network_config = _network_config[roachid]
-        self.roach_config   = _roach_config["roach_params"][roachid]
+        self.network_config     = _network_config[roachid]
+        self.roach_config       = _roach_config[roachid]
+        self.firmware_reg_list  = FIRMWARE_REG_DICT[roachid]
 
-        self.firmware_file = self.roach_config["firmware_file"]; assert _os.path.exists(self.firmware_file)
+        self.firmware_file = _os.path.join(_filesys_config["firmwaredir"] , self.roach_config["firmware_file"])
+        assert _os.path.exists(self.firmware_file)
 
         # these should be read from the config file
         self.FPGA_SAMP_FREQ = 256.e6
@@ -175,7 +179,7 @@ class roachInterface(object):
     # ---------------------------------------------------------------------------------------------------------
     def calibrate_qdr(self):
     # Calibrates the QDRs. Run after loading firmware
-        write_to_fpga_register(self.fpga, { 'dac_reset_reg': 1 } )
+        write_to_fpga_register(self.fpga, { 'dac_reset_reg': 1 }, self.firmware_reg_list )
         print 'DAC on'
 
         bFailHard = False
@@ -216,16 +220,16 @@ class roachInterface(object):
         write_to_fpga_register(self.fpga, { 'udp_srcmac0_reg' : int(udp_src_mac[4:]  , 16), \
                                             'udp_srcmac1_reg' : int(udp_src_mac[0:4] , 16), \
                                             'udp_destmac0_reg': int(udp_dest_mac[4:] , 16), \
-                                            'udp_destmac1_reg': int(udp_dest_mac[0:4], 16)  }, sleep_time = 0.05 )
+                                            'udp_destmac1_reg': int(udp_dest_mac[0:4], 16)  }, self.firmware_reg_list, sleep_time = 0.05 )
 
         write_to_fpga_register(self.fpga, { 'udp_srcip_reg'   : udp_src_ip,   \
                                             'udp_destip_reg'  : udp_dest_ip,  \
                                             'udp_destport_reg': udp_dest_port,\
-                                            'udp_srcport_reg' : udp_src_port  }, sleep_time = 0.05 )
+                                            'udp_srcport_reg' : udp_src_port  }, self.firmware_reg_list, sleep_time = 0.05 )
 
-        write_to_fpga_register(self.fpga, { 'udp_start_reg': 0 }, sleep_time = 0.1 ) # require separate calls for the same register
-        write_to_fpga_register(self.fpga, { 'udp_start_reg': 1 }, sleep_time = 0.1 )
-        write_to_fpga_register(self.fpga, { 'udp_start_reg': 0 }, sleep_time = 0.1 )
+        write_to_fpga_register(self.fpga, { 'udp_start_reg': 0 }, self.firmware_reg_list, sleep_time = 0.1 ) # require separate calls for the same register
+        write_to_fpga_register(self.fpga, { 'udp_start_reg': 1 }, self.firmware_reg_list, sleep_time = 0.1 )
+        write_to_fpga_register(self.fpga, { 'udp_start_reg': 0 }, self.firmware_reg_list, sleep_time = 0.1 )
 
         return
         # self.fpga.write_int( _firmware_registers['udp_srcmac0_reg'],  int(udp_src_mac[4:], 16)   )
@@ -319,8 +323,8 @@ class roachInterface(object):
         # this is a bit slow...
         for ch, idx in enumerate(fft_bin_index):
             write_to_fpga_register(self.fpga, { 'bins_reg': idx, \
-                                                'load_bins_reg': 2*ch + 1}, sleep_time = 0. )
-            write_to_fpga_register(self.fpga, {'load_bins_reg': 0 }, sleep_time = 0. )
+                                                'load_bins_reg': 2*ch + 1}, self.firmware_reg_list, sleep_time = 0. )
+            write_to_fpga_register(self.fpga, {'load_bins_reg': 0 }, self.firmware_reg_list, sleep_time = 0. )
 
                                                 #enable write ram at address i
 
@@ -377,21 +381,21 @@ class roachInterface(object):
 
         #write fft_shift ?
         fft_shift = 2**5 if len(freqs) >= 400 else 2**9
-        write_to_fpga_register(self.fpga, { "fft_shift_reg": fft_shift - 1} , sleep_time = 0. )
+        write_to_fpga_register(self.fpga, { "fft_shift_reg": fft_shift - 1} , self.firmware_reg_list, sleep_time = 0. )
 
         I_lut_packed, Q_lut_packed = self.pack_luts(freqs, amps, phases)
-        write_to_fpga_register(self.fpga, { "dac_reset_reg": 1} , sleep_time = 0. )
+        write_to_fpga_register(self.fpga, { "dac_reset_reg": 1} , self.firmware_reg_list, sleep_time = 0. )
         write_to_fpga_register(self.fpga, { "dac_reset_reg": 0, \
-                                            "start_dac_reg": 0 }, sleep_time = 0. )
+                                            "start_dac_reg": 0 }, self.firmware_reg_list, sleep_time = 0. )
         # blindwrites takes around 8-9 seconds each
-        self.fpga.blindwrite(_firmware_registers['qdr0_reg'], I_lut_packed, offset = 0)
-        self.fpga.blindwrite(_firmware_registers['qdr1_reg'], Q_lut_packed, offset = 0)
+        self.fpga.blindwrite(self.firmware_reg_list['qdr0_reg'], I_lut_packed, offset = 0)
+        self.fpga.blindwrite(self.firmware_reg_list['qdr1_reg'], Q_lut_packed, offset = 0)
 
         write_to_fpga_register(self.fpga, { "start_dac_reg"  : 1, \
-                                            "accum_reset_reg": 0 }, sleep_time = 0. )
+                                            "accum_reset_reg": 0 }, self.firmware_reg_list, sleep_time = 0. )
 
         write_to_fpga_register(self.fpga, { "accum_reset_reg": 1, \
-                                            "write_comb_len_reg": len(freqs) },  sleep_time = 0. )
+                                            "write_comb_len_reg": len(freqs) }, self.firmware_reg_list, sleep_time = 0. )
         print 'Done.'
 
     def make_freq_comb(self, nfreq = 101):

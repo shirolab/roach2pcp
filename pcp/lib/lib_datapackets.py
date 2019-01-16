@@ -30,7 +30,9 @@ def generate_datapacket_dict( roachid, tones ):
     """
     assert type(roachid) == str and roachid in roach_config.keys()
 
-    if type(tones) != toneslist.Toneslist:
+    #if type(tones) != toneslist.Toneslist:
+    if not isinstance(tones, toneslist.Toneslist):
+        print type(tones), tones
         raise TypeError("Input toneslist does not appear to be a pcp.tonelist.Tonelist object. To ensure that data is correctly mapped to disk, a Tonelist is required.")
 
     # get firmware registers for the given roachid

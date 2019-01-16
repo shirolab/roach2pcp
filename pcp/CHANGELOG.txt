@@ -3,6 +3,19 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
+2019-01-16 15:30 CST [PB] ==================
+
+- set_pphases function fixed minor syntax bugs
+- need set amps function (hacked for now)
+
+- Testing the roach configuration, and comparing with kidpy
+- using roach0 run through set up start to finish, and ensure that tones are being written
+ - the kidpy reference tone list uses 101 frequencies between min_neg_freq and max_pos_freq (read from the configuration file )
+todo
+ - allow tonelist to write baseband frequencies only (can hack it as is, but should make it work properly with rf_freqs...etc)
+ -
+
+
 2019-01-09 15:30 CST [PB] ==================
 - Based on the muscat readout meeting, made the following changes to the tonelist.Tonelist
     - included max_pos_freq and min_neg_freq to calculate usable bandwidth baseband

@@ -273,11 +273,11 @@ class Toneslist(object):
 		valid_which =  ['random', 'opposite', 'none']
 
 		assert which in valid_which, "given 'which' parameter not recognised -- currently implemented = {0}".format(valid_which)
-		assert self.tonelist, "no tonelist loaded. load and try again"
+		assert self.bb_freqs is not None, "no tonelist loaded. load and try again"
 
 		if which == "random":
-			np.random.seed()
-			self.phases = _np.random.uniform(0., 2.*np.pi, len(self.bb_freqs))
+			_np.random.seed()
+			self.phases = _np.random.uniform(0., 2.*_np.pi, len(self.bb_freqs))
 
 		elif which == "none":
 			self.phases = _np.zeros_like(self.bb_freqs)
@@ -287,7 +287,7 @@ class Toneslist(object):
 
 	def load_tonelist(self, tonelistfile = "", **loaderkwargs):
 		if not self.loader_function:
-			print "no loader function available. set one with and try again."
+			print "no loader function available. set one and try again."
 			return
 
 		# read the default file unless specified
@@ -337,7 +337,7 @@ class Toneslist(object):
 			return
 
 		# if successful, try to find the optimum LO frequency automatically
-		self.lo_freq = self.find_optimum_lo() # this will trigger the frequency lists to updated
+		self.lo_freq = self.find_optimum_lo() # this will trigger the frequency lists to be updated
 
 	def find_optimum_lo(self):
 		"""For a given set of tones, this function will find the optimum LO frequency to

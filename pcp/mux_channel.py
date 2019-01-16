@@ -18,7 +18,7 @@
 import os, sys, time, numpy as np, pandas as _pd
 
 import atexit
-
+from functools import wraps as _wraps
 import pygetdata as _gd
 
 try:
@@ -39,9 +39,11 @@ from .lib import lib_dirfiles as _lib_dirfiles, lib_fpga as _lib_fpga
 from .lib.lib_hardware import initialise_connected_synths as _initialise_connected_synths
 SYNTHS_IN_USE = _initialise_connected_synths()
 
-# class newTonelist (toneslist.Toneslist):
+# class localTonelist (toneslist.Toneslist):
 #     def __init__(self, roachid, loader_function):
 #         super(newTonelist, self).__init__(roachid, loader_function)
+#         self.load_tonelist = self._decorate_tonelist_loader( self.load_tonelist )
+
 
 class muxChannel(object):
     def __init__(self, roachid):
@@ -53,13 +55,15 @@ class muxChannel(object):
         self.fpga            = _lib_fpga.get_fpga_instance(roachid)
         self.roach_iface     = _lib_fpga.roachInterface(self.fpga, roachid)
 
+        # initialise writer daemon
+        self.writer_daemon   = self._initialise_daemon_writer()
+
         # configure the tonelist - add functionality to modify datapacket_dict when the toneslist changes
-        self.toneslist       = toneslist.Toneslist
-        @self._decorate_tonelist_loader
-        self.toneslist.load_tonelist
+        #self.local_Toneslist       = toneslist.Toneslist
+        #self.local_Toneslist.load_tonelist = self._decorate_tonelist_loader( local_Toneslist.load_tonelist )
+
         self.toneslist       = toneslist.Toneslist(roachid, loader_function = _pd.read_csv)
 
-        self.writer_daemon   = None
         self.synth_lo        = None
         self.synth_clk       = None
         self.input_atten     = None
@@ -76,13 +80,13 @@ class muxChannel(object):
         # create if doesn't exist already
         os.makedirs(self.save_data_dir) if not os.path.exists(self.save_data_dir) else None
 
-        # initialise all the hardware and return objects
-        self._initialise_daemon_writer()
+        #self._initialise_daemon_writer()
         #self.initialse_hardware()
 
 ################################################################################
 ################################################################################
     def _decorate_tonelist_loader(self, original_loader_function):
+        @_wraps(original_loader_function)
         def load_and_update_datapacket_dict(*args, **kwargs):
             original_loader_function(*args, **kwargs)
             self._refresh_datapacket_dict()
@@ -97,8 +101,9 @@ class muxChannel(object):
         self.writer_daemon.initialise_datapacket_dict( self.toneslist )
 
     def _initialise_daemon_writer(self):
-        self.writer_daemon = datalog_mp.dataLogger(self.roachid)
-        self.writer_daemon.start_daemon()
+        writer_daemon = datalog_mp.dataLogger(self.roachid)
+        writer_daemon.start_daemon()
+        return writer_daemon
 
     def initialse_hardware(self):
         # initialise the synthesisers
