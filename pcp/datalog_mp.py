@@ -393,9 +393,12 @@ class dataLogger(object):
             return False
 
     def _check_dirfile_and_datapacket_dict_match(self):
-        """Function to check that the field names of the current dirfile match the fields in the datapacket_dict."""
+        """Function to check that the field names of the current dirfile match the fields in the datapacket_dict"""
 
-        field_name_set = set( self.current_dirfile.field_list( _gd.RAW_ENTRY ) )
+        # get field lists while removing any field_suffix (separated by '__')
+        field_list = [ fn.split('__', 1)[0] for fn in self.current_dirfile.field_list( _gd.RAW_ENTRY ) ]
+
+        field_name_set = set( field_list )
         return len( field_name_set.difference( self._datapacket_dict.keys() ) ) == 0
 
     def start_daemon(self):
@@ -485,6 +488,7 @@ class dataLogger(object):
         """
         # check that a dirfile exists and is valid
         if not lib_dirfiles.is_dirfile_valid( self.current_dirfile ):
+            print "dirfile invalid - returning"
             return
 
         # check that the datapacket_dict looks like it should
@@ -494,6 +498,7 @@ class dataLogger(object):
 
         # check that fields of dirfile and dtapacket dict match - important!
         if not self._check_dirfile_and_datapacket_dict_match():
+            print "dirfile fields and datapacket dicts don't match!"
             return
 
         command_to_send = ("START_WRITE", 0)

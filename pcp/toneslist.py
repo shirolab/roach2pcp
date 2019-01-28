@@ -60,8 +60,7 @@ def get_tone_fields( tones ):
 #
 def gen_tone_iq_fields(tones, namespace="", field_suffix=""):
 
-	# str to add to end of field names
-	field_suffix = "_" + field_suffix if field_suffix is not "" else ""
+	#field_suffix = "_" + field_suffix if field_suffix is not "" else ""
 	namespace    = namespace + "."    if namespace    is not "" else ""
 
 	# get array of field names from either tonelist, or automatically generated

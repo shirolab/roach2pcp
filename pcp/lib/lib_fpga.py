@@ -21,27 +21,50 @@ except ImportError:
     _casperfpga = None
     pass
 
+def check_registers_are_valid(registers, firmware_reg_list):
+
+    assert type(registers) in [str, list], "enter either a single string, or a list of strings to check. Given type = {0}".format(type(registers))
+    registers = _np.atleast_1d(registers).astype(str)
+
+    # check that the register names match the ones defined in the firmware
+
+    # TODO check with fpga.listdev too
+
+    if not set( firmware_reg_list ).issuperset( registers ):
+        print "given register names are not included in the fpga devlist", registers.keys()
+        return False
+
+    else:
+        return True
+
 def write_to_fpga_register(fpga, regs_to_write, firmware_reg_list, sleep_time = 0.1):
     """
     General function to write a set of registers from a dictionary.
 
     """
-    try:
-        # check that the register names match the ones defined in the firmware
-        if not set( fpga.listdev() ).issuperset( [firmware_reg_list[key] for key in regs_to_write.keys()] ):
-            print "given register names are not included in the fpga devlist", regs_to_write.keys()
-            return
+    if check_registers_are_valid( regs_to_write, firmware_reg_list.keys() ):
+        # write the registers
+        for firmware_key, register_value in regs_to_write.iteritems():
+            fpga.write_int( firmware_reg_list[firmware_key],  int(register_value) )
+            _time.sleep(sleep_time)
 
-    except _casperfpga.katcp_fpga.KatcpRequestFail:
-        print "There doesn't appear to be any firmware running. Check and try again. "
-        return
+def read_from_fpga_register(fpga, regs_to_read, firmware_reg_list):
+    """
+    Function to read a dictionary of reg_name: size_to_read from the current fpga firmware. Function returns a dictionary with
+    register names as keys, and returned values as dictionary values.
 
-    # write the registers
-    for firmware_key, register_value in regs_to_write.items():
-        fpga.write_int( firmware_reg_list[firmware_key],  int(register_value) )
-        _time.sleep(sleep_time)
+    NOT TESTED YET - 20190119
+    """
+    data_dict = dict.fromkeys(regs_to_read.keys())
 
-def get_fpga_instance(roachid):
+    if check_registers_are_valid( regs_to_read, firmware_reg_list.keys() ):
+        # read data from the fpga
+        for regname, sizetoread in regs_to_read.iteritems():
+            data_dict[regname] = fpga.read( regname, sizetoread )
+
+    return data_dict
+
+def get_fpga_instance(ipaddress):
     """
 
     Function to return an fpga instance for a given roachid. Parameters are read from the configuration
@@ -55,13 +78,14 @@ def get_fpga_instance(roachid):
         return
 
     try:
-        return _casperfpga.katcp_fpga.KatcpFpga( _network_config[roachid]['roach_ppc_ip'], timeout = 10. )
+        return _casperfpga.katcp_fpga.KatcpFpga( ipaddress, timeout = 1. )
     except RuntimeError:
         # bad things have happened, and nothing else should proceed
         print "Error, fpga not connected."
         return
     except:
         print 'Error connecting to \'{0}\'. Is it switched on? Check network settings!'.format(roachid)
+        return
 
 class roachInterface(object):
     """
@@ -74,21 +98,20 @@ class roachInterface(object):
 
     """
 
-    def __init__(self, fpga, roachid):
-
-        # check if fpga is not None, and if so, return without doing much more
-        if fpga == None:
-            print "it doesn't look like there is a valid fpga instance. Extremely limited functionality. Returning."
-            return
-
-        self.fpga          = fpga
-        self.fpg_uploaded  = fpga.is_running()
+    def __init__(self, roachid):
 
         # get configuration from file for given roachid
-
         self.network_config     = _network_config[roachid]
         self.roach_config       = _roach_config[roachid]
         self.firmware_reg_list  = FIRMWARE_REG_DICT[roachid]
+
+        # try to get an fpga instance for the given roachid
+        self.fpga = get_fpga_instance( self.network_config["roach_ppc_ip"] )
+
+        if self.fpga == None:
+            return
+
+        self.fpg_uploaded  = self.fpga.is_running()
 
         self.firmware_file = _os.path.join(_filesys_config["firmwaredir"] , self.roach_config["firmware_file"])
         assert _os.path.exists(self.firmware_file)
@@ -100,13 +123,33 @@ class roachInterface(object):
         self.LUTBUF_LEN     = 2097152 # 2**21
         self.DAC_FREQ_RES   = 2 * self.DAC_SAMP_FREQ / self.LUTBUF_LEN
 
-    def initialise_fpga(self):
+    def initialise_fpga(self, force_reupload = False):
+
         """
         High level function to run all of the functions to intialise the roach
         """
-        pass
-        # upload fpg
-        # calibrate_qdr (if a new fpg file was uploaded)
+
+        if not self.fpga.is_connected():
+            print "it looks like the fpga is not connected"
+            return
+
+        # try to upload self.firmware_file. This function checks to see if a firmware is already running,
+        # and if the versions match.
+        we_uploaded_a_firmware = self.upload_firmware_file( force_reupload = force_reupload )
+
+        # calibrate qdr if uploading formware
+        if we_uploaded_a_firmware:
+            if self.calibrate_qdr() < 0:
+                print "qdr calibration failed."
+            else:
+                write_to_fpga_register(self.fpga, { 'write_qdr_status_reg': 1 }, self.firmware_reg_list )
+
+        # write registers (dds_shift + accum_len)
+        write_to_fpga_register(self.fpga, { 'accum_len_reg': self.ROACH_CFG['roach_accum_len'], \
+                                            'dds_shift_reg': self.ROACH_CFG['dds_shift']  }, self.firmware_reg_list)
+
+        # configure downlink
+        self.configure_downlink_registers()
 
     def upload_firmware_file(self, firmware_file = None, force_reupload=False):
         """
@@ -153,7 +196,7 @@ class roachInterface(object):
 
             if running_devinfo['builddate'] == new_devinfo['builddate'] and running_devinfo['system'] == new_devinfo['system']:
                 print "It looks like the same version. Use 'force_reupload = True' to re-upload the same firmware. Returning. "
-                return
+                return False
             else:
                 print "Currently running - " , running_devinfo
                 print "New file to upload - ", new_devinfo
@@ -164,7 +207,7 @@ class roachInterface(object):
                     return False
 
         print "uploading firmware file \'{0}\' to roach".format(firmware_file)
-        success = self.fpga.upload_to_ram_and_program(firmware_file, timeout = 10.)
+        success = self.fpga.upload_to_ram_and_program(firmware_file, timeout = 1.)
         _time.sleep(0.5)
         if success == None:
             print 'Successfully uploaded:', firmware_file
@@ -185,8 +228,8 @@ class roachInterface(object):
         bFailHard = False
         calVerbosity = 1
 
-        qdrMemName = _firmware_registers['qdr0_reg']
-        qdrNames   = [_firmware_registers['qdr0_reg'], _firmware_registers['qdr1_reg']] # <- not used?
+        qdrMemName = self.firmware_reg_list['qdr0_reg']
+        qdrNames   = [self.firmware_reg_list['qdr0_reg'], self.firmware_reg_list['qdr1_reg']] # <- not used?
 
         print 'Fpga Clock Rate =', self.fpga.estimate_fpga_clock()
         self.fpga.get_system_information()
@@ -232,37 +275,6 @@ class roachInterface(object):
         write_to_fpga_register(self.fpga, { 'udp_start_reg': 0 }, self.firmware_reg_list, sleep_time = 0.1 )
 
         return
-        # self.fpga.write_int( _firmware_registers['udp_srcmac0_reg'],  int(udp_src_mac[4:], 16)   )
-        # _time.sleep(0.05)
-        # self.fpga.write_int( _firmware_registers['udp_srcmac1_reg'],  int(udp_src_mac[0:4], 16)  )
-        # _time.sleep(0.05)
-        # self.fpga.write_int( _firmware_registers['udp_destmac0_reg'], int(udp_dest_mac[4:], 16)  )
-        # _time.sleep(0.05)
-        # self.fpga.write_int( _firmware_registers['udp_destmac1_reg'], int(udp_dest_mac[0:4], 16) )
-        # _time.sleep(0.05)
-        #
-        # # Write the ip addresses for the udp source (fpga) and destination (computer)
-        # print udp_src_ip,type(udp_src_ip)
-        # self.fpga.write_int( _firmware_registers['udp_srcip_reg'], udp_src_ip)
-        # _time.sleep(0.05)
-        # self.fpga.write_int( _firmware_registers['udp_destip_reg'], udp_dest_ip)
-        # _time.sleep(0.1)
-        # self.fpga.write_int( _firmware_registers['udp_destport_reg'], udp_dest_port)
-        # _time.sleep(0.1)
-        # self.fpga.write_int( _firmware_registers['udp_srcport_reg'], udp_src_port)
-        # _time.sleep(0.1)
-        #
-        # # Write the mac addresses for the udp source (fpga) and destination (computer)
-        # self.fpga.write_int( _firmware_registers['udp_start_reg'], 0)
-        # _time.sleep(0.1)
-        # self.fpga.write_int( _firmware_registers['udp_start_reg'], 1)
-        # _time.sleep(0.1)
-        # self.fpga.write_int( _firmware_registers['udp_start_reg'], 0)
-
-
-
-    #def gen_dac_freqs(self, freqs, samp_freq, resolution, random_phase = True, DAC_LUT = True, apply_transfunc = False, **kwargs):
-    # I, Q = self.freqComb(np.array([freq_residuals[m]]), self.fpga_samp_freq/(self.fft_len/2.), self.dac_freq_res, random_phase = False, DAC_LUT = False)
 
     def gen_waveform_from_freqs(self, freqs, amps = None, phases = None, which = "dac_lut"):
         """
@@ -426,6 +438,66 @@ class roachInterface(object):
         #    time.sleep(0.1)
         #self.freq_comb = freq_comb
         return freq_comb
+
+    def read_QDR_katcp(self):
+        # Reads out QDR buffers with KATCP, as 16-b signed integers.
+        self.QDR0 = np.fromstring(self.fpga.read('qdr0_memory', 8 * 2**20), dtype = '>i2')
+        self.QDR1 = np.fromstring(self.fpga.read('qdr1_memory', 8 * 2**20), dtype = '>i2')
+        self.I_katcp = self.QDR0.reshape(len(self.QDR0)/4., 4.)
+        self.Q_katcp = self.QDR1.reshape(len(self.QDR1)/4., 4.)
+        #self.I_dac_katcp = np.hstack(zip(self.I_katcp[:,1],self.I_katcp[:,0]))
+        #self.Q_dac_katcp = np.hstack(zip(self.Q_katcp[:,1],self.Q_katcp[:,0]))
+        #self.I_dds_katcp = np.hstack(zip(self.I_katcp[:,3],self.I_katcp[:,2]))
+        #self.Q_dds_katcp = np.hstack(zip(self.Q_katcp[:,3],self.Q_katcp[:,2]))
+        self.I_dac_katcp = np.dstack((self.I_katcp[:,1], self.I_katcp[:,0])).ravel()
+        self.Q_dac_katcp = np.dstack((self.Q_katcp[:,1], self.Q_katcp[:,0])).ravel()
+        self.I_dds_katcp = np.dstack((self.I_katcp[:,3], self.I_katcp[:,2])).ravel()
+        self.Q_dds_katcp = np.dstack((self.Q_katcp[:,3], self.Q_katcp[:,2])).ravel()
+
+    def getADC(self,n=2**11):
+        self.fpga.write_int('adc_snap_ctrl',0)
+        self.fpga.write_int('adc_snap_ctrl',1)
+        self.fpga.write_int('adc_snap_trig',0)
+        self.fpga.write_int('adc_snap_trig',1)
+        self.fpga.write_int('adc_snap_trig',0)
+        adc = (np.fromstring(self.fpga.read('adc_snap_bram',(n/2)*8),dtype='>i2')).astype('float')
+        #print adc
+        adc /= 2.0**15
+        # ADC full scale is 2.2 V
+        #adc *= 0.909091
+        #I = np.hstack(zip(adc[0::4],adc[1::4]))
+        #Q = np.hstack(zip(adc[2::4],adc[3::4]))
+        I = np.dstack((adc[0::4],adc[1::4])).ravel()
+        Q = np.dstack((adc[2::4],adc[3::4])).ravel()
+        return I,Q
+
+    def read_chan_snaps(self):
+        # Reads the snap blocks at the bin select RAM and channelizer mux
+        self.fpga.write_int('buffer_out_ctrl', 0)
+        self.fpga.write_int('buffer_out_ctrl', 1)
+        self.chan_data = np.fromstring(self.fpga.read('buffer_out_bram', 8 * 2**9),dtype = '>H')
+        self.fpga.write_int('chan_bins_ctrl', 0)
+        self.fpga.write_int('chan_bins_ctrl', 1)
+        self.chan_bins = np.fromstring(self.fpga.read('chan_bins_bram', 4 * 2**14),dtype = '>H')
+        return
+
+    def read_accum_snap(self):
+        # Reads the avgIQ buffer. Returns I and Q as 32-b signed integers
+        self.fpga.write_int('accum_snap_ctrl', 0)
+        self.fpga.write_int('accum_snap_ctrl', 1)
+        accum_data = np.fromstring(self.fpga.read('accum_snap_bram', 16*2**9), dtype = '>i').astype('float')
+        accum_data /= 2.0**17
+        accum_data /= ((self.accum_len)/512.)
+        I0 = accum_data[0::4]
+        Q0 = accum_data[1::4]
+        I1 = accum_data[2::4]
+        Q1 = accum_data[3::4]
+        #I = np.hstack(zip(I0, I1))
+        #Q = np.hstack(zip(Q0, Q1))
+        I = np.dstack((I0, I1)).ravel()
+        Q = np.dstack((Q0, Q1)).ravel()
+        return I, Q
+
 
 
 

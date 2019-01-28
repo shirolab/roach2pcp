@@ -5,7 +5,7 @@ Put most recent commits at the top please!
 
 2019-01-16 15:30 CST [PB] ==================
 
-- set_pphases function fixed minor syntax bugs
+- set_phases function fixed minor syntax bugs
 - need set amps function (hacked for now)
 
 - Testing the roach configuration, and comparing with kidpy

@@ -52,17 +52,16 @@ class muxChannel(object):
 
         self.roachid  = roachid
 
-        self.fpga            = _lib_fpga.get_fpga_instance(roachid)
-        self.roach_iface     = _lib_fpga.roachInterface(self.fpga, roachid)
+        #self.fpga            = _lib_fpga.get_fpga_instance(roachid)
+        self.roach_iface     = _lib_fpga.roachInterface( roachid )
 
         # initialise writer daemon
         self.writer_daemon   = self._initialise_daemon_writer()
 
         # configure the tonelist - add functionality to modify datapacket_dict when the toneslist changes
-        #self.local_Toneslist       = toneslist.Toneslist
-        #self.local_Toneslist.load_tonelist = self._decorate_tonelist_loader( local_Toneslist.load_tonelist )
-
         self.toneslist       = toneslist.Toneslist(roachid, loader_function = _pd.read_csv)
+        self.writer_daemon.initialise_datapacket_dict( self.toneslist )
+        self.toneslist.load_tonelist = self._decorate_tonelist_loader( self.toneslist.load_tonelist )
 
         self.synth_lo        = None
         self.synth_clk       = None
@@ -76,9 +75,9 @@ class muxChannel(object):
         self.ROACH_CFG = roach_config[self.roachid]
 
         # generate directory path for data saving
-        self.save_data_dir  = os.path.join(ROOTDIR, filesys_config['savedatadir'], self.roachid)
+        self.DIRFILE_SAVEDIR  = os.path.join(ROOTDIR, filesys_config['savedatadir'], self.roachid)
         # create if doesn't exist already
-        os.makedirs(self.save_data_dir) if not os.path.exists(self.save_data_dir) else None
+        os.makedirs(self.DIRFILE_SAVEDIR) if not os.path.exists(self.DIRFILE_SAVEDIR) else None
 
         #self._initialise_daemon_writer()
         #self.initialse_hardware()
@@ -101,7 +100,7 @@ class muxChannel(object):
         self.writer_daemon.initialise_datapacket_dict( self.toneslist )
 
     def _initialise_daemon_writer(self):
-        writer_daemon = datalog_mp.dataLogger(self.roachid)
+        writer_daemon = datalog_mp.dataLogger( self.roachid )
         writer_daemon.start_daemon()
         return writer_daemon
 
@@ -137,34 +136,42 @@ class muxChannel(object):
         # get configuration for attenuators for self.roachid
         pass
 
-    def set_active_dirfile(new_dirfile = ""):
+    def set_active_dirfile(self, dirfile_name = "", dirfile_type = "stream", filename_suffix = "" ):#, field_suffix = ""):
         # if an empty string is given (default), then we pass the DIRFILE_SAVEDIR as the filename to lib_dirfile.create_dirfile,
         # which generates a new filename with the filename format given general_config['default_datafilename_format']).
         # This is likely to be the most used case
-        new_dirfile = self.DIRFILE_SAVEDIR if not new_dirfile else new_dirfile
+        dirfile_name = self.DIRFILE_SAVEDIR if not dirfile_name else dirfile_name
 
         # store last open filename for convenience
         self._last_closed_dirfile  = self.current_dirfile
-        self._last_closed_filename = self.current_filename
+        self._last_closed_filename = self.current_dirfile.name if type(self.current_dirfile) == _gd.dirfile else None
 
         # check type of new_dirfile
-        if type(new_dirfile) == _gd.dirfile:
+        if type(dirfile_name) == _gd.dirfile:
             print "dirfile file handle given. Nothing done"
             pass # unnecessary, but just to be explicit
 
-        elif type(new_dirfile) == str: #and not os.path.exists(new_dirfile):
-            # create new dirfile with max tones assuming newdirfile is a path. lib_dirfiles.create_dirfile handles existing paths
-            field_names = roach_config["packet_structure"]["max_ntones"] if not field_names else field_names
-
+        elif type(dirfile_name) == str:
             # create a new dirfile with the field names taken from the currently loaded tones-list
-            new_dirfile = lib_dirfiles.create_dirfile(dirfilename = new_dirfile, tones = field_names, datatag = datatag)
-
+            new_dirfile = _lib_dirfiles.create_pcp_dirfile( self.roachid, \
+                                                            dirfilename     = dirfile_name,    \
+                                                            tones           = self.toneslist, \
+                                                            filename_suffix = filename_suffix)
             # close previous dirfile
-            lib_dirfiles.close_dirfile(self._last_closed_dirfile)
+            _lib_dirfiles.close_dirfile(self._last_closed_dirfile)
 
         else:
-            print "Unrecognised input - {0}. Try again.".format(new_dirfile)
+            print "Unrecognised input - {0}. Try again.".format(dirfile_name)
+            return
 
+        # now set active dirfile in writer daemon
+        if self.writer_daemon.is_daemon_running():
+            self.writer_daemon.set_active_dirfile( dirfile_name )
+        else:
+            print "daemon writer doesn't appear to be running. Check and try again."
+
+        self.current_dirfile = dirfile_name
+        time.sleep(0.25)
 
     def read_existing_sweep_file(self, path_to_sweep):
         # check if filename appears to be a valid dirfile
@@ -187,11 +194,16 @@ class muxChannel(object):
             synthesiers have a minimum step size. Every attempt has been made to try to make the user know
             if the hardware is limiting the step, but care should still be taken.
 
-        sweep_avgs : float
+        sweep_avgs : int
             Number of packets to average per LO frequency. This is used to calculate an approximate integration
             time to collect sweep_avgs. There is a 5% time addition to ensure that at least this many packets are
             collected.
 
+        startidx : int
+            user defined number of samples to skip after lo switch (to be read from config, or set at run time)
+
+        stopidx : int
+            same as startidx, but for the other end (None reads all samples up to lo_switch)
         save_data : bool
             Flag to turn off data writing. Mainly for testing purposes. Default is, of course, True.
 
@@ -199,14 +211,23 @@ class muxChannel(object):
             - implement a method to determine if packets are being captured correctly? this is done!
 
         """
-        valid_kwargs = ["sweep_span", "sweep_step", "sweep_avgs", "save_data"]
+        valid_kwargs = ["sweep_span", "sweep_step", "sweep_avgs", "startidx", "stopidx", "save_data"]
 
         # parse the keyword arguments
+
+        timeout    = np.int32  ( sweep_kwargs.pop("timeout", 2.) )
+
         sweep_span = np.float32( sweep_kwargs.pop("sweep_span", self.ROACH_CFG["sweep_span"]) )
         sweep_step = np.float32( sweep_kwargs.pop("sweep_step", self.ROACH_CFG["sweep_step"]) )
         sweep_avgs = np.int32  ( sweep_kwargs.pop("sweep_avgs", self.ROACH_CFG["sweep_avgs"]) )
 
-        save_data = sweep_kwargs.pop("save_data", True)
+        startidx   = sweep_kwargs.pop("startidx"  , 0 )    #startidx = 0 # user defined number of samples to skip after lo switch (to be read from config, or set at run time)
+        stopidx    = sweep_kwargs.pop("stopidx"   , None ) #stopidx  = None # same, but at the other end (None reads all samples)
+
+        filename_suffix = sweep_kwargs.pop("filename_suffix", "")
+        #field_suffix    = sweep_kwargs.pop("field_suffix"   , "")
+
+        save_data = sweep_kwargs.pop("save_data", True) # not implmented yet (20190120)
 
         if sweep_kwargs.keys():
             print "Error: Optional argument(s) {0} not processed. Valid kwargs are {1}. Sweep not completed.".format(sweep_kwargs.keys(), valid_kwargs)
@@ -218,7 +239,7 @@ class muxChannel(object):
             return
 
         # perform a quick check that packets are being streamed to the roach
-
+        assert self.writer_daemon.check_packets_received(), "packets don't appear to be streaming. Check roaches and try again."
         # get list of LO frequencies for sweeping
         # roachcontainer.losweep_freqs # this is calculated from the LO freq, sweep bandwidths
         lo_freqs = np.arange(self.synth_lo.frequency - sweep_span/2., \
@@ -227,9 +248,8 @@ class muxChannel(object):
                                 dtype = np.float32)
 
         # create new dirfile and set it as the active file. Note that data writing is off by default.
-        self.writer_daemon.set_active_dirfile(datatag = "sweep_raw")
-
-        time.sleep(1)
+        #self.writer_daemon.set_active_dirfile(datatag = "sweep_raw")
+        self.set_active_dirfile( filename_suffix = "sweep_raw" + filename_suffix ) #, field_suffix = field_suffix )
 
         # set up sweep timing parameters
         step_times = []
@@ -245,11 +265,15 @@ class muxChannel(object):
         self.writer_daemon.start_writing()
 
         # wait until writing starts
+        t0 = time.time()
         while not self.writer_daemon.is_writing:
-            time.sleep(0.1)
-            continue
+            time.sleep(0.01)
+            if time.time() >= t0 + timeout : # wait for 2 seconds
+                print "timeout waiting for writer daemon to start writing. check to see if something went wrong."
+                return
+            else:
+                continue
 
-        #time.sleep(2)
         #loop over LO frequencies, while saving time at lo_step
         try:
             for lo_freq in lo_freqs:
@@ -262,21 +286,20 @@ class muxChannel(object):
         self.writer_daemon.pause_writing()
 
         # save lostep_times to current dirfile
-        self.current_dirfile.add(_gd.entry(_gd.RAW_ENTRY, "lo_freqs",     0, (_gd.FLOAT64, 1)))
-        self.current_dirfile.add(_gd.entry(_gd.RAW_ENTRY, "lostep_times", 0, (_gd.FLOAT64, 1)))
+        self.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lo_freqs"    , 0, (_gd.FLOAT64, 1) ) )
+        self.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lostep_times", 0, (_gd.FLOAT64, 1) ) )
 
-        self.current_dirfile.putdata("lo_freqs",     np.ascontiguousarray( lo_freqs,   dtype = np.float64 ))
+        self.current_dirfile.putdata("lo_freqs"    , np.ascontiguousarray( lo_freqs,   dtype = np.float64 ))
         self.current_dirfile.putdata("lostep_times", np.ascontiguousarray( step_times, dtype = np.float64 ))
 
-        # on my mac, we need to close and reopen the dirfile to flush the data before reading back in the data
-        # - not sure why, or if this is a problem on linux
+        # on mac, we need to close and reopen the dirfile to flush the data before reading back in the data
+        # - not sure why, or if this is a problem on linux - it doesn't hurt too much though
         self.current_dirfile.close()
         self.current_dirfile = _gd.dirfile(self.writer_daemon.current_filename, _gd.RDWR)
 
         # with the raw sweep data available, create the derived sweep file and save to the current dirfile (from lib_dirfiles)
-
-        lotimes = self.current_dirfile.getdata("lostep_times")
-        ptimes  = self.current_dirfile.getdata("python_timestamp")
+        lotimes = self.current_dirfile.getdata( "lostep_times" )
+        ptimes  = self.current_dirfile.getdata( "python_timestamp" ) # way to get the python_timestamp field with knowing any field suffix
 
         # align LO steps with python timestreams
         idxs = np.searchsorted(ptimes, lotimes)[1:] # miss out the first point (should always be 0)
@@ -284,13 +307,13 @@ class muxChannel(object):
 
         # read in IQ data and split up according to LO steps and store in a dictionary
         sweep_data_dict = {}
-        startidx = 0 # user defined number of samples to skip after lo switch (to be read from config, or set at run time)
-        stopidx  = None # same, but at the other end (None reads all samples)
 
-        for field in self.current_dirfile.field_list():
+        startidx = np.int32(startidx)
+        stopidx  = np.int32(stopidx) if stopidx is not None else stopidx
 
-            # currently are only averaging the tones K <- this is not good enough...
-            if field.startswith("K"):
+        for field in self.current_dirfile.field_list( _gd.RAW_ENTRY ):
+
+            if ("_I" in field) or ("_Q" in field): #field.startswith("K"):
 
                 # get the field data, split and average the lo switch indexes, taking data between startidx and stopidx, and pass to an array
                 data = np.array([np.mean(l[startidx:stopidx]) for l in np.split(self.current_dirfile.getdata(field), idxs)])
@@ -303,7 +326,8 @@ class muxChannel(object):
                     continue # continue to next iteration
 
                 # add new key to dictionary if data doesn't already exist
-                sweep_data_dict[tonenum] = np.zeros_like(data, dtype=np.complex64) if tonenum not in sweep_data_dict.keys() else sweep_data_dict[tonenum]
+                sweep_data_dict[tonenum] = np.zeros_like(data, dtype=np.complex64) if tonenum not in sweep_data_dict.keys() \
+                                                                                    else sweep_data_dict[tonenum]
                 if i_or_q.lower() == "i":
                     sweep_data_dict[tonenum].real = data
                 elif i_or_q.lower() == "q":
@@ -314,7 +338,7 @@ class muxChannel(object):
 
 
         # create new sweep dirfile and keep hold of it
-        self.current_sweep_dirfile = _lib_dirfiles.generate_sweep_dirfile(self.writer_daemon.DIRFILE_SAVEDIR, lo_freqs, sweep_data_dict)
+        self.current_sweep_dirfile = _lib_dirfiles.generate_sweep_dirfile(self.roachid, self.DIRFILE_SAVEDIR, lo_freqs, sweep_data_dict)
 
         # add metadata for
         _lib_dirfiles.add_metadata_to_dirfile(self.current_sweep_dirfile, {"raw_sweep_filename": self.current_dirfile.name})
@@ -322,9 +346,6 @@ class muxChannel(object):
         #return sweep_data_dict
         # close dirfile to prevent further writing
         #self.current_dirfile.close()
-
-
-
 
         # stop file write
         # get dirfilehandle
@@ -338,39 +359,31 @@ class muxChannel(object):
 
         # playing with subdirfiles
 
-    def stop_stream(self, **streamkwargs):
-        """
-
-        Function to use to stop streaming data to disk.
-
-        """
-        if self.writer_daemon.is_writing:
-            self.writer_daemon.pause_writing()
-
-            self.current_dirfile.close()
-            self.current_dirfile = _gd.dirfile(self.writer_daemon.current_filename, _gd.RDWR)
-
-        else:
-            print "writer doesn't appear to be running. Nothing done."
-
-
     def start_stream(self, **stream_kwargs):
         """
 
         Function to use to stream data to disk.
 
         """
+        filename_suffix = stream_kwargs.pop("filename_suffix", "")
+        stream_time     = stream_kwargs.pop("stream_time", None)
+        save_data       = stream_kwargs.pop("save_data", True) # currently not used
 
-        stream_time = stream_kwargs.pop("stream_time", None)
-        save_data   = stream_kwargs.pop("save_data", True) # currently not used
+        dirfile_name = stream_kwargs.pop("dirfilename", "") # allow the user to pass in and append to an existing dirfile
 
-        # check that sweep exists - warn if not and give option to proceed?
+        # check that sweep exists - warn if not and give option to proceed
         if self.current_sweep_dirfile is None:
             print "warning: no sweep file available - limited functionality available"
+            # proceed?
+
+        have_sweep = type( self.current_sweep_dirfile == _gd.dirfile )
 
         # create a new dirfile for the observation
-        self.writer_daemon.set_active_dirfile(datatag = "stream")
-        time.sleep(1)
+        self.set_active_dirfile( dirfile_name = dirfile_name, filename_suffix = filename_suffix, inc_derived_fields = have_sweep )
+
+        # add sweepdirfile as a new fragment to the new dirfile
+        if have_sweep:
+            pass
 
         # alias to current dirfile for convenience
         self.current_dirfile = self.writer_daemon.current_dirfile
@@ -392,6 +405,20 @@ class muxChannel(object):
 
             self.stop_stream()
 
+    def stop_stream(self, **streamkwargs):
+        """
+
+        Function to use to stop streaming data to disk.
+
+        """
+        if self.writer_daemon.is_writing:
+            self.writer_daemon.pause_writing()
+
+            self.current_dirfile.close()
+            self.current_dirfile = _gd.dirfile(self.writer_daemon.current_filename, _gd.RDWR)
+
+        else:
+            print "writer doesn't appear to be running. Nothing done."
 
 
     def shutdown(self):
