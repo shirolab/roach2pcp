@@ -1,10 +1,8 @@
 # functions for control and configuration of the fpga/ppc
 
-import time as _time, os as _os
-import struct as _struct
-
+import time as _time, os as _os, logging as _logging, struct as _struct, socket as _socket # inet_aton as _inet_aton
 import numpy as _np
-import socket as _socket # inet_aton as _inet_aton
+
 from ..configuration import firmware_registers as _firmware_registers,\
                             roach_config as _roach_config, \
                             network_config as _network_config,\
@@ -13,11 +11,13 @@ from ..configuration import firmware_registers as _firmware_registers,\
 
 from . import lib_qdr as _lib_qdr
 
+_logger = _logging.getLogger(__name__)
+
 try:
     import casperfpga as _casperfpga
 
 except ImportError:
-    print "can't find casperfpga module - limited functionality available"
+    _logger.warning( "can't find casperfpga module - limited functionality available" )
     _casperfpga = None
     pass
 
@@ -81,11 +81,11 @@ def get_fpga_instance(ipaddress):
         return _casperfpga.katcp_fpga.KatcpFpga( ipaddress, timeout = 1. )
     except RuntimeError:
         # bad things have happened, and nothing else should proceed
-        print "Error, fpga not connected."
-        return
+        _logger.exception( "Error, fpga not connected." )
+        return None
     except:
-        print 'Error connecting to \'{0}\'. Is it switched on? Check network settings!'.format(roachid)
-        return
+        _logger.exception( 'Error connecting to \'{0}\'. Is it switched on? Check network settings!'.format(ipaddress) )
+        return None 
 
 class roachInterface(object):
     """
