@@ -85,7 +85,7 @@ def get_fpga_instance(ipaddress):
         return None
     except:
         _logger.exception( 'Error connecting to \'{0}\'. Is it switched on? Check network settings!'.format(ipaddress) )
-        return None 
+        return None
 
 class roachInterface(object):
     """
@@ -109,6 +109,7 @@ class roachInterface(object):
         self.fpga = get_fpga_instance( self.network_config["roach_ppc_ip"] )
 
         if self.fpga == None:
+            _logger.warning( " No fpga instance present. If running a dummy, this is expected. Otherwise, something has gone wrong. " )
             return
 
         self.fpg_uploaded  = self.fpga.is_running()
