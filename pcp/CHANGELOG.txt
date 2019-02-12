@@ -2,6 +2,12 @@
 This file will document and keep track of changes with each push to the master branch.
 
 Put most recent commits at the top please!
+
+2019-02-13 16:00 CST [PB] ==================
+TODO
+    - initialise roach hardware from scratch
+    - fix casperfpga library for dummy roach (silence log messages)
+
 2019-02-12 16:00 CST [PB] ==================
 
 - major improvements in printing/logging
