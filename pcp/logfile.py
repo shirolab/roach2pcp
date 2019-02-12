@@ -46,25 +46,10 @@ Usage
 #    "python -m readout_new.logfile" which will run the script with __name__ = __main__ .
 
 
-# TODO
-# clean up socketserver on exit
-# implement rotating file handler for each day?
-
-# include how to set level?
-
-# tests to perform in unit tests
-# test initialisation of logger tc = rn.logfile.initalise_logging_daemon()
-# handle re-use address appropriately
-# test handler
-# configure logging daemon from config file
-# decide on naming convention for loggers
-# set log level interactively (will need a function in logDaemon to control that)
-# add option to print logger to screen as well for debugging purposes
-
 #------------------------------------------------------------------------------------------------------------
 
 # general stdlib imports
-import os, sys, errno, time, logging, psutil, pickle, struct, select, subprocess as _subprocess
+import os, sys, errno, itertools, time, logging, psutil, pickle, struct, select, subprocess as _subprocess
 # imports for daemon creation
 import signal, daemon, daemon.pidfile
 # imports for socket server
@@ -73,7 +58,10 @@ import socket, SocketServer
 from .lib.daemontemplate import daemonTemplate, daemonControl
 
 # Load configuration files
-from .configuration import filesys_config, logging_config
+from .configuration import filesys_config, logging_config, color_msg
+
+# Create logger
+_logger = logging.getLogger(__name__)
 
 # Set up directories from configuration files
 ROOTDIR = filesys_config['rootdir']
@@ -85,7 +73,7 @@ if not os.path.exists(LOGFILEDIR): os.mkdir(LOGFILEDIR)
 if not os.path.exists(PIDFILEDIR): os.mkdir(PIDFILEDIR)
 
 # Specify the logname for this script for easy modification later on if required
-LOGNAME = logging_config["logrootname"]
+LOGNAME = "pcp.logfile"
 LOGFILENAME = os.path.join(LOGFILEDIR, logging_config["logfilename"])
 
 # Get host and port from configuration file
@@ -95,12 +83,25 @@ LOGPORT = 9075 if LOGPORT == "default" else LOGPORT
 
 # Set the name of the daemon process to be spawned (for logging purposes)
 daemonname = "loggingdaemon"
-# Create logger
-#logger = logging.getLogger(daemonname)
 
 #------------------------------------------------------------------------------------------------------------
 #  ------  Class definitions ------
 #------------------------------------------------------------------------------------------------------------
+# Custom formatter to handle different formats for different logging levels
+# https://stackoverflow.com/questions/1343227/can-pythons-logging-format-be-modified-depending-on-the-message-log-level
+
+class pcpFormatter(logging.Formatter):
+    FORMATS = {logging.DEBUG : logging_config['formatters']['debugformat'].get('format', None),
+               'DEFAULT'     : logging_config['formatters']['screenformat'].get('format', None)}
+               #logging.INFO  : logging_config['formatters']['screenformat'].get('format', None),
+
+    def format(self, record):
+
+        self._fmt = self.FORMATS.get(record.levelno, self.FORMATS['DEFAULT'])
+
+        #levelname_color = color_msg.COLOR_SEQ % color_msg.LOGCOLORS[record.levelname]) + levelname + RESET_SEQ
+
+        return logging.Formatter.format(self, record)
 
 class LogRecordStreamHandler(SocketServer.StreamRequestHandler):
     """
@@ -149,7 +150,8 @@ class LogRecordSocketReceiver(SocketServer.ThreadingTCPServer):
 
         # make sure that the port is not in use
         try:
-            print host, port
+            #print host, port
+            logger.debug( "Initialising TCP server on {host}:{port}".format(host=host, port=port) )
             SocketServer.ThreadingTCPServer.__init__(self, (host, port), handler, False)
             self.allow_reuse_address = True # Prevent 'cannot bind to address' errors on restart
             self.server_bind()     # Manually bind, to support allow_reuse_address
@@ -161,7 +163,7 @@ class LogRecordSocketReceiver(SocketServer.ThreadingTCPServer):
                 self.logger.error("confiugration of tcpserver failed; address already in use")
                 #print "error, check to see if logdaemon is already running"
             else:
-                self.logger.exception("confiugration of tcpserver failed;")
+                self.logger.exception("configuration of tcpserver failed")
 
         # these may not currently be in use
         self.abort = 0
@@ -290,9 +292,8 @@ def start_logging_daemon():
     time.sleep(1) # wait a second for process to be generated
     subp.communicate() # kills zombie process left behind when daemon process spawns
 
-    # return an instance of the loggingController class that allows simple communication with the daemon process 
+    # return an instance of the loggingController class that allows simple communication with the daemon process
     return loggingController(daemonname)
-
 
 def get_new_logger(logname = "", initial_log_level = logging.NOTSET):
     """
@@ -340,6 +341,68 @@ def get_new_logger(logname = "", initial_log_level = logging.NOTSET):
         logger.addHandler(socketHandler)
 
     return logger
+
+def get_logging_handlers(logger, get_all = True):
+    """Function to return handlers for a given logger. If get_all is True, the function traverses
+    the logger hierarcy up to root. """
+
+    handler_dict = {logger.name: logger.handlers}
+
+    if get_all:
+        while logger.name is not "root":
+            handler_dict[logger.name] = logger.handlers
+            logger = logger.parent
+
+        handler_dict[logger.root.name] = logger.root.handlers
+
+    return handler_dict
+
+def set_log_level(which = 'screen', level = logging.INFO):
+    assert which in ['screen', 'file', 'all'], "Unknown option for which handler to set: {0}".format(which)
+    logger = logging.getLogger(__name__).root # get the root logger
+
+    #streamhandler = filter(lambda h: isinstance(h, logging.StreamHandler),          logger.handlers)[0]
+    #filehandler   = filter(lambda h: isinstance(h, logging.handlers.SocketHandler), logger.handlers)[0]
+    if len(logger.handlers) == 0:
+        _logger.warning("No handlers available for {0}".format(logger.name))
+
+    for handler in logger.handlers:
+        if which == "all":
+            handler.setLevel(level)
+        elif which == "screen":
+            handler.setLevel(level) if isinstance(handler, logging.StreamHandler) else None
+        elif which == "file":
+            handler.setLevel(level) if isinstance(handler, logging.handlers.SocketHandler) else None
+
+        logger.info("{handlertype} now logging with level: {level}".format( handlertype = type(handler),\
+                                                                            level = logging.getLevelName(handler.level)) )
+
+def log_to_screen(onoff, level=logging.DEBUG):
+    """Function to add a handler to print log messages to the screen. Adds a stream handler to the root
+    logger."""
+
+    assert type(onoff) == bool, "first argument needs to be True/False"
+    #assert logname in [""] + logging.root.manager.loggerDict.keys(), "logname is not an existing handler"
+
+    logger = logging.getLogger() # get the root logger
+    existing_streamhandlers = [h for h in logger.handlers if isinstance(h, logging.StreamHandler)]
+
+    if any(existing_streamhandlers):
+        logger.warning("Removing existing streamhandler")
+        [logger.handlers.remove(h) for h in existing_streamhandlers]
+
+    if onoff == True:
+
+        h = logging.StreamHandler()
+        h.name = logger.name
+        h.setLevel(level)
+
+        # get config from file
+        #formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        #h.setFormatter(formatter)
+
+        logger.addHandler(h)
+        logger.info("Logging to screen with level: {0}".format( logging.getLevelName(h.level)) )
 
 if __name__ =="__main__":
     print "running main"

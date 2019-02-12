@@ -5,17 +5,13 @@ parts of the application can call individual configurations as required by using
 'from configuration import <NAME>_config.'
 """
 
-# TODO
-# Log messages (but handle the configuration of the logger correctly (i.e. we can't log if it hasn't been configured!) )
-
 # import configurations here (might be able to do this dynamically using importlib and inspect for variables)
-import os as _os
+import os as _os, logging as _logging, logging.config as _logconfig
 import lib_config as _lib_config
 from .lib_config import config_dir, general_config, filesys_config, logging_config, \
                         network_config, roach_config, hardware_config, firmware_registers
-from .lib_config import reload_configfiles
 
-from .lib_config import verify_config_consistency
+from .lib_config import reload_configfiles, verify_config_consistency
 
 # define some constants for convenience
 ROOTDIR = filesys_config['rootdir']
@@ -45,7 +41,6 @@ if not _os.path.exists(LIVEFILEDIR): _os.makedirs(LIVEFILEDIR)
 FIRMWARE_REG_DICT = {}
 for roachid in roach_config.keys():
     FIRMWARE_REG_DICT[roachid] = _lib_config.get_firmware_register_dict(firmware_registers, roach_config[roachid]["firmware_file"]) ["registers"]
-
 
 # if the firmware directory doesn't exist already, there will likely be a problem, so raise an exception
 # (this should be moved to the filesys consistency checking code )

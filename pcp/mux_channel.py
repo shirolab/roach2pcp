@@ -15,16 +15,18 @@
 #       - daemon tracker - associated information regarding the daemon packet receiving daemonself.
 #           - this should have a live status update of whether saving is on/off...etc
 
-import os, sys, time, numpy as np, pandas as _pd
+import os, sys, time, logging as _logging, numpy as np, pandas as _pd
 
 import atexit
 from functools import wraps as _wraps
 import pygetdata as _gd
 
+_logger = _logging.getLogger(__name__)
+
 try:
     import casperfpga
 except ImportError:
-    print "can't find casperfpga module - limited functionality available"
+    _logger.warning( "can't find casperfpga module - limited functionality available" )
     casperfpga = None
     pass
 
@@ -38,12 +40,6 @@ from .lib import lib_dirfiles as _lib_dirfiles, lib_fpga as _lib_fpga
 
 from .lib.lib_hardware import initialise_connected_synths as _initialise_connected_synths
 SYNTHS_IN_USE = _initialise_connected_synths()
-
-# class localTonelist (toneslist.Toneslist):
-#     def __init__(self, roachid, loader_function):
-#         super(newTonelist, self).__init__(roachid, loader_function)
-#         self.load_tonelist = self._decorate_tonelist_loader( self.load_tonelist )
-
 
 class muxChannel(object):
     def __init__(self, roachid):
@@ -88,16 +84,9 @@ class muxChannel(object):
         @_wraps(original_loader_function)
         def load_and_update_datapacket_dict(*args, **kwargs):
             original_loader_function(*args, **kwargs)
-            self._refresh_datapacket_dict()
+            #self._refresh_datapacket_dict()
+            self.writer_daemon.initialise_datapacket_dict( self.toneslist )
         return load_and_update_datapacket_dict
-
-    def _refresh_datapacket_dict(self):
-        print "i did something else in a new function"
-        # this function is run when a new toneslist is loaded
-        # check writer_daemon is running correctly
-
-        # refresh datapacket_dict
-        self.writer_daemon.initialise_datapacket_dict( self.toneslist )
 
     def _initialise_daemon_writer(self):
         writer_daemon = datalog_mp.dataLogger( self.roachid )
@@ -136,7 +125,7 @@ class muxChannel(object):
         # get configuration for attenuators for self.roachid
         pass
 
-    def set_active_dirfile(self, dirfile_name = "", dirfile_type = "stream", filename_suffix = "" ):#, field_suffix = ""):
+    def set_active_dirfile(self, dirfile_name = "", dirfile_type = "stream", filename_suffix = "", inc_derived_fields = False ):#, field_suffix = ""):
         # if an empty string is given (default), then we pass the DIRFILE_SAVEDIR as the filename to lib_dirfile.create_dirfile,
         # which generates a new filename with the filename format given general_config['default_datafilename_format']).
         # This is likely to be the most used case
@@ -148,30 +137,30 @@ class muxChannel(object):
 
         # check type of new_dirfile
         if type(dirfile_name) == _gd.dirfile:
-            print "dirfile file handle given. Nothing done"
+            _logger.info( "dirfile file handle given. Nothing done" )
             pass # unnecessary, but just to be explicit
 
         elif type(dirfile_name) == str:
             # create a new dirfile with the field names taken from the currently loaded tones-list
-            new_dirfile = _lib_dirfiles.create_pcp_dirfile( self.roachid, \
-                                                            dirfilename     = dirfile_name,    \
-                                                            tones           = self.toneslist, \
-                                                            filename_suffix = filename_suffix)
+            dirfile_name = _lib_dirfiles.create_pcp_dirfile( self.roachid, \
+                                                            dirfilename        = dirfile_name,    \
+                                                            tones              = self.toneslist, \
+                                                            filename_suffix    = filename_suffix )
             # close previous dirfile
             _lib_dirfiles.close_dirfile(self._last_closed_dirfile)
 
         else:
-            print "Unrecognised input - {0}. Try again.".format(dirfile_name)
+            _logger.warning( "Unrecognised input - {0}. Try again.".format(dirfile_name) )
             return
 
         # now set active dirfile in writer daemon
         if self.writer_daemon.is_daemon_running():
             self.writer_daemon.set_active_dirfile( dirfile_name )
         else:
-            print "daemon writer doesn't appear to be running. Check and try again."
+            _logger.warning( "daemon writer doesn't appear to be running. Check and try again." )
 
         self.current_dirfile = dirfile_name
-        time.sleep(0.25)
+        time.sleep(0.1)
 
     def read_existing_sweep_file(self, path_to_sweep):
         # check if filename appears to be a valid dirfile
@@ -239,6 +228,7 @@ class muxChannel(object):
             return
 
         # perform a quick check that packets are being streamed to the roach
+        assert self.synth_lo is not None, "synthesiser doesn't appear to be initialised. "
         assert self.writer_daemon.check_packets_received(), "packets don't appear to be streaming. Check roaches and try again."
         # get list of LO frequencies for sweeping
         # roachcontainer.losweep_freqs # this is calculated from the LO freq, sweep bandwidths
@@ -364,6 +354,10 @@ class muxChannel(object):
 
         Function to use to stream data to disk.
 
+        Valid keyword arguements:
+            filename_suffix - str, default ""
+            stream_time - numeric value for length of time to stream data for, default None - streams forever
+
         """
         filename_suffix = stream_kwargs.pop("filename_suffix", "")
         stream_time     = stream_kwargs.pop("stream_time", None)
@@ -373,17 +367,18 @@ class muxChannel(object):
 
         # check that sweep exists - warn if not and give option to proceed
         if self.current_sweep_dirfile is None:
-            print "warning: no sweep file available - limited functionality available"
-            # proceed?
-
-        have_sweep = type( self.current_sweep_dirfile == _gd.dirfile )
+            _logger.warning( "no sweep file available - limited functionality available" )
+            response = raw_input("Proceed? [y/n] ")
+            if response == "n":
+                return
 
         # create a new dirfile for the observation
-        self.set_active_dirfile( dirfile_name = dirfile_name, filename_suffix = filename_suffix, inc_derived_fields = have_sweep )
+        self.set_active_dirfile( dirfile_name = dirfile_name, filename_suffix = filename_suffix )
 
         # add sweepdirfile as a new fragment to the new dirfile
-        if have_sweep:
-            pass
+
+        if isinstance( self.current_sweep_dirfile , _gd.dirfile ):
+            _lib_dirfiles.add_subdirfile_to_existing_dirfile(self.current_sweep_dirfile, self.current_dirfile)
 
         # alias to current dirfile for convenience
         self.current_dirfile = self.writer_daemon.current_dirfile
@@ -398,6 +393,7 @@ class muxChannel(object):
 
         # run for designated period of time if set, otherwise finish
         if stream_time is not None:
+            stream_time = float(stream_time)
             tstart = time.time()
             while time.time() < tstart + stream_time:
                 time.sleep(stream_time/10.)
@@ -433,8 +429,29 @@ class muxChannel(object):
         except AttributeError:
             pass
 
-# This script is the first code to be run after all hardware in connected and switched on
+class muxChannelList(object):
 
+    def __init__(self, channel_list):
+
+        _logging.debug("initialising muxChannelList with channel list {0}".format( channel_list ) )
+
+        assert isinstance(channel_list, (list, tuple)) and len(channel_list) > 0,\
+                                        _logger.error("input {0} not recognised".format( type(self.ROACH_LIST) ) )
+
+        self.ROACH_LIST = channel_list
+
+        # create the muxchannels
+        for roachid in channel_list:
+
+            _logging.debug("initialising muxChannel({roachid}) ".format( roachid=roachid ) )
+            setattr( self, roachid, muxChannel(roachid) )
+
+    def shutdown_all(self, which = None):
+        for roachid in self.ROACH_LIST:
+            try:
+                getattr(self, roachid).shutdown()
+            except:
+                _logger.exception("shutdown not successful.")
 
 # We could write a small helper script to check things are connected would be useful for initial configuration testing
 #   - check dnsmasq is running

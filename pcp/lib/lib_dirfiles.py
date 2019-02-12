@@ -88,7 +88,7 @@ def is_dirfile_valid(dirfile):
     except _gd.BadDirfileError:
         return False
 
-def create_pcp_dirfile(roachid, dirfilename="", dirfile_type = "stream", tones=21, inc_derived_fields = False, *dirfile_creation_flags, **kwargs):
+def create_pcp_dirfile(roachid, dirfilename="", dirfile_type = "stream", tones=21, *dirfile_creation_flags, **kwargs):
     """
     High level function to create a new dirfile according to the pcp standards. This creates a format file with a number of tones
     (to be standardised), and other packet information, read from roach_config (to be implmented).
@@ -138,9 +138,6 @@ def create_pcp_dirfile(roachid, dirfilename="", dirfile_type = "stream", tones=2
 
     if dirfile_type == "stream":
         dirfile = generate_main_rawfields(dirfile, roachid, tones, fragnum = 0)#, field_suffix = field_suffix)
-        if inc_derived_fields == True:
-            pass
-            # include derived fields here
 
     elif dirfile_type == "sweep":
         dirfile = generate_sweep_fields(dirfile, tones, array_size = array_size)#, field_suffix = field_suffix)

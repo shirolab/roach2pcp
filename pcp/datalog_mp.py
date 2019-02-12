@@ -351,8 +351,8 @@ class dataLogger(object):
                     i += 1 # this isn't used anymore...
 
             if datatowrite:
-                print "some data didn't get saved!!" # just in case some data is left in the buffer
-
+                _logger.warning( "some data didn't get saved!!" ) # just in case some data is left in the buffer
+                datatowrite = []
             time.sleep(0.1)
 
     ########################### Queue functions ###########################

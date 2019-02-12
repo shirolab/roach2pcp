@@ -11,13 +11,16 @@
     # - power_set, power_get
 
 #
+import logging as _logging
+_logger = _logging.getLogger(__name__)
+
 import pyvisa, time as _time, serial as _serial
 
 # requires py-visa-py
 try:
     _resouce_manager = pyvisa.ResourceManager("@py")
 except:
-    print "pyvisa and pyvisa-py are not operating correcly. Check that these packages are installed and try again."
+    _logger.warning( "pyvisa and pyvisa-py are not operating correcly. Check that these packages are installed and try again." )
 # metadata that will be used to determine when this class should be used
 
 # make of synthesizer (same key as used in the config file)
@@ -38,13 +41,13 @@ class apsinSynthDevice(object):
             # no link appears to be wrong ipaddress
             print "Error!", exc
             return
-        
+
         self.vendor   = "dummy"
         self.modelnum = "0"
-        
+
         self.src = apsinSynthSource(self,0)
 
-    
+
     def _connect(self, resource_string):
         return _resouce_manager.open_resource(resource_string)
 
@@ -67,14 +70,14 @@ class apsinSynthSource(object):
     def __init__(self,device,source):
         self.device = device
         self.sourceNumber = source
-        
+
         # initialise parameters
         self.frequency = 1e6 # in Hz
         self.output_power = 0 # in dBm
         self.reference = "int" # ext, int
         self.islocked  = False
-        
-    
+
+
     @property
     def rf_output(self):
         """Get or set the frequency of the synthesizer. Units should all be in Hz."""

@@ -5,13 +5,15 @@ Library containing functions used to handle and manipulate configuration files
 # TODO
 # Log messages (but handle the configuration of the logger correctly (i.e. we can't log if it hasn't been configured!) )
 
-import os as _os, sys as _sys, re as _re, yaml as _yaml
-import re
-
+import os as _os, sys as _sys, re as _re, yaml as _yaml, logging as _logging
 import numpy as np
+
+_logger = _logging.getLogger(__name__)
+
 import net_ifaces as ni
 import color_msg as cm
 
+# this information should be somewhere else....
 MIN_BUFFER = 0
 MAX_BUFFER = 9000
 
@@ -38,13 +40,16 @@ pcp_yaml_loader.add_implicit_resolver(  u'tag:yaml.org,2002:float', _re.compile(
                                         |\\.(?:nan|NaN|NAN))$''', _re.X),
                                     list(u'-+0123456789.')
                                     )
-
 def load_config_file(config_file):
     with open(config_file, "r") as f:
-        print( "Loaded {0}".format(config_file) )
-        #return _yaml.safe_load(f)
-        return _yaml.load(f, Loader=pcp_yaml_loader)
+        msg = "Loaded {0}".format(config_file)
+        # if logging hasn't been configured yet, print to screen
+        if not _logger.root.handlers or _logger.manager.emittedNoHandlerWarning:
+            print( msg )
+        else:
+            _logger.info( msg )
 
+        return _yaml.load(f, Loader=pcp_yaml_loader)
 
 def get_firmware_register_dict(firmware_registers, firmware_filename):
     """Given an .fpg filename, return a dictionary containing the corresponding data from firmware_registers.cfg """
@@ -66,7 +71,7 @@ def reload_configfiles():
    """Function to reload all configuration files. The easiest way to this is to
    reload the module."""
    reload(_sys.modules[__name__])
-   print "Module reloaded"
+   _logger.info( "Module {0} reloaded".format(__name__) )
 
 def save_current_config():
     """
@@ -387,21 +392,19 @@ def _is_valid_port(port):
 def _is_valid_ip(ip):
     if ip == "localhost":
         return True
-    m = re.match(r"^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$", ip)
+    m = match(r"^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$", ip)
     return bool(m) and all(map(lambda n: 0 <= int(n) <= 255, m.groups()))
 
 def _is_valid_mac(mac):
-    m = re.match("[0-9a-f]{2}([-:]?)[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", mac.lower())
+    m = _re.match("[0-9a-f]{2}([-:]?)[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", mac.lower())
     return bool(m)
 
-def verify_all_config(general_config, hardware_config, filesys_config,
-                      network_config, roach_config):
+def verify_all_config(general_config, hardware_config, filesys_config, network_config, roach_config):
     verify_general_config(general_config)
     verify_hardware_config(hardware_config)
     verify_filesys_config(filesys_config)
     verify_network_config(network_config)
     verify_config_consistency(roach_config, network_config, hardware_config)
-
 
 ############# General configuration #############
 general_config_file = _os.path.join(config_dir, 'general_config.cfg')

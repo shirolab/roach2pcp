@@ -8,6 +8,20 @@
 #    - check dnsmasq is running
 #   - check roach(s) are connected
 #
+import logging as _logging
+_logger = _logging.getLogger(__name__)
 
-if __name__ == "__main__":
-    print "done!"
+from .. import ROACH_LIST, mux_channel
+
+def print_current_roaches(muxchannel):
+
+    print "this is {roachid}".format(roachid = muxchannel.roachid)
+
+def verify_configuration():
+    pass
+
+
+def main():
+    _logger.info( "this is the function that is run" )
+
+    return mux_channel.muxChannelList( ROACH_LIST )

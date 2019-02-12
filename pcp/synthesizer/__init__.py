@@ -9,8 +9,8 @@ import synthclasses
 
 _cwd = _os.path.dirname(__file__)
 
-_modlist = [ _os.path.join(_cwd, _f) for _f in _os.listdir(_cwd) if _os.path.splitext(_f)[-1] == ".py" ]
-__all__ = [ _os.path.basename(_f)[:-3] for _f in _modlist if _os.path.isfile(_f) and not _f.endswith('__init__.py')]
+_modlist = [ _os.path.join(_cwd, _f)    for _f in _os.listdir(_cwd) if _os.path.splitext(_f)[-1] == ".py" ]
+__all__  = [ _os.path.basename(_f)[:-3] for _f in _modlist          if _os.path.isfile(_f) and not _f.endswith('__init__.py')]
 
 #print _modlist
 
