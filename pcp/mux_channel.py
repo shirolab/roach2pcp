@@ -176,10 +176,10 @@ class muxChannel(object):
         -----------------
 
         sweep_span : float
-            Frequency span in Hz about which to sweep the LO around its currently set value.
+            Frequency span, in Hz, about which to sweep the LO around its currently set value.
 
         sweep_step : float
-            Frequency step in Hz in which to sweep the LO around its currently set value. Note that some
+            Frequency step, in Hz, in which to sweep the LO around its currently set value. Note that some
             synthesiers have a minimum step size. Every attempt has been made to try to make the user know
             if the hardware is limiting the step, but care should still be taken.
 
@@ -210,6 +210,8 @@ class muxChannel(object):
         sweep_step = np.float32( sweep_kwargs.pop("sweep_step", self.ROACH_CFG["sweep_step"]) )
         sweep_avgs = np.int32  ( sweep_kwargs.pop("sweep_avgs", self.ROACH_CFG["sweep_avgs"]) )
 
+        self.toneslist.get_sweep_lo_freqs(sweep_span, sweep_step)
+
         startidx   = sweep_kwargs.pop("startidx"  , 0 )    #startidx = 0 # user defined number of samples to skip after lo switch (to be read from config, or set at run time)
         stopidx    = sweep_kwargs.pop("stopidx"   , None ) #stopidx  = None # same, but at the other end (None reads all samples)
 
@@ -219,12 +221,11 @@ class muxChannel(object):
         save_data = sweep_kwargs.pop("save_data", True) # not implmented yet (20190120)
 
         if sweep_kwargs.keys():
-            print "Error: Optional argument(s) {0} not processed. Valid kwargs are {1}. Sweep not completed.".format(sweep_kwargs.keys(), valid_kwargs)
+            _logger.error( "Error: Optional argument(s) {0} not processed. Valid kwargs are {1}. Sweep not completed.".format(sweep_kwargs.keys(), valid_kwargs) )
             return
-
         # check that daemonwriter is not currently writing, return if not as something has probably gone wrong
         if self.writer_daemon.is_writing == True:
-            print "Writer is already running. Aborting sweep. Stop current file and retry."
+            _logger.info( "Writer is already running. Aborting sweep. Stop current file and retry." )
             return
 
         # perform a quick check that packets are being streamed to the roach
@@ -245,13 +246,13 @@ class muxChannel(object):
         step_times = []
         # # get time for avg factor
         sleeptime = np.round( sweep_avgs / 488. * 1.05, decimals = 3 )#self.fpga.sample_rate) * 1.05 # num avgs / sample_rate + 5%
-        print "sleep time for sweep is {0}".format(sleeptime)
+        _logger.debug( "sleep time for sweep is {0}".format(sleeptime) )
 
         # alias to current dirfile for convenience
         self.current_dirfile = self.writer_daemon.current_dirfile
 
         # start writing data to file
-        print "starting to write data"
+        _logger.debug( "starting to write data" )
         self.writer_daemon.start_writing()
 
         # wait until writing starts
@@ -259,14 +260,15 @@ class muxChannel(object):
         while not self.writer_daemon.is_writing:
             time.sleep(0.01)
             if time.time() >= t0 + timeout : # wait for 2 seconds
-                print "timeout waiting for writer daemon to start writing. check to see if something went wrong."
+                _logger.error( "timeout waiting for writer daemon to start writing. check to see if something went wrong." )
                 return
             else:
                 continue
 
         #loop over LO frequencies, while saving time at lo_step
         try:
-            for lo_freq in lo_freqs:
+            #for lo_freq in lo_freqs:
+            for lo_freq in self.toneslist.sweep_lo_freqs:
                 self.synth_lo.frequency = lo_freq
                 step_times.append( time.time() )
                 time.sleep(sleeptime)
@@ -323,7 +325,7 @@ class muxChannel(object):
                 elif i_or_q.lower() == "q":
                     sweep_data_dict[tonenum].imag = data
                 else:
-                    print "unknown field name - something went wrong. "
+                    _logger.error( "unknown field name - something went wrong. " )
                     continue
 
 

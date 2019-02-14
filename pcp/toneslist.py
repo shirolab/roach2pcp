@@ -19,8 +19,10 @@ Date: 19.10.2018
 
 ### === Importation === ###
 
-import os as _os, csv as _csv
+import os as _os, csv as _csv, logging as _logging
 import numpy as _np, pandas as _pd, matplotlib.pyplot as _plt
+
+_logger = _logging.getLogger(__name__)
 
 from .configuration import ROOTDIR, TONELISTDIR, filesys_config, roach_config
 # Read in relevant config files
@@ -93,7 +95,7 @@ class Toneslist(object):
 	# interactive modification of toneslist to include/exclude tones (code exists in kidpy by JW)
 	# have a "loader" that allows anyone to write a loader function and provide a
 
-	def __init__(self, roachid, loader_function = _pd.read_csv, auto_load = True, **loaderkwargs):
+	def __init__(self, roachid, loader_function = _pd.read_csv, auto_load = True, synth_res = 1., **loaderkwargs):
 		"""
 		Tonelist object for storing and manipulating a set of tones for a given a Roach.
 
@@ -118,6 +120,10 @@ class Toneslist(object):
 			for debugging and special use cases. Default is True.
 
 			When True, the tonesfile filename given in the corresponding roach_config file.
+
+		synth_res : float
+			Frequency resolution of the synthesizer (Hz), used to constrain the available frequencies for the LO.
+			Default = 1 Hz.
 
 		**loaderkwargs : dict
 			Any keyword arguments to be passed into the user defined loader function
@@ -167,6 +173,7 @@ class Toneslist(object):
 		# set usable bandwidth
 		self._bandwidth = self.ROACH_CFG["max_pos_freq"] - self.ROACH_CFG["min_neg_freq"]
 
+		self.synth_resolution = synth_res # resolution of the synthesizer in Hz
 		# load the tonelist given in
 		self.tonelistfile = _os.path.join(TONELISTDIR, self.ROACH_CFG["tonelist_file"])
 
@@ -187,15 +194,17 @@ class Toneslist(object):
 		self.amps   = None
 		self.phases = None
 
+		self.sweep_lo_freqs = None
+
 		# load automatically if auto_load flag is set (default behaviour)
 		if auto_load == True:
 			# load tonelist - also finds optimum lo frequency for the newly loaded tonelist
 			self.load_tonelist( self.tonelistfile, **loaderkwargs )
 		else:
-			print """no data loaded. working in manual mode.
+			_logger.info( """no data loaded. working in manual mode.
 					use self.load_tonelist( tonefilename, **loaderkwargs) to load tone list and find optimum lo freq
 					use self.lo_freq = ... to change the required lo frequency. This automatically modifies the bb_freqs
-					"""
+					""" )
 
 	@property
 	def lo_freq(self):
@@ -204,10 +213,13 @@ class Toneslist(object):
 
 	@lo_freq.setter
 	def lo_freq(self, lo_freq):
+		# coerce new value to given resolution
+		lo_freq = self.synth_resolution * round( float(lo_freq) / self.synth_resolution) if lo_freq is not None else None
+		# set the lo frequency
 		self._lo_freq = lo_freq
 		# recalculate bb_freqs
 		self._update_frequencies()
-		# check tones fit in bandwidth
+		# check tones fit in bandwidth?
 
 	@property
 	def bb_freqs(self):
@@ -218,18 +230,18 @@ class Toneslist(object):
 	def bb_freqs(self, bb_freqs):
 		# before setting the bb_freqs, check that they fit within the available bandwidth
 
-		if type(bb_freqs) in [_np.ndarray, _pd.Series]:
+		if isinstance(bb_freqs, (_np.ndarray, _pd.Series) ) :
 
 			valid_idxs = self._get_valid_tone_idxs( bb_freqs )
 			if len(valid_idxs) != len( bb_freqs ) :
 				clipped_idxs = set( _np.arange( len(bb_freqs) ) ).difference(valid_idxs)
-				print "warning, some bb_freqs don't appear to fit into the bandwidth. The following have been clipped from bb_freqs:\n{0}".format(bb_freqs[clipped_idxs])
+				_logger.warning( " some bb_freqs don't appear to fit into the bandwidth. The following have been clipped from bb_freqs:\n{0}".format(bb_freqs[clipped_idxs]) )
 
 			# set only valid indices as bb_freqs
 			self._bb_freqs = bb_freqs[valid_idxs]
 
 		else:
-			print "bb_freqs = {0}".format(bb_freqs)
+			_logger.info ( "bb_freqs = {0}".format(bb_freqs) )
 			self._bb_freqs = bb_freqs
 
 	def _update_frequencies(self):
@@ -245,7 +257,7 @@ class Toneslist(object):
 			self.phases   = None
 
 		else:
-			print 'LO frequency must be set when loading RF frequencies.'
+			_logger.warning( 'LO frequency must be set when loading RF frequencies.' )
 
 
 	def _get_valid_tone_idxs(self, bb_freqs ):
@@ -286,7 +298,7 @@ class Toneslist(object):
 
 	def load_tonelist(self, tonelistfile = "", **loaderkwargs):
 		if not self.loader_function:
-			print "no loader function available. set one and try again."
+			_logger.error( "no loader function available. set one and try again." )
 			return
 
 		# read the default file unless specified
@@ -330,8 +342,8 @@ class Toneslist(object):
 			self.data = _pd.DataFrame(data = data)
 
 		else:
-			print """Couldn't parse data into a sensible format. Data has been returned, but is likely not usable.
-			Check the output of the loader function"""
+			_logger.error( """Couldn't parse data into a sensible format. Data has been returned, but is likely not usable.
+			Check the output of the loader function""" )
 			self.data = data
 			return
 
@@ -345,6 +357,7 @@ class Toneslist(object):
 
 		# TODO: could try to make this more interactive to include optimisation of lo-placement to
 		# keep tones too close to band edge... etc
+		# = need to take into account the resolution of the lo-frequency
 
 		data_range = self.data["freq"].max()/1.e6 - self.data["freq"].min()/1.e6
 
@@ -378,6 +391,26 @@ class Toneslist(object):
 
 	def place_blind_tones(self):
 		return
+
+	def get_sweep_lo_freqs(self, sweep_span, sweep_step):
+		"""
+		Function to get a set of LO frequencies from a given span and step size (in Hz).
+		This function will ensure that the number of points is odd to include the centre frequency
+		"""
+		if self.lo_freq is None:
+			_logger.warning( "no LO frequency set. Nothing done." )
+			return
+
+		npoints = int( sweep_span/sweep_step )
+		assert sweep_span > 2 * sweep_step, "sweep span is less than the step resulting in a {0} point sweep".format(npoints)
+		# ensure that the number of sweep points is odd to capture the centre frequency
+		npoints = npoints + 1 if npoints % 2 == 0 else npoints
+        # create sweep_lo_freqs in toneslist
+		self.sweep_lo_freqs = _np.linspace(self.lo_freq - sweep_span/2., \
+											self.lo_freq + sweep_span/2., \
+												npoints, dtype = _np.float64 )
+
+		_logger.debug( "set sweep LO frequencies - {0}".format( self.sweep_lo_freqs ) )
 
 	def plot_tonedata(self, units = "mhz"):
 		"""Plotting routine to check the loaded tonelist.  """
