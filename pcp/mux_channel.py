@@ -33,13 +33,16 @@ except ImportError:
 from .configuration import ROOTDIR, filesys_config, roach_config, network_config, hardware_config, general_config
 
 # import the synth dictionary from
-from .synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT # note that we might need to e careful of import order here
+from .synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT # note that we might need to be careful of import order here
 
 from . import toneslist, datalog_mp
 from .lib import lib_dirfiles as _lib_dirfiles, lib_fpga as _lib_fpga
 
 from .lib.lib_hardware import initialise_connected_synths as _initialise_connected_synths
 SYNTHS_IN_USE = _initialise_connected_synths()
+
+from .lib.lib_hardware import initialise_connected_attens as _initialise_connected_attens
+ATTENS_IN_USE = _initialise_connected_attens()
 
 class muxChannel(object):
     def __init__(self, roachid):
@@ -98,6 +101,10 @@ class muxChannel(object):
         self._initialise_synth_clk()
         self._initialise_synth_lo()
 
+        # initialise the attenuators
+        self._initialise_atten_in()
+        self._initialise_atten_out()
+
     def _initialise_synth_lo(self):
         # get configuration
         synthid_lo = self.ROACH_CFG["synthid_lo"]
@@ -121,9 +128,33 @@ class muxChannel(object):
         else:
             self.synth_clk = None
 
-    def _initialise_attenuation(self):
-        # get configuration for attenuators for self.roachid
-        pass
+    def _initialise_atten_in(self):
+        # get configuration for attenuators
+        att_in = self.ROACH_CFG["att_in"]
+        
+        if att_in is not None:
+            # get the dictionary of live attenuators and initialise
+            self.input_atten = ATTENS_IN_USE[att_in].attenobj
+            #set the input attenuation
+            self.input_atten.attenuation = 15
+
+        else:
+            self.input_atten = None
+
+
+    def _initialise_atten_out(self):
+        # get configuration for attenuators
+        att_out = self.ROACH_CFG["att_out"]
+        
+        if att_out is not None:
+            # get the dictionary of live attenuators and initialise
+            self.output_atten = ATTENS_IN_USE[att_out].attenobj
+            #set the input attenuation
+            self.output_atten.attenuation = 15
+
+        else:
+            self.output_atten = None
+
 
     def set_active_dirfile(self, dirfile_name = "", dirfile_type = "stream", filename_suffix = "", inc_derived_fields = False ):#, field_suffix = ""):
         # if an empty string is given (default), then we pass the DIRFILE_SAVEDIR as the filename to lib_dirfile.create_dirfile,

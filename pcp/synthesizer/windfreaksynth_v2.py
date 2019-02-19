@@ -20,7 +20,7 @@ class SynthHDDevice(object):
 	def __init__(self, dev_snr=dev_snrs[0], open_connection=True):
 		
 		self.vendor   = VENDOR
-                self.modelnum = MODELNUMS[0]
+		self.modelnum = MODELNUMS[0]
         
 		print 'Connecting to WFT SynthHD Synthesiser...'
 		self.serialNumber   = dev_snr
@@ -30,7 +30,7 @@ class SynthHDDevice(object):
 		self.POWMAX         = +20.0
 		self.serialPort     = self._findSerialPort()
 		self.conn           = serial.Serial(None, timeout=0.01)
-		self.conn.setPort(self.serialPort)
+		self.conn.port 		= self.serialPort
 		if open_connection:
 			self._openConnection()
 			self.getStatus()
@@ -43,7 +43,6 @@ class SynthHDDevice(object):
 		#self.src1 = SynthHDSource(self,1)
 		self.active_channel = self.getControlChannel()
 	
-
 	def _findSerialPort(self):
 		comports = serial.tools.list_ports.comports()
 		for port, desc, hwid in comports:
@@ -157,13 +156,18 @@ class SynthHDSource(object):
 		self.sourceNumber = sourceNumber
 		
 		assert self.sourceNumber in (0,1), "Source must be 0 or 1."
+
+		"""
 		if self.sourceNumber == 0:
 			self.SynthHDDevice.active_channel = self.sourceNumber
 			self.SynthHDDevice.setControlChannel(self.sourceNumber)
 		elif self.sourceNumber == 1:
 			self.SynthHDDevice.active_channel = self.sourceNumber
 			self.SynthHDDevice.setControlChannel(self.sourceNumber)
-	
+		"""
+		self.SynthHDDevice.active_channel = self.sourceNumber
+		self.SynthHDDevice.setControlChannel(self.sourceNumber)	
+
 	def _checkSource(self):
 		if self.SynthHDDevice.active_channel != self.sourceNumber:
 			self.SynthHDDevice.setControlChannel(self.sourceNumber)

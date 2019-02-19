@@ -29,7 +29,7 @@ SYNTH_LIST = configuration.hardware_config['synth_config'].keys()
 ATTEN_LIST = configuration.hardware_config['atten_config'].keys()
 
 # import all other sub-libraries
-import kid, synthesizer, unittests, mux_channel, datalog_mp, toneslist, scripts
+import kid, synthesizer, unittests, mux_channel, datalog_mp, toneslist, scripts, attenuator
 
 _logger = _logging.getLogger(__name__)
 _logger.info("Logging configuration completed - current loglevel = {0}".format(_logging.getLevelName(_logger.root.handlers[0].level)))

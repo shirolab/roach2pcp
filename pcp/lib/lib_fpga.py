@@ -64,7 +64,7 @@ def read_from_fpga_register(fpga, regs_to_read, firmware_reg_list):
 
     return data_dict
 
-def get_fpga_instance(ipaddress, timeout = 10.):
+def get_fpga_instance(ipaddress):
     """
 
     Function to return an fpga instance for a given roachid. Parameters are read from the configuration
@@ -78,7 +78,7 @@ def get_fpga_instance(ipaddress, timeout = 10.):
         return
 
     try:
-        return _casperfpga.katcp_fpga.KatcpFpga( ipaddress, timeout = timeout )
+        return _casperfpga.katcp_fpga.KatcpFpga( ipaddress, timeout = 10. )
     except RuntimeError:
         # bad things have happened, and nothing else should proceed
         _logger.exception( "Error, fpga not connected." )
@@ -106,7 +106,7 @@ class roachInterface(object):
         self.firmware_reg_list  = FIRMWARE_REG_DICT[roachid]
 
         # try to get an fpga instance for the given roachid
-        self.fpga = get_fpga_instance( self.network_config["roach_ppc_ip"], timeout = 10. )
+        self.fpga = get_fpga_instance( self.network_config["roach_ppc_ip"] )
 
         if self.fpga == None:
             _logger.warning( " No fpga instance present. If running a dummy, this is expected. Otherwise, something has gone wrong. " )
@@ -114,9 +114,8 @@ class roachInterface(object):
 
         self.fpg_uploaded  = self.fpga.is_running()
 
-        self.firmware_file = _os.path.join(_filesys_config["firmwaredir"], self.roach_config["firmware_file"])
+        self.firmware_file = _os.path.join(_filesys_config["firmwaredir"] , self.roach_config["firmware_file"])
         assert _os.path.exists(self.firmware_file)
-        _logger.debug( " firmware file path: {0}".format(self.firmware_file) )
 
         # these should be read from the config file
         self.FPGA_SAMP_FREQ = 256.e6
@@ -132,7 +131,7 @@ class roachInterface(object):
         """
 
         if not self.fpga.is_connected():
-            _logger.error( "it looks like the fpga is not connected" )
+            print "it looks like the fpga is not connected"
             return
 
         # try to upload self.firmware_file. This function checks to see if a firmware is already running,
@@ -141,7 +140,6 @@ class roachInterface(object):
 
         # calibrate qdr if uploading formware
         if we_uploaded_a_firmware:
-            _logger.info( "calibrating QDR")
             if self.calibrate_qdr() < 0:
                 print "qdr calibration failed."
             else:
@@ -178,47 +176,48 @@ class roachInterface(object):
             pass
         else:
             firmware_file = self.firmware_file
-        _logger.info( " connecting to fpga... " )
 
+        print 'Connecting...'
         tnow = _time.time()
-        while not self.fpga.is_connected(): #and self.fpga.test_connection() ):
+        #while not ( self.fpga.is_connected() and self.fpga.test_connection() ):
+        while not ( self.fpga.is_connected() ):
             if (_time.time() - tnow) > 1:
                 pass
             raise RuntimeError("Connection timeout to roach.")
 
         _time.sleep(0.1)
-        _logger.info( " connected to {0}".format( self.fpga.host ) )
+        print 'Connected to', self.fpga.host
 
         # check if a firmware is running, and if so, check if it is the same version as we're trying to upload
         if self.fpga.is_running() and not force_reupload:
 
-            _logger.info( "An existing firmware is already running. Checking versions..." )
+            print "An existing firmware is already running. Checking versions..."
             # read info from new firmware file to compare?
             running_devinfo = self.fpga._read_design_info_from_host()["77777"] # <-- dictionary of metadata from fpg
             new_devinfo     = _casperfpga.utils.parse_fpg(firmware_file)[0]["77777"] # parse firmware file and return devinfo only
 
             if running_devinfo['builddate'] == new_devinfo['builddate'] and running_devinfo['system'] == new_devinfo['system']:
-                _logger.info( "It looks like the same version. Use 'force_reupload = True' to re-upload the same firmware. Returning. " )
+                print "It looks like the same version. Use 'force_reupload = True' to re-upload the same firmware. Returning. "
                 return False
             else:
-                _logger.info( "Currently running - {0} ".format( running_devinfo ) )
-                _logger.info( "New file to upload - {0}".format( new_devinfo ) )
+                print "Currently running - " , running_devinfo
+                print "New file to upload - ", new_devinfo
 
                 if raw_input("Continue uploading new firmware? (y/n)") =='n':
-                    _logger.warning( "Operation cancelled. Nothing done. " )
+                    "Operation cancelled. Nothing done. "
                     self.fpg_uploaded = True
                     return False
 
-        _logger.info( "uploading firmware file \'{0}\' to roach".format(firmware_file) )
-        success = self.fpga.upload_to_ram_and_program(firmware_file, timeout = 1.)
+        print "uploading firmware file \'{0}\' to roach".format(firmware_file)
+        success = self.fpga.upload_to_ram_and_program(firmware_file, timeout = 10.)
         _time.sleep(0.5)
         if success == None:
-            _logger.info( 'successfully uploaded:'.format( firmware_file ) )
+            print 'Successfully uploaded:', firmware_file
             self.firmware_file = firmware_file
             self.fpg_uploaded = True
             return True
         else:
-            _logger.debug( "firmware file upload failed with {0}".format( success ) )
+            print success
             self.fpg_uploaded = False
             raise RuntimeError("Firmware upload failed.")
 
@@ -226,7 +225,7 @@ class roachInterface(object):
     def calibrate_qdr(self):
     # Calibrates the QDRs. Run after loading firmware
         write_to_fpga_register(self.fpga, { 'dac_reset_reg': 1 }, self.firmware_reg_list )
-        _logger.debug( 'DAC on' )
+        print 'DAC on'
 
         bFailHard = False
         calVerbosity = 1
@@ -234,19 +233,19 @@ class roachInterface(object):
         qdrMemName = self.firmware_reg_list['qdr0_reg']
         qdrNames   = [self.firmware_reg_list['qdr0_reg'], self.firmware_reg_list['qdr1_reg']] # <- not used?
 
-        _logger.debug( 'estimated fpga clock rate =', self.fpga.estimate_fpga_clock() )
+        print 'Fpga Clock Rate =', self.fpga.estimate_fpga_clock()
         self.fpga.get_system_information()
         results = {}
         for qdr in self.fpga.qdrs:
-            _logger.debug( "qdr information {0}, {1}".format( (qdr, qdr.name) ) )
+            print qdr, qdr.name
             mqdr = _lib_qdr.Qdr.from_qdr(qdr)
             results[qdr.name] = mqdr.qdr_cal2(fail_hard=bFailHard)
-        _logger.debug( 'qdr cal results:'.format( results ) )
+        print 'qdr cal results:',results
         for qdr in self.fpga.qdrs:
             if not results[qdr.name]:
-                _logger.error( '\n************ QDR Calibration FAILED ************' )
+                print '\n************ QDR Calibration FAILED ************'
                 return -1
-        _logger.info( 'QDR Calibrated' )
+        print 'QDR Calibrated'
         return 0
 
     def configure_downlink_registers(self):

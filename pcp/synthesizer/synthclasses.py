@@ -70,7 +70,6 @@ class pcp_dummySynthDevice(_dummy_synth.dummySynthDevice):
 
 class pcp_dummySynthSource(_dummy_synth.dummySynthSource):
 
-
     def __init__(self,device,source):
         # instantiate class to get all of the factory provided methods
         super(pcp_dummySynthSource, self).__init__(device,source)
@@ -153,7 +152,6 @@ class pcp_windfreaksynthDevice(_windfreaksynth.SynthHDDevice):
 
     def getSourceObj(self,channel):
         return pcp_windfreaksynthSource(self,channel)
-
 
 
 class pcp_windfreaksynthSource(_windfreaksynth.SynthHDSource):

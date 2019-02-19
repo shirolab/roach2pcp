@@ -10,8 +10,13 @@ print "synth dict : ", _SYNTH_HW_DICT
 
 #from ..synthesizer import synth_class_dict
 
+from ..attenuator import ATTEN_HW_DICT as _ATTEN_HW_DICT
+from ..attenuator import rudat_6000_30_usb_v2
+print "atten dict : ", _ATTEN_HW_DICT
+
 from collections import namedtuple as _namedtuple
 _synthObj = _namedtuple("synthObj", ["config", "synthobj"])
+_attenObj = _namedtuple("attenObj", ["config", "attenobj"])
 
 def initialise_connected_synths():
     """
@@ -113,3 +118,101 @@ entry in the configuration files and try again.".format(synthids=list(synth_chec
 # create synth object dict that is initialised and can be used by everything else
 
 # have simple reload() function to reinitialise hardware on demand
+
+def initialise_connected_attens():
+    """
+    Function to initialise and return a set of attenuator objects according to
+    parameters given in the configuration file.
+
+    Returns
+    -------
+    synth_dict : dict
+        Dictionary containing all the attenuator objects that are defined and active in the
+        hardware configuration file.
+
+    """
+
+    # read in attenuators configuration (make copies here to not alter the live configuration dict, may not be a bad thing?)
+    atten_config = hardware_config["atten_config"].copy()
+    #roach_params = roach_config["roach_params"].copy()
+    roach_params = roach_config.copy()
+    
+    # for each entry, return the key, if active is true
+    for key, cfg in atten_config.items():
+        if cfg["active"] is not True:
+            del atten_config[key]
+
+    # should only be left with active - check that its not empty, and is the number
+    # defined in roach_config
+
+    # get the unique attenids defined in the roach_config for both in and out
+    attenids = set([roach[key] for roach in roach_params.values() \
+                                for key in roach.keys() if key.startswith("att_") if roach[key] is not None])
+
+    # compare and check that all attenids are in the active atten_config dict
+    atten_check = attenids.difference(atten_config.keys()) # should be empty
+
+    if len(atten_check) > 0:
+        raise RuntimeError,\
+        "attenids = {attenids} are not present/active in the configuration files. Please check that each roach has an active attenuator \
+entry in the configuration files and try again.".format(attenids=list(atten_check))
+        return
+
+    #identify physical synth devices, not repeating entries for multi-port devices
+    patten_dict = {}
+    for attenid, attencfg in atten_config.items():
+        vendor = str(attencfg['vendor']).lower()
+        model = str(attencfg['model']).lower()
+        serial = str(attencfg['serial']).lower()
+        if serial in [None, 'none', '']:
+            physical_id = vendor + '_' + model
+        else:
+            physical_id = vendor + '_' + model + '_' + serial
+        patten_dict[physical_id] = {'vendor':vendor, 'model':model, 'serial':serial}
+        patten_dict[physical_id]['class_key'] = vendor + '_' + model
+        atten_config[attenid]['physical_id'] = physical_id
+
+    # Initializing RUDAT USB attenuators
+    rudats = rudat_6000_30_usb_v2.get_attenuators()
+
+    #instantiate the synth base classes for each physical device
+    patten_device_instances = {}
+    patten_dict_aux = patten_dict.copy()
+    for n in range(len(rudats)):
+        patten = patten_dict.keys()[n]
+
+        atten_dict_key = patten_dict[patten]['class_key']
+        atten_dict_serial = patten_dict[patten]['serial']
+
+        atten_dict_class = _ATTEN_HW_DICT[atten_dict_key](rudats[int(atten_dict_serial)])
+        patten_device_instances[patten] = atten_dict_class
+        del patten_dict_aux[patten]
+
+    #instantiate for dummy roaches (not connected attenuators)
+    for patten in patten_dict_aux:
+        atten_dict_key = patten_dict_aux[patten]['class_key']
+        atten_dict_class = _ATTEN_HW_DICT[atten_dict_key]
+        
+        patten_device_instances[patten] = atten_dict_class()
+
+    atten_device_object_dict = dict.fromkeys(atten_config, None)
+    atten_source_object_dict = dict.fromkeys(atten_config, None)
+
+    for attenid, attencfg in atten_config.items():
+
+        #get the right labels
+        physical_id = attencfg['physical_id']
+        atten_dict_key = "_".join((attencfg['vendor'], str(attencfg['model']))).lower()
+
+        #add the synth device object to a dict
+        atten_device_object_dict[attenid] = _attenObj(config = attencfg, attenobj = patten_device_instances[physical_id])
+
+        #add the synth source object to a dict
+        atten_source_object_dict[attenid] = _attenObj(config = attencfg, attenobj = patten_device_instances[physical_id].getSourceObj(channel=attencfg['channel']))
+
+        #NOTE: the synth object is currently a device-like object, but could be source-like to match the valon/windfreak drivers.
+
+        print ('\n\n atten_device_object_dict[attenid]',atten_device_object_dict[attenid])
+        print ('\n\n atten_source_object_dict[attenid]',atten_source_object_dict[attenid])
+
+    return atten_source_object_dict

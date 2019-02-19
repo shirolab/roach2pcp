@@ -202,7 +202,7 @@ def get_attenuators():
 	
 	atts = [Attenuator(d) for d in devs]
 	#print atts
-	names = [int(att.serial_number[-3:]) for att in atts]
+	names = [int(att.serial_number) for att in atts]
 	#print names
 	
 	return dict(zip(names,atts))

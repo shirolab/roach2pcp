@@ -46,7 +46,7 @@ class ValonDevice(object):
 		self.serialPort           = self._findSerialPort()
 		self.baud_requested       = baud
 		self.conn                 = serial.Serial(None, baudrate=baud,timeout=0.1)
-		self.conn.setPort(self.serialPort)
+		self.conn.port 			  = self.serialPort
 		self.status=u''
 		self.s1=None
 		self.s2=None
