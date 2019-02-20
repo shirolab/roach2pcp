@@ -617,6 +617,23 @@ class dataLogger(object):
 
         return self._read_response_from_eventqueue(command_to_send)
 
+    def check_packet_data(self):
+        """
+
+        Diagnositic function to determine if packets are being received and collected.
+
+        Scope : mainthread
+
+        """
+        # check that the file writer is not running
+        command_to_send = ("CHECK_PACKET_DATA", None)
+        if not self.is_writing:
+            self._add_to_queue_and_wait(command_to_send)
+        else:
+            print "currently saving data. Stop and retry"
+
+        return self._read_response_from_eventqueue(command_to_send)
+
         #try:
         #    packet_check = self._eventqueue.get( timeout=.1 )
         #    return packet_check if packet_check != command_to_send else False
@@ -734,8 +751,14 @@ class dataLogger(object):
             # the packet, and so this could be triggered by stray packets if using SOCK_RAW
 
             rd,wr,err = select.select([self._sockethandle],[],[], 1.)
-
             send_response_to_eventqueue( bool(rd) )
+
+        elif command == "CHECK_PACKET_DATA":
+            # select on the socket to see if there packets are being received. Doesn't do anything with
+            # the packet, and so this could be triggered by stray packets if using SOCK_RAW
+
+            rd,wr,err = select.select([self._sockethandle],[],[], 1.)
+            send_response_to_eventqueue( self._sockethandle.recv(9000) )
 
         elif command == "CLEAR_QUEUE":
             print "Queue cleared"

@@ -3,20 +3,13 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
-2019-02-13 21:30 CST [PB] ==================
+2019-02-20 18:00 CST [PB] ==================
+- Bug fixes:
+  - found the issue with datapacket parsing - now fixed
+  - fixed BoundsError in sweep function
+  
+Tested roach @ UC from cold switch on - all appears to be working (not tested with resonators)
 
-- Some actions from the MUSCAT readout meeting demonstration
-
-    -x remove test_connection check in roach interface (it fails if no fpg is uploaded)
-    -x increase default timeout of fpga to 10 s.
-    -x toneslist - coerce lo_freq to synth resolution - works and checked that bb_freqs are calculated from coerced lo_freq
-    -x added sweep_lo_freqs function to toneslist class
-
-    TODO
-        - initialise roach hardware from scratch
-        - fix casperfpga library for dummy roach (silence log messages)
-        - MTU check on interface (configuration verification)
-        - make sure number of sweep points is odd in order to capture didq at the centre frequency
 
 2019-02-12 16:00 CST [PB] ==================
 

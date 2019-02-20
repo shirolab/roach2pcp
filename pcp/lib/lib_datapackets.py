@@ -57,10 +57,10 @@ def generate_datapacket_dict( roachid, tones ):
     kid_fields_I, kid_fields_Q = toneslist.gen_tone_iq_fields( tones.data.sort_values('freq', ascending=True)['name'] )
 
     # configure the datatype and indicies that are used to extract the data from the packet. The indicies will be used to create a slice object
-    kid_fields_Ieven = {fn: [kidentry_type, kid_field_datatype, (i/2),        (i/2+4),        None, kid_datatype] for i,fn in enumerate(kid_fields_I[::2]) }
-    kid_fields_Qeven = {fn: [kidentry_type, kid_field_datatype, (512 + i/2),  (512+i/2 + 4),  None, kid_datatype] for i,fn in enumerate(kid_fields_Q[::2]) }
-    kid_fields_Iodd  = {fn: [kidentry_type, kid_field_datatype, (1024 + i/2), (1024+i/2 + 4), None, kid_datatype] for i,fn in enumerate(kid_fields_I[1::2])}
-    kid_fields_Qodd  = {fn: [kidentry_type, kid_field_datatype, (1536 + i/2), (1536+i/2 + 4), None, kid_datatype] for i,fn in enumerate(kid_fields_Q[1::2])}
+    kid_fields_Ieven = {fn: [kidentry_type, kid_field_datatype, (i/2),          (i/2+4),          None, kid_datatype] for i,fn in enumerate(kid_fields_I[::2]) }
+    kid_fields_Qeven = {fn: [kidentry_type, kid_field_datatype, (4*512 + i/2),  (4*512+i/2 + 4),  None, kid_datatype] for i,fn in enumerate(kid_fields_Q[::2]) }
+    kid_fields_Iodd  = {fn: [kidentry_type, kid_field_datatype, (4*1024 + i/2), (4*1024+i/2 + 4), None, kid_datatype] for i,fn in enumerate(kid_fields_I[1::2])}
+    kid_fields_Qodd  = {fn: [kidentry_type, kid_field_datatype, (4*1536 + i/2), (4*1536+i/2 + 4), None, kid_datatype] for i,fn in enumerate(kid_fields_Q[1::2])}
 
     # -- old code - to delete --
     # kid_fields_Ieven = {"K{kidnum:04d}_I".format(kidnum=i): [kidentry_type, kid_field_datatype, (i/2), (i/2+4), None, kid_datatype]              for i in range(ntones)[::2]}
