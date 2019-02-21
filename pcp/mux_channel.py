@@ -131,7 +131,7 @@ class muxChannel(object):
     def _initialise_atten_in(self):
         # get configuration for attenuators
         att_in = self.ROACH_CFG["att_in"]
-        
+
         if att_in is not None:
             # get the dictionary of live attenuators and initialise
             self.input_atten = ATTENS_IN_USE[att_in].attenobj
@@ -145,7 +145,7 @@ class muxChannel(object):
     def _initialise_atten_out(self):
         # get configuration for attenuators
         att_out = self.ROACH_CFG["att_out"]
-        
+
         if att_out is not None:
             # get the dictionary of live attenuators and initialise
             self.output_atten = ATTENS_IN_USE[att_out].attenobj
@@ -264,10 +264,10 @@ class muxChannel(object):
         assert self.writer_daemon.check_packets_received(), "packets don't appear to be streaming. Check roaches and try again."
         # get list of LO frequencies for sweeping
         # roachcontainer.losweep_freqs # this is calculated from the LO freq, sweep bandwidths
-        lo_freqs = np.arange(self.synth_lo.frequency - sweep_span/2., \
-                                self.synth_lo.frequency + sweep_span/2., \
-                                sweep_step,\
-                                dtype = np.float32)
+        # lo_freqs = np.arange(self.synth_lo.frequency - sweep_span/2., \
+        #                         self.synth_lo.frequency + sweep_span/2., \
+        #                         sweep_step,\
+        #                         dtype = np.float32)
 
         # create new dirfile and set it as the active file. Note that data writing is off by default.
         #self.writer_daemon.set_active_dirfile(datatag = "sweep_raw")
@@ -312,8 +312,8 @@ class muxChannel(object):
         self.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lo_freqs"    , 0, (_gd.FLOAT64, 1) ) )
         self.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lostep_times", 0, (_gd.FLOAT64, 1) ) )
 
-        self.current_dirfile.putdata("lo_freqs"    , np.ascontiguousarray( lo_freqs,   dtype = np.float64 ))
-        self.current_dirfile.putdata("lostep_times", np.ascontiguousarray( step_times, dtype = np.float64 ))
+        self.current_dirfile.putdata("lo_freqs"    , np.ascontiguousarray( self.toneslist.sweep_lo_freqs, dtype = np.float64 ))
+        self.current_dirfile.putdata("lostep_times", np.ascontiguousarray( step_times,                    dtype = np.float64 ))
 
         # on mac, we need to close and reopen the dirfile to flush the data before reading back in the data
         # - not sure why, or if this is a problem on linux - it doesn't hurt too much though
@@ -359,11 +359,10 @@ class muxChannel(object):
                     _logger.error( "unknown field name - something went wrong. " )
                     continue
 
-
         # create new sweep dirfile and keep hold of it
-        self.current_sweep_dirfile = _lib_dirfiles.generate_sweep_dirfile(self.roachid, self.DIRFILE_SAVEDIR, lo_freqs, sweep_data_dict)
+        self.current_sweep_dirfile = _lib_dirfiles.generate_sweep_dirfile(self.roachid, self.DIRFILE_SAVEDIR, self.toneslist.sweep_lo_freqs, sweep_data_dict)
 
-        # add metadata for
+        # add metadata
         _lib_dirfiles.add_metadata_to_dirfile(self.current_sweep_dirfile, {"raw_sweep_filename": self.current_dirfile.name})
 
         #return sweep_data_dict

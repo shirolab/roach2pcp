@@ -47,7 +47,6 @@ class apsinSynthDevice(object):
 
         self.src = apsinSynthSource(self,0)
 
-
     def _connect(self, resource_string):
         return _resouce_manager.open_resource(resource_string)
 

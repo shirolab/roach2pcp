@@ -3,13 +3,14 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
-2019-02-20 18:00 CST [PB] ==================
+2019-02-20 22:00 CST [PB] ==================
 - Bug fixes:
   - found the issue with datapacket parsing - now fixed
   - fixed BoundsError in sweep function
-  
-Tested roach @ UC from cold switch on - all appears to be working (not tested with resonators)
+  - changed default phases to be random [0:2*pi]
+  - fixed logging in datalog_mp (TODO need to implement ability to change loglevel on the fly - currently fixed upon init)
 
+Also, tested roach @ UC from cold switch on - all appears to be working (not tested with resonators)
 
 2019-02-12 16:00 CST [PB] ==================
 

@@ -55,7 +55,8 @@ import os, sys, time, signal, select, threading
 import numpy as np
 import multiprocessing as mp
 import setproctitle
-import logging
+import logging as _logging
+_logger = _logging.getLogger(__name__)
 from collections import deque
 import pygetdata as _gd
 
@@ -127,7 +128,7 @@ class dataLogger(object):
     def __init__(self, roachid):
 
         # get logger instance
-        self.logger = logging.getLogger("logging.daemon.{name}".format(name = roachid))
+        self.logger = _logging.getLogger("logging.daemon.{name}".format(name = roachid))
         self.roachid = roachid
 
         # make sure roachid is a string
@@ -248,12 +249,14 @@ class dataLogger(object):
         # ingore signal.SIGINT and handle terminate manually (allows for clean up)
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
+        # run basic config to initialise logging for the new process
+        _logging.basicConfig()
         # start writer thread. Initially the writer is paused
         self._filewritethread.start()
 
         # outer 'exit' loop - once this exit event is set, the function completes and the daemon terminates
         while not self._exitevent.is_set():
-            print "in daemon; is writing", self.is_writing
+            _logger.debug( "in main loop daemon; is writing = {0}".format( self.is_writing ) )
 
             # inner while loop, runs when no event is set
             while not self._ctrlevent.is_set():
@@ -281,7 +284,7 @@ class dataLogger(object):
             #     # this is a dirty way to kill the process, but might be worthwhile
             #     print "broke out"
             #     break
-        print "cleaning up"
+        _logger.debug ( "left main writer loop - cleaning up" )
 
     def _parse_packet_and_append_to_dirfile(self, datatowrite):
         """
@@ -351,7 +354,7 @@ class dataLogger(object):
                     i += 1 # this isn't used anymore...
 
             if datatowrite:
-                _logger.warning( "some data didn't get saved!!" ) # just in case some data is left in the buffer
+                _logger.warning( "{0} packets didn't get saved!!".format( len(datatowrite) ) ) # just in case some data is left in the buffer
                 datatowrite = []
             time.sleep(0.1)
 
@@ -362,7 +365,7 @@ class dataLogger(object):
         if self.is_daemon_running():
 
             self._ctrlevent.set()
-            print "mainthread: command put into queue"
+            _logger.debug ( "command put into queue" )
             self._eventqueue.put( command_to_send )
 
             # wait for the _ctrlevent to be reset by the daemon process (see _data_logger_main)
@@ -370,18 +373,21 @@ class dataLogger(object):
                 continue
 
         else:
-            print "mainthread: data logging daemon doesn't appear to running."
+            _logger.debug ( " data logging daemon doesn't appear to running." )
 
     def _read_response_from_eventqueue(self, initial_command):
         # check if write status is the same as the command we sent. How to properly handle it if so? It most likely is due to the main daemon process being terminated
         #self.writer_alive = writer_status if writer_status != command_to_send else self.writer_alive
         #return self.writer_alive
 
+        _logger.debug("waiting for queue to empty\r")
         while not self._cmdevent.is_set():
-            sys.stdout.write("waiting for queue to empty\r")
+            #sys.stdout.write("waiting for queue to empty\r")
+            time.sleep(0.1)
             continue
 
-        sys.stdout.write("\ncommand queue empty - moving on.")
+        #sys.stdout.write("\ncommand queue empty - moving on.")
+        _logger.debug("\ncommand queue empty - moving on.")
         self._cmdevent.clear()
 
         try:
@@ -389,7 +395,7 @@ class dataLogger(object):
             return value_from_queue if value_from_queue != initial_command else False
 
         except mp.queues.Empty:
-            print "queue empty, no data returned."
+            _logger.warning ( "queue empty, no data returned." )
             return False
 
     def _check_dirfile_and_datapacket_dict_match(self):
@@ -426,7 +432,7 @@ class dataLogger(object):
         """
 
         if self.is_writing:
-            print "Warning, it appears a dirfile is currently being written. Stop and retry."
+            _logger.warning (" it appears a dirfile is currently being written. Stop and retry." )
             return
 
         self._datapacket_dict = lib_datapackets.generate_datapacket_dict( self.roachid, tones )
@@ -465,7 +471,7 @@ class dataLogger(object):
         #     return False
 
     def _clean_up(self):
-        print "cleaning up"
+        _logger.info( "cleaning up" )
         self._sockethandle.close()
 
         # join main process (assuming that it has been started)
@@ -488,17 +494,17 @@ class dataLogger(object):
         """
         # check that a dirfile exists and is valid
         if not lib_dirfiles.is_dirfile_valid( self.current_dirfile ):
-            print "dirfile invalid - returning"
+            _logger.error( "dirfile invalid - returning" )
             return
 
         # check that the datapacket_dict looks like it should
         if type( self._datapacket_dict ) != dict:
-            print "datapacket_dict does not appear to be valid."
+            _logger.error( "datapacket_dict does not appear to be valid." )
             return
 
         # check that fields of dirfile and dtapacket dict match - important!
         if not self._check_dirfile_and_datapacket_dict_match():
-            print "dirfile fields and datapacket dicts don't match!"
+            _logger.error( "dirfile fields and datapacket dicts don't match!" )
             return
 
         command_to_send = ("START_WRITE", 0)
@@ -551,15 +557,15 @@ class dataLogger(object):
 
         # check that dirfile write thread is not active, else return
         if self.is_writing:
-            print "Warning, it appears a dirfile is currently being written. Stop and retry."
+            _logger.warning( "it appears a dirfile is currently being written. Stop and retry." )
             return
 
         # check new_dirfile is valid - required to access dirfile.name to pass the filename between processes
         if not lib_dirfiles.is_dirfile_valid ( new_dirfile ):
-            print "dirfile {0} not valid".format(new_dirfile)
+            _logger.warning( "dirfile {0} not valid".format(new_dirfile) )
             return
 
-        print "new dirfile filename", new_dirfile.name
+        _logger.debug( "new dirfile filename".format( new_dirfile.name ) )
 
         command_to_send = ("SET_FILE", new_dirfile.name)
         self._add_to_queue_and_wait ( command_to_send )
@@ -598,7 +604,7 @@ class dataLogger(object):
         command_to_send = ("GET_FILE", 0)
         self._add_to_queue_and_wait(command_to_send)
         self.current_filename = self._read_response_from_eventqueue(command_to_send)
-        print "active dirfile {0}".format(self.current_filename)
+        _logger.info( "active dirfile {0}".format(self.current_filename) )
 
     def check_packets_received(self, num_packets= 101):
         """
@@ -613,7 +619,7 @@ class dataLogger(object):
         if not self.is_writing:
             self._add_to_queue_and_wait(command_to_send)
         else:
-            print "currently saving data. Stop and retry"
+            _logger.error( "currently saving data. Stop and retry" )
 
         return self._read_response_from_eventqueue(command_to_send)
 
@@ -630,7 +636,7 @@ class dataLogger(object):
         if not self.is_writing:
             self._add_to_queue_and_wait(command_to_send)
         else:
-            print "currently saving data. Stop and retry"
+            _logger.error( "currently saving data. Stop and retry" )
 
         return self._read_response_from_eventqueue(command_to_send)
 
@@ -667,17 +673,17 @@ class dataLogger(object):
                 self._cmdevent.set()
                 self._eventqueue.put( data_to_send )
             else:
-                print "queue not empty - something bad has happened - nothing done"
+                _logger.error( "queue not empty - something bad has happened - nothing done" )
 
         # try to read from queue/pipe to read
         try:
             command_to_process = self._eventqueue.get( timeout=1. )
 
         except mp.queues.Empty:
-            print "queue empty, nothing done"
+            _logger.error( "queue empty, nothing done" )
             return
 
-        print "daemonthread: received command "
+        _logger.debug( "received command " )
         # make sure that the command conforms to some simple requirements
         assert  type(command_to_process) == tuple \
             and len(command_to_process) == 2 \
@@ -685,7 +691,7 @@ class dataLogger(object):
 
         command, args = command_to_process
 
-        print "\nReceived command ({0}, {1})\n".format( command, args )
+        _logger.debug( "\nReceived command ({0}, {1})\n".format( command, args ) )
 
         #  a set of if statements to handle all available options.
         if command == "SET_DATAPACKET_DICT":
@@ -696,7 +702,7 @@ class dataLogger(object):
 
             # don't proceed if the writer is currently saving data. Return the current dirfile name
             if self.is_writing:
-                print "writer is currently saving data. Stop and try again."
+                _logger.error( "writer is currently saving data. Stop and try again." )
                 send_response_to_eventqueue( self.current_filename )
                 return
 
@@ -710,11 +716,11 @@ class dataLogger(object):
             self.current_dirfile  = _gd.dirfile(new_filename, _gd.RDWR)
 
             try:
-                print "current dirfile is {0}".format(self.current_dirfile.name)
+                _logger.debug( "current dirfile is {0}".format(self.current_dirfile.name) )
                 self.current_filename = self.current_dirfile.name
 
             except:
-                print "Bad dirfile. Possibly the dirfile is closed?"
+                _logger.error( "Bad dirfile. Possibly the dirfile is closed?" )
                 self.current_filename = None
 
             # send new dirfile filename to main process
@@ -729,7 +735,7 @@ class dataLogger(object):
 
             # clear all packets currently in data queue
             self._writer_queue.clear()
-            print "starting writing"
+            _logger.debug( "starting writing" )
 
             # sets the writing flag to True (see inner loop of _writer_thread_function)
             self.is_writing = True

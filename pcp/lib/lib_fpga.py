@@ -305,7 +305,7 @@ class roachInterface(object):
         """
         # Generates a frequency comb for the DAC or DDS look-up-tables. DAC_LUT = True for the DAC LUT. Returns I and Q
         amps   = _np.ones_like(freqs)  if amps   is None else amps
-        phases = _np.zeros_like(freqs) if phases is None else phases
+        phases = _np.random.uniform(0., 2.*_np.pi, len(freqs)) if phases is None else phases
 
         freqs = _np.round( freqs / self.DAC_FREQ_RES) * self.DAC_FREQ_RES
         amp_full_scale = (2**15 - 1)

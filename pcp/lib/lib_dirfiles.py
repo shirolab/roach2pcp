@@ -10,7 +10,8 @@
 # timing info x 7?
 
 # create a new dirfile, and populate with correct fieldnames
-import os, sys, time, shutil, numpy as np, pandas as _pd
+import os, sys, time, shutil, numpy as np, pandas as _pd, logging as _logging
+_logger = _logging.getLogger(__name__)
 import pygetdata as _gd
 from ..configuration import filesys_config, roach_config, general_config, lib_config, firmware_registers
 from .. import toneslist
@@ -36,17 +37,17 @@ def is_path_a_dirfile(path_to_check):
     """
     # ensure that the path exists
     if not os.path.exists(path_to_check):
-        print "Path doesn't exist."
+        _logger.warning( "Path doesn't exist." )
         return False
 
     # ensure that the path is a directory
     if not os.path.isdir(path_to_check):
-        print "Path is not a directory"
+        _logger.warning( "Path is not a directory" )
         return False
 
     # check if directory contains a 'format' file
     if not 'format' in os.listdir(path_to_check):
-        print "no format file found in directory."
+        _logger.warning( "no format file found in directory." )
         return False
 
     # open and read the first line of the format file (which should read # "This is a dirfile format file."")
@@ -62,7 +63,7 @@ def is_path_a_dirfile(path_to_check):
     if "dirfile format file" in first_line:
         return True
     else:
-        print "{0} doesn't look like a valid dirfile".format(path_to_check)
+        _logger.warning( "{0} doesn't look like a valid dirfile".format(path_to_check) )
         return False
 
 def is_dirfile_valid(dirfile):
@@ -120,7 +121,7 @@ def create_pcp_dirfile(roachid, dirfilename="", dirfile_type = "stream", tones=2
                                                         else _gd.CREAT|_gd.RDWR|_gd.UNENCODED|_gd.EXCL
     # check if the file path is a valid dirfile
     if is_path_a_dirfile(dirfilename):
-        print "It looks like {0} is a valid dirfile. Opening and returning dirfile.".format(dirfilename)
+        _logger.info( "It looks like {0} is a valid dirfile. Opening and returning dirfile.".format(dirfilename) )
         return _gd.dirfile(dirfilename, _gd.RDWR|_gd.UNENCODED)
 
     # check if path exists - join new filename to existing path. Or if no path is given, create file in cwd
@@ -133,7 +134,7 @@ def create_pcp_dirfile(roachid, dirfilename="", dirfile_type = "stream", tones=2
 
     # create the new dirfile
     dirfile = _gd.dirfile(dirfilename, dirfileflagint)
-    print "new dirfile created; {0}".format(dirfile.name)
+    _logger.info( "new dirfile created; {0}".format(dirfile.name) )
     # add main fields according to the type required
 
     if dirfile_type == "stream":
@@ -216,10 +217,11 @@ def generate_sweep_fields(dirfile, tones, array_size = 501 ):#, field_suffix="")
     # create list of field names
     swp_fields = toneslist.get_tone_fields( tones )
     #swp_fields = ["K{kidnum:04d}".format(kidnum=i) for i in range(tones)]
+    _logger.debug("size of carray for sweep data = {0}".format(array_size) )
 
     sweep_entry_freq       = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + "lo_freqs", 0, (_gd.FLOAT64,   array_size)) ]
     sweep_entries_to_write = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + field_name, 0, (_gd.COMPLEX64, array_size)) for field_name in swp_fields ]
-
+    _logger.debug("generating new sweep fields: {0}".format(sweep_entries_to_write) )
     #return sweep_entries_to_write
     for entry in sweep_entry_freq + sweep_entries_to_write:
         dirfile.add(entry)
@@ -442,7 +444,8 @@ def generate_sweep_dirfile( roachid, dirfilename, lo_frequencies, complex_sweep_
     """
     tone_names       = complex_sweep_data_dict.keys()#len(complex_sweep_data_dict)
     num_sweep_points = len(lo_frequencies)
-    print tone_names
+    _logger.debug( "tone names used for sweep fields: {0}".format( tone_names ) )
+    _logger.debug( "number of sweep points {0}".format( num_sweep_points ) )
 
     # create new dirfile for derived sweep
     sweep_dirfile = create_pcp_dirfile(roachid, dirfilename, dirfile_type = "sweep", tones = tone_names, array_size = num_sweep_points, filename_suffix = "sweep")
