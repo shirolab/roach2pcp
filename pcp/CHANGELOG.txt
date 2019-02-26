@@ -3,14 +3,21 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
-2019-02-20 22:00 CST [PB] ==================
+
+2019-02-26 13:00 CST [PB] ==================
+
+Bug fixes:
+  - IMPORTANT: fixed bug in data slicing. Should now be extracting the correct values.
+    - TODO: this brings up point of how to deal with a difference in tonelist + tones written (if they are different)? needs thought
+  - Fixed bug with tone writing in lib_fpga when setting random phases (note that when writing dds_lut, phases are not randomised )
+
+2019-02-20 18:00 CST [PB] ==================
 - Bug fixes:
   - found the issue with datapacket parsing - now fixed
   - fixed BoundsError in sweep function
-  - changed default phases to be random [0:2*pi]
-  - fixed logging in datalog_mp (TODO need to implement ability to change loglevel on the fly - currently fixed upon init)
 
-Also, tested roach @ UC from cold switch on - all appears to be working (not tested with resonators)
+Tested roach @ UC from cold switch on - all appears to be working (not tested with resonators)
+
 
 2019-02-12 16:00 CST [PB] ==================
 

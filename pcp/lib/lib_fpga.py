@@ -304,8 +304,7 @@ class roachInterface(object):
             Arrays of I and Q waveforms ready to be written to the DAC and DDS.
         """
         # Generates a frequency comb for the DAC or DDS look-up-tables. DAC_LUT = True for the DAC LUT. Returns I and Q
-        amps   = _np.ones_like(freqs)  if amps   is None else amps
-        phases = _np.random.uniform(0., 2.*_np.pi, len(freqs)) if phases is None else phases
+        _logger.debug("frequencies being generated: {0}".format(freqs) )
 
         freqs = _np.round( freqs / self.DAC_FREQ_RES) * self.DAC_FREQ_RES
         amp_full_scale = (2**15 - 1)
@@ -318,7 +317,13 @@ class roachInterface(object):
 
         fft_bin_index = _np.round((freqs / samp_freq) * fft_len).astype('int')
 
-        phases, amps = ( _np.zeros_like(fft_bin_index), _np.ones_like(fft_bin_index) ) if which == "dds_lut" else (phases, amps)
+        if which == "dds_lut":
+            phases, amps = ( _np.zeros_like(fft_bin_index), _np.ones_like(fft_bin_index) )
+        else:
+            phases, amps = ( _np.ones_like(freqs) if amps is None else amps,\
+                            _np.random.uniform(0., 2.*_np.pi, len(freqs)) if phases is None else phases )
+
+        _logger.debug( "amps and phases to write: {0}, {1}".format(amps, phases) )
 
         spec = _np.zeros(fft_len, dtype='complex')
         spec[fft_bin_index] = amps * _np.exp( 1j * phases )
