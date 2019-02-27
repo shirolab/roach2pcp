@@ -196,3 +196,44 @@ class pcp_windfreaksynthSource(_windfreaksynth.SynthHDSource):
     # add a print status method for convenience
     def print_status(self):
         _pprint.pprint(vars(self), width=1)
+
+# ===========================================================================================
+# === Synthesizer ADF4355====================================================================
+# ===========================================================================================
+
+# Alternative version for MUSCAT channels
+
+import synth_ADF4355 as _synth_ADF4355 # hide the base class from the user by prepending "_"
+
+class pcp_adf4355synthDevice(_synth_ADF4355.ADF4355synthDevice):
+    # pass vendor and model nums as class attributes for checking when creating SYNTH_HW_DICT
+    VENDOR = _synth_ADF4355.VENDOR
+    MODELNUMS = _synth_ADF4355.MODELNUMS
+
+    def __init__(self):
+        # instantiate class to get all of the factory provided methods
+        super(pcp_adf4355synthDevice, self).__init__()
+
+    def getSourceObj(self,channel):
+        return pcp_adf4355synthSource(self,channel)
+
+class pcp_adf4355synthSource(_synth_ADF4355.ADF4355synthSource):
+
+    def __init__(self,device,source):
+        # instantiate class to get all of the factory provided methods
+        super(pcp_adf4355synthSource, self).__init__(device,source)
+
+    @property
+    def frequency(self): # getter
+        """Get or set the frequency of the synthesizer. Units should all be in Hz."""
+        self._frequency = self.getFrequency()
+        return self._frequency
+
+    @frequency.setter
+    def frequency(self, frequency):
+        self.setFrequency(frequency)
+        self._frequency=frequency
+        
+    # add a print status method for convenience
+    def print_status(self):
+        _pprint.pprint(vars(self), width=1)
