@@ -54,13 +54,14 @@ def read_from_fpga_register(fpga, regs_to_read, firmware_reg_list):
     register names as keys, and returned values as dictionary values.
 
     NOT TESTED YET - 20190119
+    FIXED AND TESTED - 20190226
     """
     data_dict = dict.fromkeys(regs_to_read.keys())
 
-    if check_registers_are_valid( regs_to_read, firmware_reg_list.keys() ):
+    if check_registers_are_valid( regs_to_read.keys(), firmware_reg_list.keys() ):
         # read data from the fpga
         for regname, sizetoread in regs_to_read.iteritems():
-            data_dict[regname] = fpga.read( regname, sizetoread )
+            data_dict[regname] = fpga.read(firmware_reg_list[regname], sizetoread )
 
     return data_dict
 
@@ -463,20 +464,22 @@ class roachInterface(object):
         self.Q_dds_katcp = np.dstack((self.Q_katcp[:,3], self.Q_katcp[:,2])).ravel()
 
     def getADC(self,n=2**11):
-        self.fpga.write_int('adc_snap_ctrl',0)
-        self.fpga.write_int('adc_snap_ctrl',1)
-        self.fpga.write_int('adc_snap_trig',0)
-        self.fpga.write_int('adc_snap_trig',1)
-        self.fpga.write_int('adc_snap_trig',0)
-        adc = (np.fromstring(self.fpga.read('adc_snap_bram',(n/2)*8),dtype='>i2')).astype('float')
-        #print adc
+        # Read I and Q signals from ADC
+        write_to_fpga_register(self.fpga, { 'adc_snap_ctrl_reg': 0 }, self.firmware_reg_list )
+        write_to_fpga_register(self.fpga, { 'adc_snap_ctrl_reg': 1 }, self.firmware_reg_list )
+        write_to_fpga_register(self.fpga, { 'adc_snap_ctrl_reg': 0 }, self.firmware_reg_list )
+        write_to_fpga_register(self.fpga, { 'adc_snap_trig_reg': 1 }, self.firmware_reg_list )
+        write_to_fpga_register(self.fpga, { 'adc_snap_trig_reg': 0 }, self.firmware_reg_list )
+        
+        adc = (_np.fromstring(read_from_fpga_register(self.fpga, { 'adc_snap_bram_reg': (n/2)*8 }, self.firmware_reg_list)['adc_snap_bram_reg'] ,dtype='>i2')).astype('float')
+
         adc /= 2.0**15
         # ADC full scale is 2.2 V
         #adc *= 0.909091
         #I = np.hstack(zip(adc[0::4],adc[1::4]))
         #Q = np.hstack(zip(adc[2::4],adc[3::4]))
-        I = np.dstack((adc[0::4],adc[1::4])).ravel()
-        Q = np.dstack((adc[2::4],adc[3::4])).ravel()
+        I = _np.dstack((adc[0::4],adc[1::4])).ravel()
+        Q = _np.dstack((adc[2::4],adc[3::4])).ravel()
         return I,Q
 
     def read_chan_snaps(self):

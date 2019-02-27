@@ -3,6 +3,13 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
+2019-02-27 21:31 [MB] ==================
+
+Bug fixes:
+  - read_from_fpga_register fixed and tested
+  - Function getADC from lib_fpga now can read the I and Q signals from ADC.(the scale is right?)
+
+Driver of Jose Miguel synthesizer added
 
 2019-02-26 13:00 CST [PB] ==================
 
