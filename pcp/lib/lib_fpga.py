@@ -463,14 +463,19 @@ class roachInterface(object):
         self.I_dds_katcp = np.dstack((self.I_katcp[:,3], self.I_katcp[:,2])).ravel()
         self.Q_dds_katcp = np.dstack((self.Q_katcp[:,3], self.Q_katcp[:,2])).ravel()
 
-    def getADC(self,n=2**11):
-        # Read I and Q signals from ADC
+    # KidPy functions
+    # 1. Read ADC
+    # 2. Read FFT
+    # 3. Digital Down Converter Time Domain
+    # 4. Downsampled Channel Magnitudes
+    def read_ADC(self,n=2**11):
         write_to_fpga_register(self.fpga, { 'adc_snap_ctrl_reg': 0 }, self.firmware_reg_list )
         write_to_fpga_register(self.fpga, { 'adc_snap_ctrl_reg': 1 }, self.firmware_reg_list )
         write_to_fpga_register(self.fpga, { 'adc_snap_ctrl_reg': 0 }, self.firmware_reg_list )
         write_to_fpga_register(self.fpga, { 'adc_snap_trig_reg': 1 }, self.firmware_reg_list )
         write_to_fpga_register(self.fpga, { 'adc_snap_trig_reg': 0 }, self.firmware_reg_list )
         
+        # Read I and Q signals from ADC 
         adc = (_np.fromstring(read_from_fpga_register(self.fpga, { 'adc_snap_bram_reg': (n/2)*8 }, self.firmware_reg_list)['adc_snap_bram_reg'] ,dtype='>i2')).astype('float')
 
         adc /= 2.0**15
@@ -482,23 +487,78 @@ class roachInterface(object):
         Q = _np.dstack((adc[2::4],adc[3::4])).ravel()
         return I,Q
 
+    def read_FFT(self)
+        write_to_fpga_register(self.fpga, { 'fft_snap_ctrl_reg': 0 }, self.firmware_reg_list )
+        write_to_fpga_register(self.fpga, { 'fft_snap_ctrl_reg': 1 }, self.firmware_reg_list )
+
+        # Read the FFT 
+        fft_snap = (_np.fromstring(read_from_fpga_register(self.fpga, {'fft_snap_bram_reg':(2**9)*8}, self.firmware_reg_list)['fft_snap_bram_reg'], dtype='>i2')).astype('float')
+        
+        I0 = fft_snap[0::4]
+        Q0 = fft_snap[1::4]
+        I1 = fft_snap[2::4]
+        Q1 = fft_snap[3::4]
+        
+        fft_mag0 = _np.sqrt(I0**2 + Q0**2)
+        fft_mag0 = 20*_np.log10(fft_mag0)
+
+        fft_mag1 = _np.sqrt(I1**2 + Q1**2)
+        fft_mag1 = 20*_np.log10(fft_mag1)
+
+        return fft_mag0, fft_mag1
+
+    def read_mixer_snaps(self, chan, mixer_out = True, fir = True):
+        if (chan % 2) > 0: # if chan is odd
+            write_to_fpga_register(self.fpga, { 'DDC_chan_sel_reg': (chan - 1) / 2 }, self.firmware_reg_list )
+        else:
+            write_to_fpga_register(self.fpga, { 'DDC_chan_sel_reg': chan/ 2 }, self.firmware_reg_list )
+        
+        write_to_fpga_register(self.fpga, { 'DDC_fftbin_ctrl_reg': 0}, self.firmware_reg_list )
+        write_to_fpga_register(self.fpga, { 'DDC_mixerout_ctrl_reg': 0 }, self.firmware_reg_list )
+
+        if fir:
+            write_to_fpga_register(self.fpga, { 'fir_snap_ctrl_reg': 0}, self.firmware_reg_list )
+            write_to_fpga_register(self.fpga, { 'fir_snap_ctrl_reg': 1}, self.firmware_reg_list )
+
+        write_to_fpga_register(self.fpga, { 'DDC_fftbin_ctrl_reg': 1}, self.firmware_reg_list )
+        write_to_fpga_register(self.fpga, { 'DDC_mixerout_ctrl_reg': 1}, self.firmware_reg_list )
+
+        mixer_in = (_np.fromstring(read_from_fpga_register(self.fpga, {'DDC_fftbin_bram_reg': 16*2**14}, self.firmware_reg_list)['DDC_fftbin_bram_reg'],dtype='>i2')).astype('float')
+        
+        if mixer_out:
+            mixer_out = (_np.fromstring(read_from_fpga_register(self.fpga, {'DDC_mixerout_bram_reg': 8*2**14}, self.firmware_reg_list)['DDC_mixerout_bram_reg'],dtype='>i2')).astype('float')
+            if fir:
+                lpf_out = (_np.fromstring(read_from_fpga_register(self.fpga, {'DDC_fftbin_bram_reg': 8*2**14}, self.firmware_reg_list)['DDC_fftbin_bram_reg'],dtype='>i2')).astype('float')
+            else:
+                lpf_out = []
+            return mixer_in, mixer_out, lpf_out
+        else:
+            return mixer_in
+
     def read_chan_snaps(self):
         # Reads the snap blocks at the bin select RAM and channelizer mux
-        self.fpga.write_int('buffer_out_ctrl', 0)
-        self.fpga.write_int('buffer_out_ctrl', 1)
-        self.chan_data = np.fromstring(self.fpga.read('buffer_out_bram', 8 * 2**9),dtype = '>H')
-        self.fpga.write_int('chan_bins_ctrl', 0)
-        self.fpga.write_int('chan_bins_ctrl', 1)
-        self.chan_bins = np.fromstring(self.fpga.read('chan_bins_bram', 4 * 2**14),dtype = '>H')
+        write_to_fpga_register(self.fpga, { 'buffer_out_ctrl': 0}, self.firmware_reg_list )
+        write_to_fpga_register(self.fpga, { 'buffer_out_ctrl': 1}, self.firmware_reg_list )
+
+        self.chan_data = _np.fromstring(read_from_fpga_register(self.fpga, {'buffer_out_bram': 8*2**9}, self.firmware_reg_list)['buffer_out_bram'],dtype = '>H')
+
+        write_to_fpga_register(self.fpga, { 'chan_bins_ctrl': 0}, self.firmware_reg_list )
+        write_to_fpga_register(self.fpga, { 'chan_bins_ctrl': 1}, self.firmware_reg_list )
+
+        self.chan_bins = _np.fromstring(read_from_fpga_register(self.fpga, {'chan_bins_bram':4*2**14}, self.firmware_reg_list)['chan_bins_bram'],dtype = '>H')
+
         return
 
     def read_accum_snap(self):
         # Reads the avgIQ buffer. Returns I and Q as 32-b signed integers
-        self.fpga.write_int('accum_snap_ctrl', 0)
-        self.fpga.write_int('accum_snap_ctrl', 1)
-        accum_data = np.fromstring(self.fpga.read('accum_snap_bram', 16*2**9), dtype = '>i').astype('float')
+        write_to_fpga_register(self.fpga, { 'accum_snap_ctrl': 0}, self.firmware_reg_list )
+        write_to_fpga_register(self.fpga, { 'accum_snap_ctrl': 1}, self.firmware_reg_list )
+
+        accum_data = (_np.fromstring(read_from_fpga_register(self.fpga, {'accum_snap_bram': 16*2**9}, self.firmware_reg_list)['accum_snap_bram'],dtype='>i')).astype('float')
+
         accum_data /= 2.0**17
         accum_data /= ((self.accum_len)/512.)
+        
         I0 = accum_data[0::4]
         Q0 = accum_data[1::4]
         I1 = accum_data[2::4]
@@ -507,6 +567,7 @@ class roachInterface(object):
         #Q = np.hstack(zip(Q0, Q1))
         I = np.dstack((I0, I1)).ravel()
         Q = np.dstack((Q0, Q1)).ravel()
+        
         return I, Q
 
 
