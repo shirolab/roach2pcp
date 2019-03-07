@@ -78,6 +78,9 @@ class muxChannel(object):
         # create if doesn't exist already
         os.makedirs(self.DIRFILE_SAVEDIR) if not os.path.exists(self.DIRFILE_SAVEDIR) else None
 
+        # active PPS
+        self.roach_iface.active_pps()
+        
         #self._initialise_daemon_writer()
         #self.initialse_hardware()
 

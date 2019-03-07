@@ -463,6 +463,13 @@ class roachInterface(object):
         self.I_dds_katcp = np.dstack((self.I_katcp[:,3], self.I_katcp[:,2])).ravel()
         self.Q_dds_katcp = np.dstack((self.Q_katcp[:,3], self.Q_katcp[:,2])).ravel()
 
+    #Active PPS
+    def active_pps(self, active=True):
+        if active:
+            write_to_fpga_register(self.fpga,{'pps_start_reg':1}, self.firmware_reg_list)
+        else:
+            write_to_fpga_register(self.fpga,{'pps_start_reg':0}, self.firmware_reg_list)
+
     # KidPy functions
     # 1. Read ADC
     # 2. Read FFT
@@ -487,7 +494,7 @@ class roachInterface(object):
         Q = _np.dstack((adc[2::4],adc[3::4])).ravel()
         return I,Q
 
-    def read_FFT(self)
+    def read_FFT(self):
         write_to_fpga_register(self.fpga, { 'fft_snap_ctrl_reg': 0 }, self.firmware_reg_list )
         write_to_fpga_register(self.fpga, { 'fft_snap_ctrl_reg': 1 }, self.firmware_reg_list )
 
@@ -551,13 +558,13 @@ class roachInterface(object):
 
     def read_accum_snap(self):
         # Reads the avgIQ buffer. Returns I and Q as 32-b signed integers
-        write_to_fpga_register(self.fpga, { 'accum_snap_ctrl': 0}, self.firmware_reg_list )
-        write_to_fpga_register(self.fpga, { 'accum_snap_ctrl': 1}, self.firmware_reg_list )
+        write_to_fpga_register(self.fpga, { 'accum_snap_ctrl_reg': 0}, self.firmware_reg_list )
+        write_to_fpga_register(self.fpga, { 'accum_snap_ctrl_reg': 1}, self.firmware_reg_list )
 
-        accum_data = (_np.fromstring(read_from_fpga_register(self.fpga, {'accum_snap_bram': 16*2**9}, self.firmware_reg_list)['accum_snap_bram'],dtype='>i')).astype('float')
+        accum_data = (_np.fromstring(read_from_fpga_register(self.fpga, {'accum_snap_bram_reg': 16*2**9}, self.firmware_reg_list)['accum_snap_bram_reg'],dtype='>i')).astype('float')
 
         accum_data /= 2.0**17
-        accum_data /= ((self.accum_len)/512.)
+        accum_data /= ((self.roach_config['roach_accum_len'])/512.)
         
         I0 = accum_data[0::4]
         Q0 = accum_data[1::4]
@@ -565,8 +572,8 @@ class roachInterface(object):
         Q1 = accum_data[3::4]
         #I = np.hstack(zip(I0, I1))
         #Q = np.hstack(zip(Q0, Q1))
-        I = np.dstack((I0, I1)).ravel()
-        Q = np.dstack((Q0, Q1)).ravel()
+        I = _np.dstack((I0, I1)).ravel()
+        Q = _np.dstack((Q0, Q1)).ravel()
         
         return I, Q
 
