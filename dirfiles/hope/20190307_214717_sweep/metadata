@@ -1,9 +1,0 @@
-# This is a dirfile format file.
-# It was written using version 0.10.0 of the GetData Library.
-# Written on Thu Mar  7 21:47:17 2019 UTC by marcial.
-
-/VERSION 10
-/ENDIAN little
-/PROTECT none
-/ENCODING none
-metadata.raw_sweep_filename STRING /home/marcial/multitone_read_roach_funcs/multitone/dirfiles/hope/20190307_214501_sweep_raw
