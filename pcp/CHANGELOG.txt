@@ -3,6 +3,10 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
+2019-03-07 22:05 [MB] ==================
+-kidpy snap functions added
+-activate pps added in lib_fpga
+
 2019-02-27 21:31 [MB] ==================
 
 Bug fixes:
