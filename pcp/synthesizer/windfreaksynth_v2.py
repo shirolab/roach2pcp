@@ -82,19 +82,23 @@ class SynthHDDevice(object):
 
 	def sendCommandFast(self,command,dwell=0.0):
 		self.sendCommand(command,clearbuf=False,getResponse=False)
-		time.sleep(dwell)
+		#time.sleep(dwell)
 
 	def getHelp(self):
 		print self.sendCommand('?')
 
 	def getControlChannel(self):
-		return self.sendCommand('C?')
+		try:
+			return int(self.sendCommand('C?'))
+		except TypeError:
+			return None
+
 	def setControlChannel(self,value):
 		value = int(value)
 		assert value in [0,1], 'value error'
 		self.active_channel = value
 		return self.sendCommand('C%d'%value)
-	      
+
 	def getVersionFW(self):
 		return self.sendCommand('v0')
 	def getVersionHW(self):
@@ -170,6 +174,7 @@ class SynthHDSource(object):
 
 	def _checkSource(self):
 		if self.SynthHDDevice.active_channel != self.sourceNumber:
+			print 'WINDFREAK SYNTHHDSOURCE: changing control channel from %s to %s'%(self.SynthHDDevice.active_channel,self.sourceNumber)
 			self.SynthHDDevice.setControlChannel(self.sourceNumber)
 			self.SynthHDDevice.active_channel = self.SynthHDDevice.getControlChannel()
 	
