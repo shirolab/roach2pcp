@@ -38,6 +38,7 @@ print PACKETLEN
 # Instantiate the parser
 
 try:
+    i = 0
     while True:
         time.sleep(args.sleep_time)
 
@@ -45,8 +46,13 @@ try:
 
         packet = pcp.lib.lib_datapackets.gen_fake_roach_packet(use_test_packet=True)
 
-        s = server_socket.sendto(packet, (DESTADDR, DESTPORT))
+        # get and increment the packet count from the test packet
+        packet_count = np.frombuffer(packet[-9:-5], ">u4")[0]
+        packet = packet[:-9] + struct.pack('>I', packet_count + i) + packet[-5:]
+        print np.frombuffer(packet[-9:-5], ">u4")[0], i
 
+        s = server_socket.sendto(packet, (DESTADDR, DESTPORT))
+        i += 1
         print s
 
 except KeyboardInterrupt:

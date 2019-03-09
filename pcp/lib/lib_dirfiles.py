@@ -432,6 +432,7 @@ def append_to_dirfile(dirfile, datapacket_dict): #, datatag=""):
         #datatowrite = [datatowrite.pop(0) for i in range(len(packet_data))]
         #dirfile.putdata(field_name + datatag, get_data_from_datapacket_dict(datapacket_dict, field_name), first_sample = currentsize ) #+ 1)
         dirfile.putdata(field_name, get_data_from_datapacket_dict(datapacket_dict, field_name), first_sample = currentsize ) #+ 1)
+        time.sleep(10e-3)
 
     dirfile.flush()
 

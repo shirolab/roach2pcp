@@ -379,7 +379,7 @@ class dataLogger(object):
 
     ########################### Queue functions ###########################
 
-    def _add_to_queue_and_wait(self, command_to_send):
+    def _add_to_queue_and_wait(self, command_to_send, timeout = 2.):
 
         if self.is_daemon_running():
 
@@ -388,8 +388,14 @@ class dataLogger(object):
             self._eventqueue.put( command_to_send )
 
             # wait for the _ctrlevent to be reset by the daemon process (see _data_logger_main)
+            timestart = time.time()
             while not self._ctrlevent.is_set():
-                continue
+                if (time.time() - timestart) > timeout:
+                    _logger.warning ( "control event loop timeout - not set." )
+                    break
+                else:
+                    time.sleep(1e-4)
+                    continue
 
         else:
             _logger.debug ( " data logging daemon doesn't appear to running." )

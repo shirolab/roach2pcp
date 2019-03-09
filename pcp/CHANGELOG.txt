@@ -3,7 +3,16 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
-<<<<<<< HEAD
+2019-03-09 - [PB]
+- moved call of activate_pps from muxchannel to roach_iface (so that the code can run in dummy mode, without an fpga instance)
+- datapacket loss tracking
+    - investigated and narrowed this down to an issue with thread priorities. When the write to dirfile
+    function is called, it hogs the CPU causing the thread that is reading packets to stop, and miss packets
+    - added a set of checks in both main _data_logger_main and _writer_thread_function to shout if a packet is lost
+    
+- check/fix logging in daemon writer
+
+
 2019-03-07 22:05 [MB SR] ==================
 -kidpy snap functions added
 -activate pps added in lib_fpga
@@ -16,14 +25,6 @@ Bug fixes:
   - Function getADC from lib_fpga now can read the I and Q signals from ADC.(the scale is right?)
 
 Driver of Jose Miguel synthesizer added
-=======
-2019-03-08 13:00 CST [PB] ==================
- - Add in writing pps_start register
-    pcp.lib.lib_fpga.write_to_fpga_register(mc.roach_iface.fpga, {"pps_start_reg": 1}, mc.roach_iface.firmware_reg_list)
-   - check packet count status
-   
-   - verify logging in daemon thread for debugging
->>>>>>> b8d49753948785fe9adf1b9fb8dc66188ae0636d
 
 2019-02-26 13:00 CST [PB] ==================
 

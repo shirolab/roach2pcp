@@ -169,6 +169,7 @@ def gen_fake_roach_packet(use_test_packet = False):
 
     #print PACKETLEN
     if use_test_packet == True:
+    
         return TESTPACKET
         # add noise to packet?
 

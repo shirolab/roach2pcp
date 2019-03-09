@@ -154,6 +154,9 @@ class roachInterface(object):
         # configure downlink
         self.configure_downlink_registers()
 
+        # activate PPS
+        self.roach_iface.active_pps()
+
     def upload_firmware_file(self, firmware_file = None, force_reupload=False):
         """
 
@@ -481,8 +484,8 @@ class roachInterface(object):
         write_to_fpga_register(self.fpga, { 'adc_snap_ctrl_reg': 0 }, self.firmware_reg_list )
         write_to_fpga_register(self.fpga, { 'adc_snap_trig_reg': 1 }, self.firmware_reg_list )
         write_to_fpga_register(self.fpga, { 'adc_snap_trig_reg': 0 }, self.firmware_reg_list )
-        
-        # Read I and Q signals from ADC 
+
+        # Read I and Q signals from ADC
         adc = (_np.fromstring(read_from_fpga_register(self.fpga, { 'adc_snap_bram_reg': (n/2)*8 }, self.firmware_reg_list)['adc_snap_bram_reg'] ,dtype='>i2')).astype('float')
 
         adc /= 2.0**15
@@ -498,14 +501,14 @@ class roachInterface(object):
         write_to_fpga_register(self.fpga, { 'fft_snap_ctrl_reg': 0 }, self.firmware_reg_list )
         write_to_fpga_register(self.fpga, { 'fft_snap_ctrl_reg': 1 }, self.firmware_reg_list )
 
-        # Read the FFT 
+        # Read the FFT
         fft_snap = (_np.fromstring(read_from_fpga_register(self.fpga, {'fft_snap_bram_reg':(2**9)*8}, self.firmware_reg_list)['fft_snap_bram_reg'], dtype='>i2')).astype('float')
-        
+
         I0 = fft_snap[0::4]
         Q0 = fft_snap[1::4]
         I1 = fft_snap[2::4]
         Q1 = fft_snap[3::4]
-        
+
         fft_mag0 = _np.sqrt(I0**2 + Q0**2)
         fft_mag0 = 20*_np.log10(fft_mag0)
 
@@ -519,7 +522,7 @@ class roachInterface(object):
             write_to_fpga_register(self.fpga, { 'DDC_chan_sel_reg': (chan - 1) / 2 }, self.firmware_reg_list )
         else:
             write_to_fpga_register(self.fpga, { 'DDC_chan_sel_reg': chan/ 2 }, self.firmware_reg_list )
-        
+
         write_to_fpga_register(self.fpga, { 'DDC_fftbin_ctrl_reg': 0}, self.firmware_reg_list )
         write_to_fpga_register(self.fpga, { 'DDC_mixerout_ctrl_reg': 0 }, self.firmware_reg_list )
 
@@ -531,7 +534,7 @@ class roachInterface(object):
         write_to_fpga_register(self.fpga, { 'DDC_mixerout_ctrl_reg': 1}, self.firmware_reg_list )
 
         mixer_in = (_np.fromstring(read_from_fpga_register(self.fpga, {'DDC_fftbin_bram_reg': 16*2**14}, self.firmware_reg_list)['DDC_fftbin_bram_reg'],dtype='>i2')).astype('float')
-        
+
         if mixer_out:
             mixer_out = (_np.fromstring(read_from_fpga_register(self.fpga, {'DDC_mixerout_bram_reg': 8*2**14}, self.firmware_reg_list)['DDC_mixerout_bram_reg'],dtype='>i2')).astype('float')
             if fir:
@@ -565,7 +568,7 @@ class roachInterface(object):
 
         accum_data /= 2.0**17
         accum_data /= ((self.roach_config['roach_accum_len'])/512.)
-        
+
         I0 = accum_data[0::4]
         Q0 = accum_data[1::4]
         I1 = accum_data[2::4]
@@ -574,7 +577,7 @@ class roachInterface(object):
         #Q = np.hstack(zip(Q0, Q1))
         I = _np.dstack((I0, I1)).ravel()
         Q = _np.dstack((Q0, Q1)).ravel()
-        
+
         return I, Q
 
 
