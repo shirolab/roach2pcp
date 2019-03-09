@@ -257,20 +257,29 @@ class dataLogger(object):
         # outer 'exit' loop - once this exit event is set, the function completes and the daemon terminates
         while not self._exitevent.is_set():
             _logger.debug( "in main loop daemon; is writing = {0}".format( self.is_writing ) )
-
+            c = 0
             # inner while loop, runs when no event is set
             while not self._ctrlevent.is_set():
                 #print "in main loop"
 
                 # read data from socket (wrap up in a function from lib_network)
                 #time.sleep(2)
+
                 rd,wr,err = select.select([self._sockethandle],[],[], 0.1)
                 if rd:
                     #print rd[0]
                     packet = self._sockethandle.recv(9000)
+                    if np.frombuffer(packet[-9:-5],">u4") - c > 1:
+                        print "PACKET LOST, HELP", c
 
+                    c = np.frombuffer(packet[-9:-5],">u4")
                     # append (packet, time.time()) to queue which passes to packet to _writer_thread_function
                     self._writer_queue.appendleft( ( packet, time.time() ) )
+
+                    # if len(self._writer_queue) > 100:
+                    #     datainqueue = [self._writer_queue.pop() for i in range(len(self._writer_queue))]
+                    #     if any( np.diff( np.array([np.frombuffer(x[0][-9:-5],">u4") for x in datainqueue]).T)[0] > 1):
+                    #         print "packet count = {0}".format(np.array([np.frombuffer(x[0][-9:-5],">u4") for x in datainqueue]).T )
 
                 continue
 
@@ -321,7 +330,6 @@ class dataLogger(object):
 
         TODO:
 
-
         Scope : thread spawned in daemon_process
 
         """
@@ -337,21 +345,32 @@ class dataLogger(object):
             #sys.stdout.write("{0}, {1}\r".format(self.current_dirfile, self.is_writing)); sys.stdout.flush()
 
             while self.is_writing:
-
-                sizetoread = min(len(self._writer_queue), roach_config[self.roachid]["max_queue_len"])
-                bufferlen_to_write = 10
+                time.sleep(2e-3)
+                sizetowrite = roach_config[self.roachid]["buffer_len_to_write"]
 
                 # get all packets in the current queue
-                datatowrite += [self._writer_queue.pop() for i in range(sizetoread)]
+                # datatowrite += [self._writer_queue.pop() for i in range(sizetoread)]
+                #if len(datatowrite)>0:
+                #    print "packet count = {0}".format(np.array([np.frombuffer(x[0][-9:-5],">u4") for x in datatowrite]).T )
+                # if ( len(datatowrite) >= bufferlen_to_write ) or not self.is_writing :
+                #     # the is_writing state above is to ensure that if the writer is paused, the current buffer get written to disk
+                #     #print "would write this to file"
+                #     #print "packet count = {0}".format(np.array([np.frombuffer(x[0][-9:-5],">u4") for x in datatowrite]).T )
+                #     retcode = self._parse_packet_and_append_to_dirfile(datatowrite)
+                #
+                #     #time.sleep(100e-6) # why is this here?
+                #     datatowrite = [] # <-- this should always run; either the buffer length is reached, or the writer has been paused
+                #     i += 1 # this isn't used anymore...
+                #print "in writing loop", (len(self._writer_queue), sizetowrite)
+                if len(self._writer_queue) > sizetowrite:
+                    print "writing data"
+                    datatowrite = [self._writer_queue.pop() for i in range(len(self._writer_queue))]
 
-                if ( len(datatowrite) >= bufferlen_to_write ) or not self.is_writing :
-                    # the is_writing state above is to ensure that if the writer is paused, the current buffer get written to disk
-                    #print "would write this to file"
                     retcode = self._parse_packet_and_append_to_dirfile(datatowrite)
 
-                    #time.sleep(100e-6) # why is this here?
-                    datatowrite = [] # <-- this should always run; either the buffer length is reached, or the writer has been paused
-                    i += 1 # this isn't used anymore...
+                    if any( np.diff( np.array([np.frombuffer(x[0][-9:-5],">u4") for x in datatowrite]).T)[0] > 1):
+                        print "PACKET LOST IN WRITER THREAD = {0}".format(np.array([np.frombuffer(x[0][-9:-5],">u4") for x in datatowrite]).T )
+                    datatowrite = []
 
             if datatowrite:
                 _logger.warning( "{0} packets didn't get saved!!".format( len(datatowrite) ) ) # just in case some data is left in the buffer

@@ -3,6 +3,12 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
+2019-03-08 13:00 CST [PB] ==================
+ - Add in writing pps_start register
+    pcp.lib.lib_fpga.write_to_fpga_register(mc.roach_iface.fpga, {"pps_start_reg": 1}, mc.roach_iface.firmware_reg_list)
+   - check packet count status
+   
+   - verify logging in daemon thread for debugging
 
 2019-02-26 13:00 CST [PB] ==================
 
