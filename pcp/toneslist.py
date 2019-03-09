@@ -238,8 +238,8 @@ class Toneslist(object):
 				_logger.warning( " some bb_freqs don't appear to fit into the bandwidth. The following have been clipped from bb_freqs:\n{0}".format(bb_freqs[clipped_idxs]) )
 
 			# set only valid indices as bb_freqs
-			self._bb_freqs = bb_freqs[valid_idxs]
-
+			self._bb_freqs   = bb_freqs[valid_idxs]
+			self._valid_idxs = valid_idxs
 		else:
 			_logger.info ( "bb_freqs = {0}".format(bb_freqs) )
 			self._bb_freqs = bb_freqs
@@ -258,7 +258,6 @@ class Toneslist(object):
 
 		else:
 			_logger.warning( 'LO frequency must be set when loading RF frequencies.' )
-
 
 	def _get_valid_tone_idxs(self, bb_freqs ):
 		"""Check that a list of bb_freqs fits in the given bandwidth.

@@ -420,9 +420,10 @@ def append_to_dirfile(dirfile, datapacket_dict): #, datatag=""):
 
     assert len(dirfile.field_list(_gd.RAW_ENTRY)) <= len(datapacket_dict.items())
 
-    dirfileindex = dirfile.getdata("INDEX")
+    #dirfileindex = dirfile.getdata("INDEX")
     #currentsize = dirfileindex[-1] if dirfileindex.size > 0 else 0 # could probably replace this with just dirfileindex.size (and remove + 1 from below)
-    currentsize = dirfileindex.size
+    #currentsize = dirfileindex.size
+    currentsize = dirfile.nframes
     print currentsize
 
     #for field_name, (entryfaos_type, field_datatype, py_datatype, sliceobject, packet_data) in datapacket_dict.items():
