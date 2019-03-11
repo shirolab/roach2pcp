@@ -3,15 +3,25 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
-2019-03-09 - [PB]
+2019-03-11 - [PB]
 - moved call of activate_pps from muxchannel to roach_iface (so that the code can run in dummy mode, without an fpga instance)
-- datapacket loss tracking
+
+- datapacket loss issue
     - investigated and narrowed this down to an issue with thread priorities. When the write to dirfile
     function is called, it hogs the CPU causing the thread that is reading packets to stop, and miss packets
     - added a set of checks in both main _data_logger_main and _writer_thread_function to shout if a packet is lost
-    
-- check/fix logging in daemon writer
+    - MAJOR CHANGE
+        - replaced threading with multi-process implementation to have reader and writer be truly parallel
+        - required some additional IPC, which is now implemented, and has passed preliminary testing
+        - most importantly, in preliminary testing, the packet loss issue does appear to be have solved - needs checking on roach system
+        - UI shouldn't have changed
 
+- check/fix logging in daemon writer
+    - added capability to log correctly from parallel processes. This required a new module to be installed (multiprocessing_logging)
+    - simple "pip install multiprocessing_logging"
+    - logging level of parallel processes can't currently be changed on the fly.
+        - Instead, set the logging level pcp.set_log_level(level=logging.DEBUG) before instantiation of muxChannel object.
+        - This isn't too bad, as any debugging will likely be known beforehand.
 
 2019-03-07 22:05 [MB SR] ==================
 -kidpy snap functions added

@@ -51,20 +51,23 @@ Useful notes:
 """
 
 # test of multiprocessing
-import os, sys, time, signal, select, threading
+import os, sys, time, signal, select, threading, ctypes
+from collections import deque
 import numpy as np
-import multiprocessing as mp
+
+import multiprocessing as mp; from multiprocessing.managers import SyncManager as _syncmanager
+_syncmanager.register('deque', deque, exposed = [d for d in dir(deque) if not d.startswith("__") or d == "__len__"] )
+
+_deque_manager = _syncmanager(); _deque_manager.start()
+
 import setproctitle
 import logging as _logging
 _logger = _logging.getLogger(__name__)
-from collections import deque
 import pygetdata as _gd
 
 from .lib import lib_dirfiles, lib_datapackets, lib_network
 
 from .configuration import ROOTDIR, filesys_config, network_config, roach_config
-
-from multiprocessing.managers import BaseManager
 
 # globally define filesystem
 DIRFILE_SAVEDIR = os.path.join(ROOTDIR, filesys_config['savedatadir'])
@@ -151,19 +154,21 @@ class dataLogger(object):
         # setup up network handles
         self._sockethandle = None
 
-        # initialise status flag(s). Upon starting, the writer is initially paused.
-        self.is_writing = False
+        #self._writer_queue = deque(maxlen = roach_config[roachid]["max_queue_len"])
+        self._writer_queue = _deque_manager.deque(maxlen = roach_config[roachid]["max_queue_len"])
 
         # check that the roachid is in the configuration files
         try:
             # get the network configuration file and store it
             self.network_config = network_config[roachid]
             # initialise the multiprocessing.Process
-            self._initialise_data_logger_process( roachid )
+            self._initialise_data_logger_process( roachid )#, self._datapipe_in )
             # initialise the socket
             self._initialise_network_config( roachid )
             # initialise packet writer thread
-            self._initialise_writer_thread ( roachid )
+            self._initialise_writer_thread ( roachid ) #, self._datapipe_out )
+            #self._filewritethread = None
+
         except KeyError:
             raise
 
@@ -174,11 +179,15 @@ class dataLogger(object):
         self._exitevent  = mp.Event()
         self._cmdevent   = mp.Event()
         self._eventqueue = mp.Queue()
+        self._datapipe_out, self._datapipe_in = mp.Pipe(duplex=False)
 
+        # initialise status flag(s). Upon starting, the writer is initially paused.
+        self.is_writing = mp.Value(ctypes.c_bool, False)
+        #self.is_writing = False
 
     # -----------------------------------------------------------------------------
 
-    def _initialise_data_logger_process(self, process_name, *function_args):
+    def _initialise_data_logger_process(self, process_name):#, datapipe_in):
         """
         Function to inialise multiprocessing.Process. Called during instantiation to initialse
         the daemon process.
@@ -204,9 +213,10 @@ class dataLogger(object):
 
         """
         self.process = mp.Process( target = self._data_logger_main,
-                                    name = self.process_name,
-                                    args = (function_args) )
-
+                                    name = self.process_name) #,
+                                    #args = (datapipe_in,)
+                                    #)
+        self.process.daemon = False
         # for convenience, add handle to process start method
         #self.start_daemon      = self.process.start
         self.is_daemon_running = self.process.is_alive
@@ -236,23 +246,42 @@ class dataLogger(object):
 
         lib_network.configure_socket_and_bind(self._sockethandle, udp_dest_ip, udp_dest_port, buffer_len)
 
-    def _initialise_writer_thread(self, roachid):
+    def _initialise_writer_thread(self, roachid): #, datapipe_out):
 
         # set maximum queue length from configuration file (default = 1000 = 8 MB)
-        self._writer_queue = deque(maxlen = roach_config[roachid]["max_queue_len"])
-        self._filewritethread = threading.Thread(name = roachid + 'writer_thread', \
-                                                target = self._writer_thread_function)#, args=(dirf, dq,) )
+        # self._writer_queue = deque(maxlen = roach_config[roachid]["max_queue_len"])
+        # self._filewritethread = threading.Thread(name = roachid + 'writer_thread', \
+        #                                         target = self._writer_thread_function)#, args=(dirf, dq,) )
 
-        self._filewritethread.setDaemon(True) # setting daemon here ensures that the child thread ends with the main thread
+        self._filewritethread = mp.Process( target = self._writer_thread_function,
+                                            name = roachid + 'writer_thread' )#,
+                                            #args = (datapipe_out, )
+                                            #)
+        #self._filewritethread.setDaemon(True) # setting daemon here ensures that the child thread ends with the main thread
+        self._filewritethread.daemon = True
 
-    def _data_logger_main(self):
+    def _data_logger_main(self ):#, datapipe_in ):
         # ingore signal.SIGINT and handle terminate manually (allows for clean up)
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
         # run basic config to initialise logging for the new process
-        _logging.basicConfig()
+        #_logging.basicConfig(level=10)
+
         # start writer thread. Initially the writer is paused
-        self._filewritethread.start()
+        #self._filewritethread.start()
+        #print "current process daemon", mp.current_process().daemon
+        _logger.info( "current process daemon {0}".format( mp.current_process().daemon ) )
+        #mp.current_process().daemon = False
+
+        #self._initialise_writer_thread(self.roachid)
+        #self._filewritethread.start()
+
+        # check file write process is running before continuing
+        # tstart = time.time()
+        # while not self._filewritethread.is_alive():
+        #     if (time.time() - tstart) > 2.:
+        #         print "timeout, filewrite process not started, nothing done"
+        #         return
 
         # outer 'exit' loop - once this exit event is set, the function completes and the daemon terminates
         while not self._exitevent.is_set():
@@ -275,18 +304,19 @@ class dataLogger(object):
                     c = np.frombuffer(packet[-9:-5],">u4")
                     # append (packet, time.time()) to queue which passes to packet to _writer_thread_function
                     self._writer_queue.appendleft( ( packet, time.time() ) )
-
+                    #print "sending packet to pipe", packet[:10]
+                    #datapipe_in.send( ( packet, time.time() ) )
                     # if len(self._writer_queue) > 100:
                     #     datainqueue = [self._writer_queue.pop() for i in range(len(self._writer_queue))]
                     #     if any( np.diff( np.array([np.frombuffer(x[0][-9:-5],">u4") for x in datainqueue]).T)[0] > 1):
                     #         print "packet count = {0}".format(np.array([np.frombuffer(x[0][-9:-5],">u4") for x in datainqueue]).T )
-
                 continue
 
             # event has been set, broken out of main loop
-            self._ctrlevent.clear() # clear event and continue to process command
-
+            _logger.debug("control event triggered - processing command")
             self._process_command() # process event
+
+            self._ctrlevent.clear() # clear control event and continue
 
             # self.terminate sends signal.SIGINT (kill -15, ctrl+c) to the process to kill it
             # except KeyboardInterrupt:
@@ -314,11 +344,18 @@ class dataLogger(object):
         """
 
         self._datapacket_dict = lib_datapackets.parse_datapacket_dict(datatowrite, self._datapacket_dict)
+
+        print np.array(self._datapacket_dict['packet_count'][-1]).T
+
+        packet_check, = np.where( np.diff( np.array(self._datapacket_dict['packet_count'][-1]).T ).flatten() > 1 )
+        if packet_check.size > 0:
+            _logger.warning ( "PACKET LOST IN WRITER THREAD = {0}".format( self._datapacket_dict['packet_count'][-1][packet_check]  ) )
+
         # append to dirfile
         lib_dirfiles.append_to_dirfile(self.current_dirfile, self._datapacket_dict)
         return 0
 
-    def _writer_thread_function(self):
+    def _writer_thread_function( self ):#, datapipe_out):#, data_queue):
         """
         Function to run as the writer thread spawned in the daemon process. Runs self.parse_packet_and_append_to_dirfile()
         continuously until both is_writing is set to False and _exitevent is set. Note that this means that to terminate
@@ -334,43 +371,52 @@ class dataLogger(object):
 
         """
         i = 0 # loop iteration index, used for debugging
+
+        #assert isinstance(self._writer_queue, deque), "queue object doesn't appear to be correct"
         # check that a dirfile exists before starting wirter loop
         if not type(self.current_dirfile) == _gd.dirfile:
             print "no dirfile set"
 
+        #print datapipe_out.__repr__
         datatowrite = []
 
         while not self._exitevent.is_set():
-            #print "writer paused"
-            #sys.stdout.write("{0}, {1}\r".format(self.current_dirfile, self.is_writing)); sys.stdout.flush()
 
-            while self.is_writing:
-                time.sleep(2e-3)
-                sizetowrite = roach_config[self.roachid]["buffer_len_to_write"]
+            # POLL PIPE TO CHECK FOR UPDATES TO DATAPACKET_DICT or CURRENT DIRFILE
+            if self._datapipe_out.poll():
+                pipedata = self._datapipe_out.recv()
 
-                # get all packets in the current queue
-                # datatowrite += [self._writer_queue.pop() for i in range(sizetoread)]
-                #if len(datatowrite)>0:
-                #    print "packet count = {0}".format(np.array([np.frombuffer(x[0][-9:-5],">u4") for x in datatowrite]).T )
-                # if ( len(datatowrite) >= bufferlen_to_write ) or not self.is_writing :
-                #     # the is_writing state above is to ensure that if the writer is paused, the current buffer get written to disk
-                #     #print "would write this to file"
-                #     #print "packet count = {0}".format(np.array([np.frombuffer(x[0][-9:-5],">u4") for x in datatowrite]).T )
-                #     retcode = self._parse_packet_and_append_to_dirfile(datatowrite)
-                #
-                #     #time.sleep(100e-6) # why is this here?
-                #     datatowrite = [] # <-- this should always run; either the buffer length is reached, or the writer has been paused
-                #     i += 1 # this isn't used anymore...
-                #print "in writing loop", (len(self._writer_queue), sizetowrite)
-                if len(self._writer_queue) > sizetowrite:
-                    print "writing data"
-                    datatowrite = [self._writer_queue.pop() for i in range(len(self._writer_queue))]
+                if not isinstance(pipedata, tuple) and len(pipedata)==2:
+                    _logger.debug("data on pipe not of correct format. Found {0}".format(pipedata))
+                    pass
+                else:
+                    command, data = pipedata
+                    _logger.debug("command, data on pipe: {0},{1}".format(command, data))
+                    #
+                    if   command == "SET_DATAPACKET_DICT": self._datapacket_dict = data
+                    elif command == "SET_FILE":            self.current_dirfile = _gd.dirfile(str(data), _gd.RDWR)
+                    else :
+                        _logger.warning("command not recognised {0}. nothing done.".format(command))
 
-                    retcode = self._parse_packet_and_append_to_dirfile(datatowrite)
+            # BUFFER SIZE REQUIRED BEFORE WRITING TO DISK (# TODO: be able to change on the fly?)
+            sizetowrite = roach_config[self.roachid]["buffer_len_to_write"]
 
-                    if any( np.diff( np.array([np.frombuffer(x[0][-9:-5],">u4") for x in datatowrite]).T)[0] > 1):
-                        print "PACKET LOST IN WRITER THREAD = {0}".format(np.array([np.frombuffer(x[0][-9:-5],">u4") for x in datatowrite]).T )
+            # MAIN DATA WRITING LOOP #
+            while self.is_writing.value:
+
+                _logger.debug( "in writing loop; {0},{1}".format (len(self._writer_queue), sizetowrite) )
+
+                # WRITE TO DISK WHEN BUFFER_LEN IS REACHED
+                if len(self._writer_queue) > sizetowrite or not self.is_writing.value: # not self is_writing catches last loop iteration
+
+                    datatowrite = [self._writer_queue.pop() for i in range(len(self._writer_queue))] # get all data currently in queue
+                    _logger.debug("length of datatowrite {0}".format(len(datatowrite)))
+
+                    retcode = self._parse_packet_and_append_to_dirfile(datatowrite) # parse the packet using the datapacket_dict and append ot the dirfile
+
                     datatowrite = []
+
+                time.sleep(0.5)
 
             if datatowrite:
                 _logger.warning( "{0} packets didn't get saved!!".format( len(datatowrite) ) ) # just in case some data is left in the buffer
@@ -384,18 +430,17 @@ class dataLogger(object):
         if self.is_daemon_running():
 
             self._ctrlevent.set()
-            _logger.debug ( "command put into queue" )
+            _logger.debug ( "(command, value) put into queue: {0}".format(command_to_send) )
             self._eventqueue.put( command_to_send )
 
-            # wait for the _ctrlevent to be reset by the daemon process (see _data_logger_main)
+            # wait for the command to processes and the _ctrlevent to be reset by the daemon process (see _data_logger_main)
             timestart = time.time()
             while not self._ctrlevent.is_set():
                 if (time.time() - timestart) > timeout:
                     _logger.warning ( "control event loop timeout - not set." )
                     break
-                else:
-                    time.sleep(1e-4)
-                    continue
+
+                time.sleep(1e-3) # cpu saver
 
         else:
             _logger.debug ( " data logging daemon doesn't appear to running." )
@@ -407,7 +452,7 @@ class dataLogger(object):
 
         _logger.debug("waiting for queue to empty\r")
         while not self._cmdevent.is_set():
-            #sys.stdout.write("waiting for queue to empty\r")
+            sys.stdout.write("waiting for queue to empty\r")
             time.sleep(0.1)
             continue
 
@@ -417,11 +462,11 @@ class dataLogger(object):
 
         try:
             value_from_queue = self._eventqueue.get( timeout=.1 )
-            return value_from_queue if value_from_queue != initial_command else False
+            return value_from_queue if value_from_queue != initial_command else "error"
 
         except mp.queues.Empty:
             _logger.warning ( "queue empty, no data returned." )
-            return False
+            return 'error'
 
     def _check_dirfile_and_datapacket_dict_match(self):
         """Function to check that the field names of the current dirfile match the fields in the datapacket_dict"""
@@ -441,7 +486,9 @@ class dataLogger(object):
         #self._exitevent.clear()
         #self._cmdevent.clear()
 
-        return self.process.start()
+        self.process.start()
+        self._filewritethread.start()
+        return
 
     def initialise_datapacket_dict(self, tones):
         """
@@ -456,7 +503,7 @@ class dataLogger(object):
             used to parse datapackets and write to disk.
         """
 
-        if self.is_writing:
+        if self.is_writing.value:
             _logger.warning (" it appears a dirfile is currently being written. Stop and retry." )
             return
 
@@ -476,12 +523,13 @@ class dataLogger(object):
         ( there is a )
 
         """
-        command_to_send = ("STATUS_WRITER",0)
-        # set the event to read the command
-        #self._ctrlevent.set()
-        self._add_to_queue_and_wait( command_to_send ) # need to be careful that we don't have race conditions?
-
-        return self._read_response_from_eventqueue( command_to_send )
+        # command_to_send = ("STATUS_WRITER",0)
+        # # set the event to read the command
+        # #self._ctrlevent.set()
+        # self._add_to_queue_and_wait( command_to_send ) # need to be careful that we don't have race conditions?
+        #
+        # return self._read_response_from_eventqueue( command_to_send )
+        return self._filewritethread.is_alive()
 
         # Read queue to get values returned
         # try:
@@ -500,12 +548,14 @@ class dataLogger(object):
         self._sockethandle.close()
 
         # join main process (assuming that it has been started)
-        # this will kill the thread too
         if self.process._popen:
             self.process.join()
+        # join writer process (assuming that it has been started)
+        if self._filewritethread._popen:
+            self._filewritethread.join()
 
         # by design, writer thread will die after the daemon process is temrinated
-        self.is_writing = False
+        self.is_writing.value = False
         # close the current dirfile so as not to leave dangling file references
         if self.current_dirfile is not None:
             self.current_dirfile.close()
@@ -534,21 +584,20 @@ class dataLogger(object):
 
         command_to_send = ("START_WRITE", 0)
         self._add_to_queue_and_wait( command_to_send ) # need to be careful that we don't have race conditions?
-        self.is_writing = self._read_response_from_eventqueue( command_to_send )
+        #self.is_writing.value = self._read_response_from_eventqueue( command_to_send )
 
     def pause_writing(self):
-        #self._eventqueue.put( ("STOP_WRITE",0) )
         command_to_send = ("STOP_WRITE", 0)
-        self._ctrlevent.set()
         self._add_to_queue_and_wait( command_to_send )
-        self.is_writing = False
-        return self._read_response_from_eventqueue( command_to_send )
+        self._read_response_from_eventqueue( command_to_send )
 
     def terminate(self):
         # setting the exitevent allows the functions to exit the main while loops in the daemon and writer thread
         self._exitevent.set()
+        _logger.debug("terminating writer daemon - set exit event")
         # setting the _ctrl event is required to exit the inner loop of the daemon process
         self._ctrlevent.set()
+        _logger.debug("terminating writer daemon - set control event")
         # currently, this doesn't do anything, but we could add entry in self._process_command if required
         self._eventqueue.put( ("TERMINATE",0) )
 
@@ -581,7 +630,7 @@ class dataLogger(object):
         """
 
         # check that dirfile write thread is not active, else return
-        if self.is_writing:
+        if self.is_writing.value:
             _logger.warning( "it appears a dirfile is currently being written. Stop and retry." )
             return
 
@@ -612,11 +661,13 @@ class dataLogger(object):
         #self.is_writer_thread_running()
 
         print "Writer thread is alive = {writer_alive} and running = {writer_running} \
-                ".format(writer_alive=self.is_writer_thread_running(), writer_running=self.is_writing)
+                ".format(writer_alive=self.is_writer_thread_running(), writer_running=self.is_writing.value)
 
-        if type(self.current_dirfile) == _gd.dirfile:
-            print "Current dirfile filename = {dirfname} \
-                ".format(dirfname = self.current_dirfile.name)
+        if isinstance(self.current_dirfile, _gd.dirfile):
+            try:
+                print "Current dirfile filename = {dirfname} ".format(dirfname = self.current_dirfile.name)
+            except _gd.BadDirfileError:
+                print "Current dirfile is closed/invalid in writer daemon. Use self.set_active_dirfile() to create new file, or pass existing dirfile to use."
         else:
             print "No dirfile set"
 
@@ -641,7 +692,7 @@ class dataLogger(object):
         """
         # check that the file writer is not running
         command_to_send = ("CHECK_PACKET", num_packets)
-        if not self.is_writing:
+        if not self.is_writing.value:
             self._add_to_queue_and_wait(command_to_send)
         else:
             _logger.error( "currently saving data. Stop and retry" )
@@ -658,7 +709,7 @@ class dataLogger(object):
         """
         # check that the file writer is not running
         command_to_send = ("CHECK_PACKET_DATA", None)
-        if not self.is_writing:
+        if not self.is_writing.value:
             self._add_to_queue_and_wait(command_to_send)
         else:
             _logger.error( "currently saving data. Stop and retry" )
@@ -682,7 +733,7 @@ class dataLogger(object):
         """
         command_to_send = ("CLEAR_QUEUE", 0)
         # check that the file writer is not running
-        if not self.is_writing:
+        if not self.is_writing.value:
             self._add_to_queue_and_wait(command_to_send)
 
     def _process_command(self):
@@ -696,11 +747,11 @@ class dataLogger(object):
         def send_response_to_eventqueue( data_to_send ):
             if self._eventqueue.empty():
                 self._cmdevent.set()
+                _logger.debug( "putting data to send on eventqueue, {0}".format( data_to_send ) )
                 self._eventqueue.put( data_to_send )
             else:
                 _logger.error( "queue not empty - something bad has happened - nothing done" )
 
-        # try to read from queue/pipe to read
         try:
             command_to_process = self._eventqueue.get( timeout=1. )
 
@@ -708,25 +759,26 @@ class dataLogger(object):
             _logger.error( "queue empty, nothing done" )
             return
 
-        _logger.debug( "received command " )
         # make sure that the command conforms to some simple requirements
         assert  type(command_to_process) == tuple \
             and len(command_to_process) == 2 \
-            and type(command_to_process[0]) == str
+            and type(command_to_process[0]) == str, " item on queue not in expected format {0} ".format(command_to_process)
 
         command, args = command_to_process
 
         _logger.debug( "\nReceived command ({0}, {1})\n".format( command, args ) )
+        #print  "\nReceived command ({0}, {1})\n".format( command, args )
 
         #  a set of if statements to handle all available options.
         if command == "SET_DATAPACKET_DICT":
             # reinitialise datapacket_dict
-            self._datapacket_dict = args if type(args) == dict else None
+            self._datapacket_dict = args if isinstance(args, dict) else None
+            self._datapipe_in.send( (command, self._datapacket_dict) )
 
         elif command == "SET_FILE":
 
             # don't proceed if the writer is currently saving data. Return the current dirfile name
-            if self.is_writing:
+            if self.is_writing.value:
                 _logger.error( "writer is currently saving data. Stop and try again." )
                 send_response_to_eventqueue( self.current_filename )
                 return
@@ -735,7 +787,7 @@ class dataLogger(object):
             lib_dirfiles.close_dirfile( self.current_dirfile )
 
             # extract new dirfile path from queue arguments
-            new_filename = args if type(args) == str else args[0] if type(args) == tuple else None
+            new_filename = args if isinstance(args, str) else args[0] if isinstance(args, tuple) else None
 
             # open dirfile (note that for some reason we can't pass an open dirfilehandle between proceses)
             self.current_dirfile  = _gd.dirfile(new_filename, _gd.RDWR)
@@ -747,12 +799,12 @@ class dataLogger(object):
             except:
                 _logger.error( "Bad dirfile. Possibly the dirfile is closed?" )
                 self.current_filename = None
+                return
 
             # send new dirfile filename to main process
+            self._datapipe_in.send( (command, self.current_filename) )
             send_response_to_eventqueue( self.current_filename )
 
-            # open new dirfile
-            #self.current_dirfile = dirfile_lib.( self.current_filename )
         elif command == "GET_FILE":
             send_response_to_eventqueue( self.current_filename )
 
@@ -761,18 +813,19 @@ class dataLogger(object):
             # clear all packets currently in data queue
             self._writer_queue.clear()
             _logger.debug( "starting writing" )
+            print "Starting writing"
 
             # sets the writing flag to True (see inner loop of _writer_thread_function)
-            self.is_writing = True
+            self.is_writing.value = True
+
             # set cmd event to indicate that the main thread can read the queue
-            send_response_to_eventqueue( self.is_writing )
+            #send_response_to_eventqueue( self.is_writing.value )
 
         elif command == "STOP_WRITE":
-            self.is_writing = False
-            print "stopping writing"
+            self.is_writing.value = False
+            _logger.info( "pausing writer" )
 
-            # how do we know if writing is stopped - this should be it...
-            send_response_to_eventqueue( self.is_writing )
+            send_response_to_eventqueue( self.is_writing.value )
 
         elif command == "STATUS_WRITER":
             send_response_to_eventqueue( self._filewritethread.is_alive() )
@@ -792,8 +845,10 @@ class dataLogger(object):
             send_response_to_eventqueue( self._sockethandle.recv(9000) )
 
         elif command == "CLEAR_QUEUE":
-            print "Queue cleared"
+            print "Clearing queue with {0} packets".format(len(self._writer_queue))
             self._writer_queue.clear()
+            print "Queue cleared"
+
 
         elif command == "TERMINATE":
             print "Terminating datalogger. Goodbye."

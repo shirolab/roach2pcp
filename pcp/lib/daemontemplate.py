@@ -113,8 +113,13 @@ class daemonTemplate(object):
 
         signal_map = daemoncontext_kwargs.pop('signal_map', None) or { signal.SIGTERM: self.daemon_terminate, \
                                                                         signal.SIGUSR1: self.handle_request }
-
-        logfd_to_preserve = [handler.stream for handler in self.logger.handlers + self.logger.parent.handlers]
+        logfd_to_preserve = []
+        for handler in self.logger.handlers + self.logger.parent.handlers:
+            if hasattr(handler, "stream"):
+                logfd_to_preserve.append( handler.stream )
+            else:
+                logfd_to_preserve.append(handler)
+                
         commfd_to_preserve = [self._fifohandle]
 
         # make list of file descriptors to preserve, including any passed through kwargs

@@ -164,7 +164,7 @@ class muxChannel(object):
 
         # store last open filename for convenience
         self._last_closed_dirfile  = self.current_dirfile
-        self._last_closed_filename = self.current_dirfile.name if type(self.current_dirfile) == _gd.dirfile else None
+        self._last_closed_filename = self.current_dirfile.name if isinstance(self.current_dirfile, _gd.dirfile) else None
 
         # check type of new_dirfile
         if type(dirfile_name) == _gd.dirfile:
@@ -420,6 +420,7 @@ class muxChannel(object):
 
         # wait until writing starts
         while not self.writer_daemon.is_writing:
+            print "waiting for writer to start"
             time.sleep(0.1)
             continue
 
@@ -441,7 +442,6 @@ class muxChannel(object):
         """
         if self.writer_daemon.is_writing:
             self.writer_daemon.pause_writing()
-
             self.current_dirfile.close()
             self.current_dirfile = _gd.dirfile(self.writer_daemon.current_filename, _gd.RDWR)
 

@@ -16,11 +16,15 @@ pcp.<SUBMODULE>.help() to get detailed help for a given <SUBMODULE>.
 # stdlib imports
 import sys as _sys, pkgutil as _pkgutil, time as _time, logging as _logging, logging.config as _logconfig
 
+import multiprocessing_logging as _multiprocessing_logging
 #import sub-libraries required for logger (these packages are needed first)
 import configuration, lib, logfile
 
 # setup the logging configuration according to the configuration file
 _logconfig.dictConfig(configuration.logging_config)
+
+# set up the root logger to be able to print from each process
+_multiprocessing_logging.install_mp_handler()
 
 # lists of important information defined at the top level for convenience (i.e. pcp.ROACH_LIST)
 # will show the list of roaches defined in the confiruation files

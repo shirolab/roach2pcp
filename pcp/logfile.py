@@ -50,6 +50,7 @@ Usage
 
 # general stdlib imports
 import os, sys, errno, itertools, time, logging, psutil, pickle, struct, select, subprocess as _subprocess
+import multiprocessing_logging as _multiprocessing_logging
 # imports for daemon creation
 import signal, daemon, daemon.pidfile
 # imports for socket server
@@ -244,7 +245,6 @@ def configure_logging():
     logger.info('Logging configuration initialised as {logname}'.format(logname=LOGNAME))
     return logger
 
-
 def initalise_tcpserver(serve_forever=False):
 
     logger = logging.getLogger(LOGNAME)
@@ -367,12 +367,14 @@ def set_log_level(which = 'screen', level = logging.INFO):
         _logger.warning("No handlers available for {0}".format(logger.name))
 
     for handler in logger.handlers:
+        assert isinstance(handler, _multiprocessing_logging.MultiProcessingHandler), "only multiprocessing logging current implemented"
+        #    handler = handler.sub_handler
         if which == "all":
             handler.setLevel(level)
         elif which == "screen":
-            handler.setLevel(level) if isinstance(handler, logging.StreamHandler) else None
+            handler.setLevel(level) if isinstance(handler.sub_handler, logging.StreamHandler) else None
         elif which == "file":
-            handler.setLevel(level) if isinstance(handler, logging.handlers.SocketHandler) else None
+            handler.setLevel(level) if isinstance(handler.sub_handler, logging.handlers.SocketHandler) else None
 
         logger.info("{handlertype} now logging with level: {level}".format( handlertype = type(handler),\
                                                                             level = logging.getLevelName(handler.level)) )

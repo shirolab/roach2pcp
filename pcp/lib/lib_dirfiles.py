@@ -10,7 +10,7 @@
 # timing info x 7?
 
 # create a new dirfile, and populate with correct fieldnames
-import os, sys, time, shutil, numpy as np, pandas as _pd, logging as _logging
+import os, sys, time, shutil, functools, numpy as np, pandas as _pd, logging as _logging, multiprocessing as _mp
 _logger = _logging.getLogger(__name__)
 import pygetdata as _gd
 from ..configuration import filesys_config, roach_config, general_config, lib_config, firmware_registers
@@ -27,6 +27,18 @@ _GDENTRYMAP = { "_gd.NO_ENTRY":0, "_gd.BIT_ENTRY":4, "_gd.CARRAY_ENTRY":18, "_gd
                 "_gd.LINCOM_ENTRY":2, "_gd.LINTERP_ENTRY":3, "_gd.MPLEX_ENTRY":13, "_gd.MULTIPLY_ENTRY":5, "_gd.PHASE_ENTRY":6,
                 "_gd.POLYNOM_ENTRY":8, "_gd.RAW_ENTRY":1, "_gd.RECIP_ENTRY":11, "_gd.SBIT_ENTRY":9, "_gd.STRING_ENTRY":17,
                 "_gd.WINDOW_ENTRY":12, "_gd.INDEX_ENTRY":7 }
+
+# class pcp_dirfile(_gd.dirfile):
+#     def __init__(self):
+#         super(pcp_dirfile, self).__init__()
+#
+#     def pcp_putdata(*args, **kwargs) :
+#         field_code, data = args
+#         type         = kwargs.pop("type", None)
+#         first_frame  = kwargs.pop("first_frame", None),
+#         first_sample = kwargs.pop("first_sample", None)
+#
+#         return self.putdata(field_code, data, type, first_frame, first_sample)
 
 def is_path_a_dirfile(path_to_check):
     """
@@ -420,19 +432,11 @@ def append_to_dirfile(dirfile, datapacket_dict): #, datatag=""):
 
     assert len(dirfile.field_list(_gd.RAW_ENTRY)) <= len(datapacket_dict.items())
 
-    #dirfileindex = dirfile.getdata("INDEX")
-    #currentsize = dirfileindex[-1] if dirfileindex.size > 0 else 0 # could probably replace this with just dirfileindex.size (and remove + 1 from below)
-    #currentsize = dirfileindex.size
     currentsize = dirfile.nframes
-    print currentsize
+    _logger.debug("current size and index of first sample of data chunk to write = {0}".format( currentsize ) )
 
-    #for field_name, (entryfaos_type, field_datatype, py_datatype, sliceobject, packet_data) in datapacket_dict.items():
     for field_name in dirfile.field_list(_gd.RAW_ENTRY):
-        # pop out the data container
-        #datatowrite = [datatowrite.pop(0) for i in range(len(packet_data))]
-        #dirfile.putdata(field_name + datatag, get_data_from_datapacket_dict(datapacket_dict, field_name), first_sample = currentsize ) #+ 1)
         dirfile.putdata(field_name, get_data_from_datapacket_dict(datapacket_dict, field_name), first_sample = currentsize ) #+ 1)
-        time.sleep(10e-3)
 
     dirfile.flush()
 
