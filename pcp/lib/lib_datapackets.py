@@ -105,7 +105,7 @@ def parse_datapacket_dict(packets, datapacket_dict):
         datapacket_dict["raw_packet"][-1].append(packet)
         datapacket_dict["python_timestamp"][-1].append(python_time)
 
-        print python_time
+        #print python_time
 
     return datapacket_dict
 
@@ -169,7 +169,7 @@ def gen_fake_roach_packet(use_test_packet = False):
 
     #print PACKETLEN
     if use_test_packet == True:
-    
+
         return TESTPACKET
         # add noise to packet?
 
