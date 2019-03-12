@@ -345,11 +345,10 @@ class dataLogger(object):
 
         self._datapacket_dict = lib_datapackets.parse_datapacket_dict(datatowrite, self._datapacket_dict)
 
-        print np.array(self._datapacket_dict['packet_count'][-1]).T
-
-        packet_check, = np.where( np.diff( np.array(self._datapacket_dict['packet_count'][-1]).T ).flatten() > 1 )
+        packet_counts = np.array(self._datapacket_dict['packet_count'][-1]).T.flatten()
+        packet_check, = np.where( np.diff( packet_counts > 1 )
         if packet_check.size > 0:
-            _logger.warning ( "PACKET LOST IN WRITER THREAD = {0}".format( self._datapacket_dict['packet_count'][-1][packet_check]  ) )
+            _logger.warning ( "PACKET LOST IN WRITER THREAD = {0}".format( packet_counts[packet_check]  ) )
 
         # append to dirfile
         lib_dirfiles.append_to_dirfile(self.current_dirfile, self._datapacket_dict)
