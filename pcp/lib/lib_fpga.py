@@ -155,7 +155,7 @@ class roachInterface(object):
         self.configure_downlink_registers()
 
         # activate PPS
-        self.roach_iface.active_pps()
+        self.active_pps()
 
     def upload_firmware_file(self, firmware_file = None, force_reupload=False):
         """

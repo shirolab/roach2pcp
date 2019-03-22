@@ -430,15 +430,19 @@ def append_to_dirfile(dirfile, datapacket_dict): #, datatag=""):
     # check that the number of fields in the dirfile (index field is not RAW_ENTRY) is less than or equal to the
     # number that are in the packet, otherwise, this function will fail
 
-    assert len(dirfile.field_list(_gd.RAW_ENTRY)) <= len(datapacket_dict.items())
+    field_list = dirfile.field_list(_gd.RAW_ENTRY)
+
+    assert len(field_list) <= len(datapacket_dict)
 
     currentsize = dirfile.nframes
     _logger.debug("current size and index of first sample of data chunk to write = {0}".format( currentsize ) )
 
-    for field_name in dirfile.field_list(_gd.RAW_ENTRY):
-        dirfile.putdata(field_name, get_data_from_datapacket_dict(datapacket_dict, field_name), first_sample = currentsize ) #+ 1)
+    for field_name in field_list:
+        data = get_data_from_datapacket_dict(datapacket_dict, field_name)
 
-    dirfile.flush()
+        dirfile.putdata(field_name, data, first_sample = currentsize ) #+ 1)
+
+    #dirfile.flush()
 
 def generate_sweep_dirfile( roachid, dirfilename, lo_frequencies, complex_sweep_data_dict ):#, field_suffix = "" ):
     """

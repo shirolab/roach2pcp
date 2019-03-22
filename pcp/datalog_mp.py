@@ -264,6 +264,12 @@ class dataLogger(object):
         # ingore signal.SIGINT and handle terminate manually (allows for clean up)
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
+        # try to decrease niceness to prioritize packet reading (needs root privileges..etc)
+        if os.getuid() > 0:
+            _logger.warning("increasing priority requires root permissions. Nothing done.")
+        else:
+            os.nice(-10)
+
         # run basic config to initialise logging for the new process
         #_logging.basicConfig(level=10)
 
@@ -298,12 +304,14 @@ class dataLogger(object):
                 if rd:
                     #print rd[0]
                     packet = self._sockethandle.recv(9000)
-                    if np.frombuffer(packet[-9:-5],">u4") - c > 1:
-                        print "PACKET LOST, HELP", c
+                    count = np.frombuffer(packet[-9:-5],">u4")
+                    if count - c > 1:
+                        print self.roachid," -> PACKET LOST, HELP", c, "  ", count - c - 1, "Packets lost"
 
-                    c = np.frombuffer(packet[-9:-5],">u4")
+                    c = count
                     # append (packet, time.time()) to queue which passes to packet to _writer_thread_function
                     self._writer_queue.appendleft( ( packet, time.time() ) )
+
                     #print "sending packet to pipe", packet[:10]
                     #datapipe_in.send( ( packet, time.time() ) )
                     # if len(self._writer_queue) > 100:
@@ -346,7 +354,8 @@ class dataLogger(object):
         self._datapacket_dict = lib_datapackets.parse_datapacket_dict(datatowrite, self._datapacket_dict)
 
         packet_counts = np.array(self._datapacket_dict['packet_count'][-1]).T.flatten()
-        packet_check, = np.where( np.diff( packet_counts > 1 )
+        packet_check, = np.where( np.diff( packet_counts > 1 ))
+
         if packet_check.size > 0:
             _logger.warning ( "PACKET LOST IN WRITER THREAD = {0}".format( packet_counts[packet_check]  ) )
 
@@ -371,6 +380,9 @@ class dataLogger(object):
         """
         i = 0 # loop iteration index, used for debugging
 
+        # set niceness of this process
+        os.nice(15)
+
         #assert isinstance(self._writer_queue, deque), "queue object doesn't appear to be correct"
         # check that a dirfile exists before starting wirter loop
         if not type(self.current_dirfile) == _gd.dirfile:
@@ -378,6 +390,9 @@ class dataLogger(object):
 
         #print datapipe_out.__repr__
         datatowrite = []
+
+        # BUFFER SIZE REQUIRED BEFORE WRITING TO DISK (# TODO: be able to change on the fly?)
+        sizetowrite = roach_config[self.roachid]["buffer_len_to_write"]
 
         while not self._exitevent.is_set():
 
@@ -397,8 +412,7 @@ class dataLogger(object):
                     else :
                         _logger.warning("command not recognised {0}. nothing done.".format(command))
 
-            # BUFFER SIZE REQUIRED BEFORE WRITING TO DISK (# TODO: be able to change on the fly?)
-            sizetowrite = roach_config[self.roachid]["buffer_len_to_write"]
+            c = 0
 
             # MAIN DATA WRITING LOOP #
             while self.is_writing.value:
@@ -406,16 +420,26 @@ class dataLogger(object):
                 _logger.debug( "in writing loop; {0},{1}".format (len(self._writer_queue), sizetowrite) )
 
                 # WRITE TO DISK WHEN BUFFER_LEN IS REACHED
-                if len(self._writer_queue) > sizetowrite or not self.is_writing.value: # not self is_writing catches last loop iteration
+
+                if (len(self._writer_queue) >= sizetowrite) or not self.is_writing.value: # not self is_writing catches last loop iteration
+
+                    #print "len queue inside: ",len(self._writer_queue)
 
                     datatowrite = [self._writer_queue.pop() for i in range(len(self._writer_queue))] # get all data currently in queue
                     _logger.debug("length of datatowrite {0}".format(len(datatowrite)))
+
+                    for packet in datatowrite:
+                        count = np.frombuffer(packet[0][-9:-5],">u4")
+                        if count - c > 1:
+                            print self.roachid," -> Writer thread: ", c, "  ", count - c - 1, "Packets lost"
+                        c = count
 
                     retcode = self._parse_packet_and_append_to_dirfile(datatowrite) # parse the packet using the datapacket_dict and append ot the dirfile
 
                     datatowrite = []
 
-                time.sleep(0.5)
+                else:
+                    time.sleep(sizetowrite/488*0.5)
 
             if datatowrite:
                 _logger.warning( "{0} packets didn't get saved!!".format( len(datatowrite) ) ) # just in case some data is left in the buffer

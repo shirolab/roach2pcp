@@ -31,7 +31,7 @@ def configure_socket_and_bind(socketinstance, bindaddress, bindport, buffer_size
     # should be able to determine socket type using socketinstance._sock and
     # the options are different depending on the socket protocol
     socketinstance.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    socketinstance.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, buffer_size) # this might not be required for the UDP interface
+    #socketinstance.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, buffer_size) # this might not be required for the UDP interface
     socketinstance.setblocking(0)
 
     try:
