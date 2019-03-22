@@ -260,6 +260,7 @@ class dataLogger(object):
         #self._filewritethread.setDaemon(True) # setting daemon here ensures that the child thread ends with the main thread
         self._filewritethread.daemon = True
 
+
     def _data_logger_main(self ):#, datapipe_in ):
         # ingore signal.SIGINT and handle terminate manually (allows for clean up)
         signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -354,8 +355,12 @@ class dataLogger(object):
         self._datapacket_dict = lib_datapackets.parse_datapacket_dict(datatowrite, self._datapacket_dict)
 
         packet_counts = np.array(self._datapacket_dict['packet_count'][-1]).T.flatten()
+<<<<<<< HEAD
         packet_check, = np.where( np.diff( packet_counts > 1 ))
 
+=======
+        packet_check, = np.where( np.diff( packet_counts > 1 ) )
+>>>>>>> dc208eb2db4aef5229fcf812f69c5f3f53aa94ff
         if packet_check.size > 0:
             _logger.warning ( "PACKET LOST IN WRITER THREAD = {0}".format( packet_counts[packet_check]  ) )
 
@@ -382,7 +387,10 @@ class dataLogger(object):
 
         # set niceness of this process
         os.nice(15)
+<<<<<<< HEAD
 
+=======
+>>>>>>> dc208eb2db4aef5229fcf812f69c5f3f53aa94ff
         #assert isinstance(self._writer_queue, deque), "queue object doesn't appear to be correct"
         # check that a dirfile exists before starting wirter loop
         if not type(self.current_dirfile) == _gd.dirfile:
@@ -511,6 +519,7 @@ class dataLogger(object):
 
         self.process.start()
         self._filewritethread.start()
+
         return
 
     def initialise_datapacket_dict(self, tones):
