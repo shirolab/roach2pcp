@@ -30,4 +30,18 @@ def plot_kidrange_mag(kidarray): # array of numbers
                                         datafile = df)
 
     return client
-    
+
+def plot_kidrange_phase(kidarray): # array of numbers
+    df = ssMonitor.find_latestfile()
+    client_name = 'phase'
+
+    chanlist = []
+    for kk, kn in enumerate(kidarray):
+        chanlist.append('K%03i' % kn)
+        
+    client = ssMonitor.plot_dirfile_phase(chanlist,
+                                        client_name = client_name,
+                                        datafile = df)
+
+    return client
+

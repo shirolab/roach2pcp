@@ -61,6 +61,10 @@ def df_equationstring(chan, sweepdict, Ifield, Qfield):
 def mag_equationstring(Ifield, Qfield):
     eqn = 'SQRT([' + Ifield + ']^2 + [' + Qfield + ']^2)'
     return eqn
+
+def phase_equationstring(Ifield, Qfield):
+    eqn = 'ATAN([' + Ifield + ']/[' + Qfield + '])'
+    return eqn
     
 def plot_dirfile_mag(chanlist, 
                     client_name = find_latestfile(),
@@ -99,7 +103,6 @@ def plot_dirfile_mag(chanlist,
                                    name = Qfield)
         Q.set_name(Qfield)
         
-        # Get df equation in string form, using sweep dict and KID-specific kst vector
         equationstring = mag_equationstring(Ifield, Qfield)
 
         e1 = client.new_equation(X, equationstring, name= chan + ' mag')
@@ -111,7 +114,56 @@ def plot_dirfile_mag(chanlist,
         
     client.show_window()
     return client
-    
+
+def plot_dirfile_phase(chanlist, 
+                    client_name = find_latestfile(),
+                    datafile = find_latestfile(),
+                    x_axis = "python_timestamp",
+                    plottype = "all",
+                    minstoread = 2):
+
+    # Find plot type params
+    frame_start, frame_num, frame_skip = frametype(type = plottype,
+                                                   m2r = minstoread)
+
+    client = kst.Client(client_name)
+    client.hide_window()
+    X = client.new_data_vector(datafile,
+                               field = x_axis,
+                               start = frame_start,
+                               num_frames = frame_num,
+                               skip = frame_skip)
+
+    for chan in chanlist:
+        Ifield = chan + '_I'
+        I = client.new_data_vector(datafile,
+                                   field = Ifield,
+                                   start = frame_start,
+                                   num_frames = frame_num,
+                                   skip = frame_skip,
+                                   name = Ifield)
+        I.set_name(Ifield)
+        Qfield = chan + '_Q'
+        Q = client.new_data_vector(datafile,
+                                   field = Qfield,
+                                   start = frame_start,
+                                   num_frames = frame_num,
+                                   skip = frame_skip,
+                                   name = Qfield)
+        Q.set_name(Qfield)
+        
+        equationstring = phase_equationstring(Ifield, Qfield)
+
+        e1 = client.new_equation(X, equationstring, name= chan + ' phase')
+        c1 = client.new_curve(e1.x(), e1.y())
+        p1 = client.new_plot()
+        p1.add(c1)
+
+        check_timestamp(x_axis, p1)
+        
+    client.show_window()
+    return client
+
 
 
 def plot_dirfile_rawfield(myfield,
