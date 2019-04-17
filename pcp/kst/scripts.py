@@ -3,7 +3,11 @@
 
 import ssMonitor
 
-def plot_aux_data():
+def plot_aux_data(client=None):
+
+    if client != None:
+        client.quit()
+        
     df = ssMonitor.find_latestfile()
     client_name = 'aux_data'
 
@@ -17,7 +21,11 @@ def plot_aux_data():
     return client
 
 
-def plot_kidrange_mag(kidarray): # array of numbers
+def plot_kidrange_mag(kidarray,client=None): # array of numbers
+
+    if client != None:
+        client.quit()
+
     df = ssMonitor.find_latestfile()
     client_name = 'magnitude'
 
@@ -31,7 +39,11 @@ def plot_kidrange_mag(kidarray): # array of numbers
 
     return client
 
-def plot_kidrange_phase(kidarray): # array of numbers
+def plot_kidrange_phase(kidarray,client=None): # array of numbers
+
+    if client != None:
+        client.quit()
+
     df = ssMonitor.find_latestfile()
     client_name = 'phase'
 
