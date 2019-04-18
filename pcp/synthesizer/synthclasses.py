@@ -120,7 +120,7 @@ class pcp_apsinDevice(_apsin.apsinSynthDevice):
         # instantiate class to get all of the factory provided methods
         super(pcp_apsinDevice, self).__init__()
     def getSourceObj(self,channel):
-        return pcp_apsinSynthSource(self,channel)
+        return pcp_apsinSource(self,channel)
 
 class pcp_apsinSource(_apsin.apsinSynthSource):
 

@@ -30,7 +30,7 @@ def generate_datapacket_dict( roachid, tones ):
     -----------
 
     """
-    assert type(roachid) == str and roachid in roach_config.keys()
+    assert isinstance(roachid, str) and roachid in roach_config.keys(), "roachid is string {0}, roachid in config.keys() {1}".format(isinstance(roachid, str), roachid in roach_config.keys())
 
     #if type(tones) != toneslist.Toneslist:
     if not isinstance(tones, toneslist.Toneslist):
@@ -105,12 +105,11 @@ def parse_datapacket_dict(packets, datapacket_dict):
                 item[-1].append( data ) if data.size > 0 else None                      # <-- appending the data to the data container
 
         # write python_timestamp and raw_packet manually
-        
-        datapacket_dict["raw_packet"][-1].append(packet)
+        #datapacket_dict["raw_packet"][-1].append(packet)
         datapacket_dict["python_timestamp"][-1].append(python_time)
 
         #print python_time
-
+    #print "lenght of datapacket dict", len(datapacket_dict["packet_count"][-1])
     return datapacket_dict
 
 # old code from KIDpy - included here to check pcp code

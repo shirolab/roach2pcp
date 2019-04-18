@@ -21,7 +21,7 @@ from . import lib_datapackets
 _GDDATAMAP = { "_gd.UINT8":1, "_gd.UINT16":2, "_gd.UINT32":4, "_gd.UINT64":8,
                "_gd.INT":36, "_gd.INT8":33, "_gd.INT16":34, "_gd.INT32":36, "_gd.INT64":40,
                "_gd.FLOAT":136, "_gd.FLOAT32":132, "_gd.FLOAT64":136,
-               "_gd.NULL":0 }
+               "_gd.STRING":520, "_gd.NULL":0 }
 
 _GDENTRYMAP = { "_gd.NO_ENTRY":0, "_gd.BIT_ENTRY":4, "_gd.CARRAY_ENTRY":18, "_gd.CONST_ENTRY":16, "_gd.DIVIDE_ENTRY":10,
                 "_gd.LINCOM_ENTRY":2, "_gd.LINTERP_ENTRY":3, "_gd.MPLEX_ENTRY":13, "_gd.MULTIPLY_ENTRY":5, "_gd.PHASE_ENTRY":6,
@@ -157,6 +157,13 @@ def create_pcp_dirfile(roachid, dirfilename="", dirfile_type = "stream", tones=2
 
     return dirfile
 
+def open_dirfile(dirfilename, **dirfile_flags):
+
+    if is_path_a_dirfile(dirfilename):
+        return _gd.dirfile(dirfilename, dirfileflags)
+    else:
+        _logger.warning("can't open dirfile {0}".format(dirfilename))
+
 def close_dirfile(dirfilename):
 
     # allow dirfile instance to be passed
@@ -231,7 +238,7 @@ def generate_sweep_fields(dirfile, tones, array_size = 501 ):#, field_suffix="")
     #swp_fields = ["K{kidnum:04d}".format(kidnum=i) for i in range(tones)]
     _logger.debug("size of carray for sweep data = {0}".format(array_size) )
 
-    # Parameters 
+    # Parameters
     sweep_entry_freq  = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + "lo_freqs", 0, (_gd.FLOAT64,   array_size)) ]
     sweep_entry_bb    = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + "bb_freqs", 0, (_gd.FLOAT64,   len(tones))) ]
     sweep_entries_to_write = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + field_name, 0, (_gd.COMPLEX64, array_size)) for field_name in swp_fields ]
@@ -439,6 +446,10 @@ def append_to_dirfile(dirfile, datapacket_dict): #, datatag=""):
     currentsize = dirfile.nframes
     _logger.debug("current size and index of first sample of data chunk to write = {0}".format( currentsize ) )
 
+    # write raw packet to disk
+    #print datapacket_dict['raw_packet'][-1]
+    #dirfile.putdata('raw_packet', datapacket_dict['raw_packet'][-1]  )
+
     for field_name in field_list:
         dirfile.putdata(field_name, get_data_from_datapacket_dict(datapacket_dict, field_name), first_sample = currentsize ) #+ 1)
 
@@ -489,6 +500,22 @@ def add_metadata_to_dirfile(dirfile, metadata_dict):
         dirfile.put_string(".".join(("metadata", field_name)), str(metadata))
 
     dirfile.flush()
+
+######################################################################################################
+######################################################################################################
+def read_sweep_dirfile(sweep_dirfile):
+    """
+
+    Read data from a sweep dirfile. Returns a tuple contain a dictionary with the sweep data, and any metadata
+
+    """
+
+    assert is_dirfile_valid(sweep_dirfile)
+
+    # check that the dirfile looks like a sweep dirfile
+    assert "sweep" in os.path.basename(sweep_dirfile.name)
+
+    return dict( sweep_dirfile.carrays( _gd.COMPLEX, as_list=False) ), dict( sweep_dirfile.strings() )
 
 
 ######################################################################################################

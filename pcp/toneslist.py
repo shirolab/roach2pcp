@@ -316,7 +316,7 @@ class Toneslist(object):
 
 		# try to inspect the output type (ideally it should be a pandas data frame, with at least Name, Freq, Power)
 		if type(data) == _pd.DataFrame:
-			# if its a data frame, then great. ensure that labels are all lower case, and that name and power
+			# if its a data frame, then great. ensure that labels are all lower case, and that name and power exist
 			data.rename({x:x.lower() for x in data.columns}, axis='columns', inplace=True)
 			assert 'freq' in data.columns, "there doesn't appear to be a frequency axis - {0}".format( data.columns )
 
@@ -328,6 +328,7 @@ class Toneslist(object):
 			self.data = data
 
 		elif type(data) in [np.ndarray, list, tuple]:
+			# if the toneslist is an array, try to create a dataframe
 			if len(data) == 1:
 				# assume that only a frequency list is given - create name and power arrays
 				data = _np.array([ ['K{0:04d}'.format(v) for v in _np.arange(len(data))] ], \

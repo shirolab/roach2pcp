@@ -197,7 +197,6 @@ class roachInterface(object):
                 write_to_fpga_register(self.fpga, { 'write_qdr_status_reg': 1 }, self.firmware_reg_list )
 
         # write registers (dds_shift + accum_len)
-
         write_to_fpga_register(self.fpga, { 'accum_len_reg': 2**(self.roach_config['roach_accum_len'])-1, \
                                             'dds_shift_reg': self.roach_config['dds_shift']  }, self.firmware_reg_list)
 

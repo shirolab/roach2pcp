@@ -137,7 +137,7 @@ class dataLogger(object):
         self.roachid = roachid
 
         # make sure roachid is a string
-        assert type(roachid) == str, "identifier is not a string"
+        assert isinstance(roachid, str), "identifier is not a string, but {0}".format(type(roachid))
         self.process_name = roachid
 
         # container for datapacket_dict. Used by the writer process to parse and save packet data
@@ -355,10 +355,13 @@ class dataLogger(object):
         """
 
         self._datapacket_dict = lib_datapackets.parse_datapacket_dict(datatowrite, self._datapacket_dict)
-        
+
         #print '\n\n\n\n\n\n*****************'
         #print [len(i) for i in self._datapacket_dict.iteritems()]
         #print self._datapacket_dict.keys()
+
+        #print "size of datapacket_dict", len(self._datapacket_dict["packet_count"][-1])
+        #print "bytes size of datapacket_dict", sum([sys.getsizeof(v) for v in self._datapacket_dict.values()])
 
         packet_counts = np.array(self._datapacket_dict['packet_count'][-1]).T.flatten()
         packet_check, = np.where( np.diff( packet_counts > 1 ))
@@ -367,7 +370,7 @@ class dataLogger(object):
         if packet_check.size > 0:
             _logger.warning ( "PACKET LOST IN WRITER THREAD = {0}".format( packet_counts[packet_check]  ) )
 
-        # append to dirfile
+        # append to data to dirfile
         lib_dirfiles.append_to_dirfile(self.current_dirfile, self._datapacket_dict)
 
         return 0
@@ -388,10 +391,17 @@ class dataLogger(object):
         Scope : thread spawned in daemon_process
 
         """
+        # ignore ctrl+c signals from main thread
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+
         i = 0 # loop iteration index, used for debugging
 
         # set niceness of this process
+<<<<<<< Updated upstream
         #os.nice(15)
+=======
+        os.nice(15)
+>>>>>>> Stashed changes
 
         #assert isinstance(self._writer_queue, deque), "queue object doesn't appear to be correct"
         # check that a dirfile exists before starting wirter loop

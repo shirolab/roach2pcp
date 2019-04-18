@@ -18,9 +18,6 @@ class dummySynthDevice(object):
         # for dummy synth, assume it is always connected
         return True
 
-
-
-
 class dummySynthSource(object):
     """
     Dummy synthesizer class for testing. Includes only basic synthesizer functionality, which will be the minimum

@@ -18,6 +18,8 @@
 #from memory_profiler import profile
 
 import os, sys, time, logging as _logging, numpy as np, pandas as _pd
+import multiprocessing as _multiprocessing
+import multiprocessing.pool as _multiprocessing_pool
 
 import atexit
 from functools import wraps as _wraps
@@ -51,6 +53,8 @@ SYNTHS_IN_USE = _initialise_connected_synths()
 from .lib.lib_hardware import initialise_connected_attens as _initialise_connected_attens
 ATTENS_IN_USE = _initialise_connected_attens()
 
+from .kid.resonator_routines import find_f0_from_sweep as _find_f0_from_sweep
+
 class muxChannel(object):
     def __init__(self, roachid):
 
@@ -68,6 +72,8 @@ class muxChannel(object):
         self.toneslist       = toneslist.Toneslist(roachid, loader_function = _pd.read_csv)
         self.writer_daemon.initialise_datapacket_dict( self.toneslist )
         self.toneslist.load_tonelist = self._decorate_tonelist_loader( self.toneslist.load_tonelist )
+
+        self._last_written_bb_freqs = None
 
         self.synth_lo        = None
         self.synth_clk       = None
@@ -122,18 +128,18 @@ class muxChannel(object):
             # Try to get the frequency
             try:
                 get_freq = dev.frequency
-                print "[ " + cm.OKGREEN + "ok" + cm.ENDC +" ] {synth} Connected :)".format(synth = synth) 
+                print "[ " + cm.OKGREEN + "ok" + cm.ENDC +" ] {synth} Connected :)".format(synth = synth)
             except:
-                print "[ " + cm.FAIL + "fail" + cm.ENDC +" ] {synth} Not connected :)".format(synth = synth) 
+                print "[ " + cm.FAIL + "fail" + cm.ENDC +" ] {synth} Not connected :)".format(synth = synth)
 
         for atten in ATTENS_IN_USE:
             dev = ATTENS_IN_USE[atten].attenobj
             # Try to get the frequency
             try:
                 get_atten = dev.attenuation
-                print "[ " + cm.OKGREEN + "ok" + cm.ENDC +" ] {atten} Connected :)".format(atten = atten) 
+                print "[ " + cm.OKGREEN + "ok" + cm.ENDC +" ] {atten} Connected :)".format(atten = atten)
             except:
-                print "[ " + cm.FAIL + "fail" + cm.ENDC +" ] {atten} Not connected :)".format(atten = atten) 
+                print "[ " + cm.FAIL + "fail" + cm.ENDC +" ] {atten} Not connected :)".format(atten = atten)
 
     def initialise_hardware(self):
         # initialise the synthesisers
@@ -195,6 +201,30 @@ class muxChannel(object):
         else:
             self.output_atten = None
 
+    def write_freqs_to_fpga(self, auto_write = False):
+        """High level function to write the current toneslist frequencies to the QDR"""
+
+        # make sure fpga looks like its running
+        if not ( self.roach_iface.fpga and self.roach_iface.fpga.is_connected() ):
+            _logger.warning("fpga instance appears to be broken. Returning.")
+            self._last_written_bb_freqs = None
+            return
+        # check if new tones equal old tones, return if True
+        if all(self.toneslist.bb_freqs == self._last_written_bb_freqs):
+            _logger.info("It looks like this set of tones has already been uploaded. Nothing done.")
+            return
+
+        # check that toneslist LO and synth LO match - if not yell and or ask to change the LO
+        assert self.toneslist.lo_freq == self.synth_lo.frequency, "synth frequency doesn't match toneslist.lo_freq"
+
+        # write_freqs_to_qdr
+        if auto_write or raw_input("Write new tones to qdr? [y/n]").lower() == 'y':
+            self.roach_iface.write_freqs_to_qdr(self.toneslist.bb_freqs, self.toneslist.amps, self.toneslist.phases)
+        else:
+            _logger.info("new tones loaded but not written to qdr.")
+
+        # write newly written tones to hidden variable for future checks
+        self._last_written_bb_freqs = self.toneslist.bb_freqs
 
     def set_active_dirfile(self, dirfile_name = "", dirfile_type = "stream", filename_suffix = "", inc_derived_fields = False ):#, field_suffix = ""):
         # if an empty string is given (default), then we pass the DIRFILE_SAVEDIR as the filename to lib_dirfile.create_dirfile,
@@ -283,8 +313,8 @@ class muxChannel(object):
 
         self.toneslist.get_sweep_lo_freqs(sweep_span, sweep_step)
 
-        startidx   = sweep_kwargs.pop("startidx"  , 0 )    #startidx = 0 # user defined number of samples to skip after lo switch (to be read from config, or set at run time)
-        stopidx    = sweep_kwargs.pop("stopidx"   , None ) #stopidx  = None # same, but at the other end (None reads all samples)
+        startidx   = sweep_kwargs.pop("startidx", 0 )    #startidx = 0 # user defined number of samples to skip after lo switch (to be read from config, or set at run time)
+        stopidx    = sweep_kwargs.pop("stopidx" , None ) #stopidx  = None # same, but at the other end (None reads all samples)
 
         filename_suffix = sweep_kwargs.pop("filename_suffix", "")
         #field_suffix    = sweep_kwargs.pop("field_suffix"   , "")
@@ -412,23 +442,34 @@ class muxChannel(object):
         # add metadata
         _lib_dirfiles.add_metadata_to_dirfile(self.current_sweep_dirfile, {"raw_sweep_filename": self.current_dirfile.name})
 
+    def tune_resonators(self, method = "maxspeed"):
+        """
+        Function to find resonator frequencies from a sweep
+        """
+        assert method in ['maxspeed', 'mins21'], "Given method {0} for finding resonant frequencies not valid.".format(method)
+
+        #_lib_dirfiles.open_dirfile(dirfilename, **dirfile_flags):
+
+        if self.current_sweep_dirfile:
+            sweep_data, = _lib_dirfiles.read_sweep_dirfile( self.current_sweep_dirfile )
+
+        else:
+            _logger.warning("no sweep dirfile set. Nothing done.")
+
+        # remove blind tones/ don't retune blind tones
+
+        # use method to find F0s from KID rountines
+
+        # change frequencies in self.toneslist
+
+        # write to qdr (optional)
         print cm.OKGREEN + "Data saved" + cm.ENDC
 
         #return sweep_data_dict
         # close dirfile to prevent further writing
         #self.current_dirfile.close()
 
-        # stop file write
-        # get dirfilehandle
-        # discard first Npoints (user definable)
-        # average together to get f, I, Q
-        # save as a new file in the dirfile
-        # add to format file
-        # retain reference to dirfile here
-        # link to visualisation.py for plotting (or scraps)
-        # post process sweep to find F0s...etc
 
-        # playing with subdirfiles
 
     #@profile
     def start_stream(self, **stream_kwargs):
@@ -519,10 +560,10 @@ class muxChannelList(object):
 
     def __init__(self, channel_list):
 
+        channel_list = list(np.atleast_1d(channel_list))
         _logging.debug("initialising muxChannelList with channel list {0}".format( channel_list ) )
 
-        assert isinstance(channel_list, (list, tuple)) and len(channel_list) > 0,\
-                                        _logger.error("input {0} not recognised".format( type(self.ROACH_LIST) ) )
+        assert isinstance(channel_list, (list, tuple)) and len(channel_list) > 0, "input {0} not recognised".format( type(channel_list) )
 
         self.ROACH_LIST = channel_list
 
@@ -532,12 +573,71 @@ class muxChannelList(object):
             _logging.debug("initialising muxChannel({roachid}) ".format( roachid=roachid ) )
             setattr( self, roachid, muxChannel(roachid) )
 
+    def _verify_channel_list_valid(self, channel_list):
+        assert set(channel_list).issubset(self.ROACH_LIST), "channels given are not valid {0}".format(set(channel_list).difference(self.ROACH_LIST))
+        return True
+
+    def set_attenuation(self, new_vals, channels_to_change, mode = "increment"):
+        """
+        Sets the attenuations. Does this in serial, as this should be a quick process that isn't done regularly
+        """
+        new_vals           = np.atleast_1d(new_vals)
+        channels_to_change = np.atleast_1d(channels_to_change)
+
+        self._verify_channel_list_valid(channels_to_change)
+
+        # Currently implemented modes - aboslute or incremental
+        assert mode in ["increment", "absolute"], "given mode unknown {0}".format(mode)
+        # Accepts either a single value, or a list of same length as the channel list
+        assert (len(new_vals) == len(channels_to_change)) or (len(new_vals) == 1 ), "length of new_vals is confusing"
+
+        new_vals = np.ones_like(channels_to_change, dtype=float) * new_vals if len(new_vals) == 1 else new_vals
+
+        for att_val, roachid in zip(new_vals, channels_to_change):
+
+            handle_to_atten = getattr( getattr( self, roachid  ), "input_atten")
+
+            if mode == "absolute":
+                handle_to_atten.attenuation = att_val
+            elif mode == "increment":
+                handle_to_atten.attenuation += att_val
+            else:
+                _logger.warning("mode not recognised. Nothing done")
+
+    def sweep_lo(self, channels_to_sweep, *sweep_args):
+        """
+        Function to perform an LO sweep of a set of roaches given by channels_to_sweep.
+
+        This function creates a process pool to perform the sweeps in parallel.
+
+        """
+        channel_obj_list = [getattr(self, instance) for instance in np.atleast_1d(channels_to_sweep)]
+
+        # create multiprocesing.pool
+        #mp_pool = _multiprocessing.Pool( processes = len(channels_to_sweep) )
+        mp_pool = _multiprocessing_pool.ThreadPool( processes = len(channels_to_sweep) )
+        #list_of_results = mp_pool.map(_worker, ( (obj, "sweep_lo") for obj in channel_obj_list ) )
+
+        res = [mp_pool.apply_async(_worker, args = ((obj.synth_lo,)) ) for obj in channel_obj_list ]
+
+        mp_pool.close()
+        mp_pool.join()
+        return res
+
     def shutdown_all(self, which = None):
         for roachid in self.ROACH_LIST:
             try:
                 getattr(self, roachid).shutdown()
             except:
                 _logger.exception("shutdown not successful.")
+
+def _worker(arg):
+    print arg
+    for i in range(10):
+        print i
+    #obj, methname = arg[:2]
+    #print obj, methname, arg[2:]
+    #return getattr(obj, methname)()
 
 # We could write a small helper script to check things are connected would be useful for initial configuration testing
 #   - check dnsmasq is running
