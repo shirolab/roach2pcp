@@ -10,8 +10,8 @@ import pykst as kst
 import glob, os
 #import netCDF4 as nc
 
-def find_latestfile(dataloc = "/data/dirfiles/",
-                    datapattern = "20??????_??????.dir"):
+def find_latestfile(dataloc = "/data/dirfiles/roach0/",
+                    datapattern = "20??????_??????"):
     list_of_files = glob.glob(dataloc + datapattern)
     latest_file = max(list_of_files, key = os.path.getctime)
     return latest_file
@@ -35,6 +35,205 @@ def frametype(type = "all",
         frame_skip = skip
 
     return int(frame_start), int(frame_num), int(frame_skip)
+
+def check_timestamp(x_axis, plothandle):
+    if x_axis == "python_timestamp":
+        plothandle.set_x_axis_interpretation(interp = 'ctime')
+        plothandle.set_x_axis_display(display = "yyyy-MM-dd hh:mm:ss")
+        plothandle.set_bottom_label(' ') # Adding another label clutters too much
+    return
+    
+def df_equationstring(chan, sweepdict, Ifield, Qfield):
+    # ((I-I_f0)*dIdf + (Q-Q_f0)*dQdf)/(dIdf^2 + dQdf^2)
+    f0 = sweepdict[chan]['f0']
+    I_f0 = sweepdict[chan]['I_f0']
+    Q_f0 = sweepdict[chan]['Q_f0']
+    dIdf = sweepdict[chan]['dIdf'] # at f0
+    dQdf = sweepdict[chan]['dQdf']
+
+    eqn = '((([' + Ifield + ']-%3f)*%3f)'  % (I_f0,dIdf) + \
+          '+(([' + Qfield + ']-%3f)*%3f))' % (Q_f0,dQdf) + \
+          '/(%3f^2 + %3f^2)  '             % (dIdf,dQdf)
+
+    # add division by freq?
+    return eqn
+
+def mag_equationstring(Ifield, Qfield):
+    eqn = 'SQRT([' + Ifield + ']^2 + [' + Qfield + ']^2)'
+    return eqn
+
+def phase_equationstring(Ifield, Qfield):
+    eqn = 'ATAN([' + Ifield + ']/[' + Qfield + '])'
+    return eqn
+    
+def plot_dirfile_mag(chanlist, 
+                    client_name = find_latestfile(),
+                    datafile = find_latestfile(),
+                    x_axis = "python_timestamp",
+                    plottype = "all",
+                    minstoread = 2):
+
+    # Find plot type params
+    frame_start, frame_num, frame_skip = frametype(type = plottype,
+                                                   m2r = minstoread)
+
+    client = kst.Client(client_name)
+    client.hide_window()
+    X = client.new_data_vector(datafile,
+                               field = x_axis,
+                               start = frame_start,
+                               num_frames = frame_num,
+                               skip = frame_skip)
+
+    for chan in chanlist:
+        Ifield = chan + '_I'
+        I = client.new_data_vector(datafile,
+                                   field = Ifield,
+                                   start = frame_start,
+                                   num_frames = frame_num,
+                                   skip = frame_skip,
+                                   name = Ifield)
+        I.set_name(Ifield)
+        Qfield = chan + '_Q'
+        Q = client.new_data_vector(datafile,
+                                   field = Qfield,
+                                   start = frame_start,
+                                   num_frames = frame_num,
+                                   skip = frame_skip,
+                                   name = Qfield)
+        Q.set_name(Qfield)
+        
+        equationstring = mag_equationstring(Ifield, Qfield)
+
+        e1 = client.new_equation(X, equationstring, name= chan + ' mag')
+        c1 = client.new_curve(e1.x(), e1.y())
+        p1 = client.new_plot()
+        p1.add(c1)
+
+        check_timestamp(x_axis, p1)
+        
+    client.show_window()
+    return client
+
+def plot_dirfile_phase(chanlist, 
+                    client_name = find_latestfile(),
+                    datafile = find_latestfile(),
+                    x_axis = "python_timestamp",
+                    plottype = "all",
+                    minstoread = 2):
+
+    # Find plot type params
+    frame_start, frame_num, frame_skip = frametype(type = plottype,
+                                                   m2r = minstoread)
+
+    client = kst.Client(client_name)
+    client.hide_window()
+    X = client.new_data_vector(datafile,
+                               field = x_axis,
+                               start = frame_start,
+                               num_frames = frame_num,
+                               skip = frame_skip)
+
+    for chan in chanlist:
+        Ifield = chan + '_I'
+        I = client.new_data_vector(datafile,
+                                   field = Ifield,
+                                   start = frame_start,
+                                   num_frames = frame_num,
+                                   skip = frame_skip,
+                                   name = Ifield)
+        I.set_name(Ifield)
+        Qfield = chan + '_Q'
+        Q = client.new_data_vector(datafile,
+                                   field = Qfield,
+                                   start = frame_start,
+                                   num_frames = frame_num,
+                                   skip = frame_skip,
+                                   name = Qfield)
+        Q.set_name(Qfield)
+        
+        equationstring = phase_equationstring(Ifield, Qfield)
+
+        e1 = client.new_equation(X, equationstring, name= chan + ' phase')
+        c1 = client.new_curve(e1.x(), e1.y())
+        p1 = client.new_plot()
+        p1.add(c1)
+
+        check_timestamp(x_axis, p1)
+        
+    client.show_window()
+    return client
+
+
+
+def plot_dirfile_rawfield(myfield,
+                          client_name = find_latestfile(),
+                          datafile = find_latestfile(),
+                          x_axis = "python_timestamp",
+                          plottype = "all",
+                          minstoread = 2):
+
+    # Find plot type params
+    frame_start, frame_num, frame_skip = frametype(type = plottype,
+                                                   m2r = minstoread)
+
+    client = kst.Client(client_name)
+    client.hide_window()
+    X = client.new_data_vector(datafile,
+                               field = x_axis,
+                               start = frame_start,
+                               num_frames = frame_num,
+                               skip = frame_skip)
+
+    y_axis = myfield
+    Y = client.new_data_vector(datafile,
+                                 field = y_axis,
+                                 start = frame_start,
+                                 num_frames = frame_num,
+                                 skip = frame_skip)
+    c1 = client.new_curve(X,Y)
+    p1 = client.new_plot()
+    L1 = client.new_legend(p1)
+    p1.add(c1)
+
+    check_timestamp(x_axis, p1)
+
+    client.show_window()
+    return client
+
+def plot_dirfile_equation(myfield, equation,
+                          client_name = find_latestfile(),
+                          datafile = find_latestfile(),
+                          x_axis = "INDEX",
+                          plottype = "all",
+                          minstoread = 2):
+
+    # Find plot type params
+    frame_start, frame_num, frame_skip = frametype(type = plottype,
+                                                   m2r = minstoread)
+
+    client = kst.Client(client_name)
+    client.hide_window()
+    X = client.new_data_vector(datafile,
+                               field = x_axis,
+                               start = frame_start,
+                               num_frames = frame_num,
+                               skip = frame_skip)
+    Y = client.new_data_vector(datafile,
+                               field = myfield,
+                               start = frame_start,
+                               num_frames = frame_num,
+                               skip = frame_skip)
+
+    e1 = client.new_equation(Y, equation)
+    c1 = client.new_curve(X, e1.y())
+    p1 = client.new_plot()
+    p1.add(c1)
+
+    check_timestamp(x_axis, p1)
+
+    client.show_window()
+    return client
 
 def plot_dirfile_chanIQ(client_name = find_latestfile(),
                         datafile = find_latestfile(),
@@ -221,3 +420,25 @@ if __name__ == '__main__':
     client = plot_dirfile_chanIQ()
 
 
+#############
+# Minimal example
+
+"""
+cd /home/superspec/Documents/ksk/multitone/pcp/kst
+import ssMonitor
+import pykst as kst
+df = ssMonitor.find_latestfile('/data/dirfiles/roach0/','20??????_??????')
+
+client = kst.Client('test'); client.hide_window()
+V1 = client.new_data_vector(df, field = 'python_timestamp', name='V1')
+V2 = client.new_data_vector(df, field = 'pps_timestamp', name='V2')
+V3 = client.new_data_vector(df, field = 'fine_timestamp', name='V3')
+
+e1 = client.new_equation(V1, "SIN([V2])+SIN([V3])", name='myequation')
+c1 = client.new_curve(e1.x(), e1.y())
+p1 = client.new_plot()
+p1.add(c1)
+client.show_window()
+
+
+"""
