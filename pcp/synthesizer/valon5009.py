@@ -6,14 +6,13 @@ import serial.tools.list_ports
 import time,sys
 from numpy import linspace as _linspace
 
-
-VENDOR = 'VALON'
+import os
+VENDOR = 'valon'
 MODELNUMS = ["5009"]
 
-
 #FTDI chip ID for the valon 5009  found by inspecting output of serial.tools.list_ports.comports()
-hwid_snrs = ['A59JJN5']
-dev_snrs = ['A9040DX6']
+#hwid_snrs = ['A59JJN5']
+#dev_snrs = ['A9040DX6']
 
 #Valon power output
 #Default settings:
@@ -34,19 +33,19 @@ class ValonListMode:
 
 class ValonDevice(object):
 
-	def __init__(self,device_serial_number=dev_snrs[0],open_connection=True,baud=115200):
+	def __init__(self,device_serial_number,open_connection=True,baud=115200):
 		print 'Connecting to Valon 5009 Synthesiser...'
 		self.bauds_available = [9600,19200, 38400, 57600, 115200, 230400, 460800, 921600]
 		if baud not in self.bauds_available:
 			raise StandardError, 'Requested baud rate invalid'
 		self.FREQMIN= 23e6
 		self.FREQMAX= 6e9
-		self.hwid_serial_number   = hwid_snrs[dev_snrs.index(device_serial_number)]
-		self.device_serial_number = device_serial_number
+		self.hwid_serial_number   = device_serial_number
 		self.serialPort           = self._findSerialPort()
 		self.baud_requested       = baud
 		self.conn                 = serial.Serial(None, baudrate=baud,timeout=0.1)
 		self.conn.port 			  = self.serialPort
+
 		self.status=u''
 		self.s1=None
 		self.s2=None
@@ -54,7 +53,7 @@ class ValonDevice(object):
 			self.open_connection()
 		print 'OK :)'
 
-        
+
 	def _findSerialPort(self):
 		comports = serial.tools.list_ports.comports()
 		for port, desc, hwid in comports:
@@ -109,7 +108,7 @@ class ValonDevice(object):
 		self.clearSerialBuffer()
 		self.conn.write(command+'\r')
 		readlines = self.conn.readlines()
-		print unicode(''.join(readlines),encoding='latin-1')
+		#print unicode(''.join(readlines),encoding='latin-1')
 
 		messageFound = False
 		for line in readlines:
@@ -243,11 +242,12 @@ class ValonSource(object):
 		self._mode  = self.mode
 
 	@property
-	def frequency(self):
+	def Frequency(self):
 		self._frequency = self.valonDevice.sendCommand('s%d; frequency?'%self.sourceNumber)
 		return self._frequency
-	@frequency.setter
-	def frequency(self,value):
+
+	@Frequency.setter
+	def Frequency(self,value):
 		if value < self.valonDevice.FREQMAX/1.e6:
 			value*=1e6
 
@@ -262,13 +262,13 @@ class ValonSource(object):
 			self.frequencyActual*=1e6
 		elif ret[-1] == 'kHz':
 			self.frequencyActual*=1e3
+
 	def get_frequency(self):
 		try:
 			return self.frequencyActual
 		except NameError:
-			f = self.frequency
+			f = self.Frequency
 			return self.frequencyActual
-
 
 	@property
 	def frequencyOffset(self):
@@ -385,6 +385,7 @@ class ValonSource(object):
 	def powerLevel(self):
 		self._powerLevel = self.valonDevice.sendCommand('s%d; plevel?'%self.sourceNumber)
 		return self._powerLevel
+
 	@powerLevel.setter
 	def powerLevel(self,value):
 		assert value in [0,1,2,3]
@@ -520,7 +521,7 @@ class ValonSource(object):
 		self.valonDevice.sendCommand('s%d; name %s'%(self.sourceNumber,value))
 		self._sName = self.sName
 
-	def set_frequency(self,source,frequency,other,fast=False):
+	def set_frequency(self,source,frequency,fast=False):
 		if fast:
 			if source==0:
 				source=1
@@ -530,7 +531,7 @@ class ValonSource(object):
 			self.valonDevice.sendCommandFast('s%d; frequency %s'%(source,frequency))
 			return 1
 		else:
-			self.frequency = frequency
+			self.Frequency = frequency
 			return 1
 	def get_frequency(self):
-		return self.frequency
+		return self.Frequency

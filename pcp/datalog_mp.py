@@ -50,6 +50,8 @@ Useful notes:
 
 """
 
+#from memory_profiler import profile
+
 # test of multiprocessing
 import os, sys, time, signal, select, threading, ctypes
 from collections import deque
@@ -260,16 +262,15 @@ class dataLogger(object):
         #self._filewritethread.setDaemon(True) # setting daemon here ensures that the child thread ends with the main thread
         self._filewritethread.daemon = True
 
-
     def _data_logger_main(self ):#, datapipe_in ):
         # ingore signal.SIGINT and handle terminate manually (allows for clean up)
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
         # try to decrease niceness to prioritize packet reading (needs root privileges..etc)
-        if os.getuid() > 0:
-            _logger.warning("increasing priority requires root permissions. Nothing done.")
-        else:
-            os.nice(-10)
+        #if os.getuid() > 0:
+        #    _logger.warning("increasing priority requires root permissions. Nothing done.")
+        #else:
+        #    os.nice(-10)
 
         # run basic config to initialise logging for the new process
         #_logging.basicConfig(level=10)
@@ -334,6 +335,7 @@ class dataLogger(object):
             #     break
         _logger.debug ( "left main writer loop - cleaning up" )
 
+    #@profile
     def _parse_packet_and_append_to_dirfile(self, datatowrite):
         """
         Function to act as the worker thread for parsing packets and writing data to a dirfile.
@@ -353,21 +355,24 @@ class dataLogger(object):
         """
 
         self._datapacket_dict = lib_datapackets.parse_datapacket_dict(datatowrite, self._datapacket_dict)
+        
+        #print '\n\n\n\n\n\n*****************'
+        #print [len(i) for i in self._datapacket_dict.iteritems()]
+        #print self._datapacket_dict.keys()
 
         packet_counts = np.array(self._datapacket_dict['packet_count'][-1]).T.flatten()
-<<<<<<< HEAD
         packet_check, = np.where( np.diff( packet_counts > 1 ))
 
-=======
-        packet_check, = np.where( np.diff( packet_counts > 1 ) )
->>>>>>> dc208eb2db4aef5229fcf812f69c5f3f53aa94ff
+
         if packet_check.size > 0:
             _logger.warning ( "PACKET LOST IN WRITER THREAD = {0}".format( packet_counts[packet_check]  ) )
 
         # append to dirfile
         lib_dirfiles.append_to_dirfile(self.current_dirfile, self._datapacket_dict)
+
         return 0
 
+    #@profile
     def _writer_thread_function( self ):#, datapipe_out):#, data_queue):
         """
         Function to run as the writer thread spawned in the daemon process. Runs self.parse_packet_and_append_to_dirfile()
@@ -386,11 +391,8 @@ class dataLogger(object):
         i = 0 # loop iteration index, used for debugging
 
         # set niceness of this process
-        os.nice(15)
-<<<<<<< HEAD
+        #os.nice(15)
 
-=======
->>>>>>> dc208eb2db4aef5229fcf812f69c5f3f53aa94ff
         #assert isinstance(self._writer_queue, deque), "queue object doesn't appear to be correct"
         # check that a dirfile exists before starting wirter loop
         if not type(self.current_dirfile) == _gd.dirfile:
@@ -421,7 +423,6 @@ class dataLogger(object):
                         _logger.warning("command not recognised {0}. nothing done.".format(command))
 
             c = 0
-
             # MAIN DATA WRITING LOOP #
             while self.is_writing.value:
 
@@ -444,7 +445,9 @@ class dataLogger(object):
 
                     retcode = self._parse_packet_and_append_to_dirfile(datatowrite) # parse the packet using the datapacket_dict and append ot the dirfile
 
+                    #del datatowrite
                     datatowrite = []
+
 
                 else:
                     time.sleep(sizetowrite/488*0.5)

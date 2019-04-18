@@ -1,6 +1,9 @@
 # functions for control and configuration of the fpga/ppc
 
 import time as _time, os as _os, logging as _logging, struct as _struct, socket as _socket # inet_aton as _inet_aton
+import threading as _threading, tqdm as _tqdm, functools as _functools, time as _time
+from ..configuration import color_msg as cm
+
 import numpy as _np
 
 from ..configuration import firmware_registers as _firmware_registers,\
@@ -88,6 +91,51 @@ def get_fpga_instance(ipaddress):
         _logger.exception( 'Error connecting to \'{0}\'. Is it switched on? Check network settings!'.format(ipaddress) )
         return None
 
+
+# ---------------------------Progress bar-----------------------------------
+# This should be in another place
+
+# Based in the code of duckythescientist: 
+# https://gist.github.com/duckythescientist/c06d87617b5d6ac1e00a622df760709d
+
+def progress_bar(function, estimated_time, description, tstep=0.2, tqdm_kwargs={}, args=[], kwargs={}):
+    """Tqdm wrapper for a function
+    args:
+        function - function to run
+        estimated_time - how long you expect the function to take
+        tstep - time delta (seconds) for progress bar updates
+        tqdm_kwargs - kwargs to construct the progress bar
+        args - args to pass to the function
+        kwargs - keyword args to pass to the function
+    ret:
+        function(*args, **kwargs)
+    """
+    ret = [None]  # Mutable var so the function can store its return value
+    def myrunner(function, ret, *args, **kwargs):
+        ret[0] = function(*args, **kwargs)
+
+    thread = _threading.Thread(target=myrunner, args=(function, ret) + tuple(args), kwargs=kwargs)
+    pbar = _tqdm.tqdm(total=estimated_time, ncols=75, desc=description ,**tqdm_kwargs)
+
+    thread.start()
+    while thread.is_alive():
+        thread.join(timeout=tstep)
+        pbar.update(tstep)
+
+    pbar.close()
+    return ret[0]
+
+def progress_wrapped(estimated_time, description, tstep=0.25, tqdm_kwargs={}):
+    """Decorate a function to add a progress bar"""
+    def decorator(function):
+        @_functools.wraps(function)
+        def wrapper(*args, **kwargs):
+            #estimated_time = kwargs["estimated_time"]
+            return progress_bar(function, estimated_time=estimated_time, description=description, tstep=tstep, tqdm_kwargs=tqdm_kwargs, args=args, kwargs=kwargs)
+        return wrapper
+    return decorator
+# ----------------------------------------------------------------------------
+
 class roachInterface(object):
     """
     Object to handle all the functions that interact directly with the PPC on a single Roach channel.
@@ -125,6 +173,8 @@ class roachInterface(object):
         self.LUTBUF_LEN     = 2097152 # 2**21
         self.DAC_FREQ_RES   = 2 * self.DAC_SAMP_FREQ / self.LUTBUF_LEN
 
+
+    #@progress_wrapped(estimated_time=5)
     def initialise_fpga(self, force_reupload = False):
 
         """
@@ -157,6 +207,7 @@ class roachInterface(object):
         # activate PPS
         self.active_pps()
 
+    @progress_wrapped(description=cm.BOLD+"Firmware"+cm.ENDC, estimated_time=2.83)
     def upload_firmware_file(self, firmware_file = None, force_reupload=False):
         """
 
@@ -182,16 +233,15 @@ class roachInterface(object):
         else:
             firmware_file = self.firmware_file
 
-        print 'Connecting...'
         tnow = _time.time()
         #while not ( self.fpga.is_connected() and self.fpga.test_connection() ):
         while not ( self.fpga.is_connected() ):
             if (_time.time() - tnow) > 1:
                 pass
-            raise RuntimeError("Connection timeout to roach.")
+            raise RuntimeError(cm.ERROR + "Connection timeout to roach." + cm.ENDC)
 
         _time.sleep(0.1)
-        print 'Connected to', self.fpga.host
+        print cm.OKGREEN + 'Connected to ' + cm.BOLD, self.fpga.host, cm.ENDC
 
         # check if a firmware is running, and if so, check if it is the same version as we're trying to upload
         if self.fpga.is_running() and not force_reupload:
@@ -213,11 +263,11 @@ class roachInterface(object):
                     self.fpg_uploaded = True
                     return False
 
-        print "uploading firmware file \'{0}\' to roach".format(firmware_file)
+        print cm.OKBLUE + "uploading firmware file \'{0}\' to roach".format(firmware_file) + cm.ENDC
         success = self.fpga.upload_to_ram_and_program(firmware_file, timeout = 10.)
         _time.sleep(0.5)
         if success == None:
-            print 'Successfully uploaded:', firmware_file
+            print cm.OKGREEN + 'Successfully uploaded:', firmware_file, cm.ENDC
             self.firmware_file = firmware_file
             self.fpg_uploaded = True
             return True
@@ -227,10 +277,11 @@ class roachInterface(object):
             raise RuntimeError("Firmware upload failed.")
 
     # ---------------------------------------------------------------------------------------------------------
+    @progress_wrapped(description=cm.BOLD+"QDR Calibration"+cm.ENDC, estimated_time=5.7)
     def calibrate_qdr(self):
     # Calibrates the QDRs. Run after loading firmware
         write_to_fpga_register(self.fpga, { 'dac_reset_reg': 1 }, self.firmware_reg_list )
-        print 'DAC on'
+        print cm.OKGREEN + 'DAC on' + cm.ENDC
 
         bFailHard = False
         calVerbosity = 1
@@ -238,7 +289,7 @@ class roachInterface(object):
         qdrMemName = self.firmware_reg_list['qdr0_reg']
         qdrNames   = [self.firmware_reg_list['qdr0_reg'], self.firmware_reg_list['qdr1_reg']] # <- not used?
 
-        print 'Fpga Clock Rate =', self.fpga.estimate_fpga_clock()
+        print cm.OKBLUE + 'Fpga Clock Rate =' + cm.BOLD, self.fpga.estimate_fpga_clock(), cm.ENDC
         self.fpga.get_system_information()
         results = {}
         for qdr in self.fpga.qdrs:
@@ -248,9 +299,9 @@ class roachInterface(object):
         print 'qdr cal results:',results
         for qdr in self.fpga.qdrs:
             if not results[qdr.name]:
-                print '\n************ QDR Calibration FAILED ************'
+                print cm.ERROR + '\n************ QDR Calibration FAILED ************' + cm.ENDC
                 return -1
-        print 'QDR Calibrated'
+        print cm.OKGREEN + 'QDR Calibrated' + cm.ENDC
         return 0
 
     def configure_downlink_registers(self):
@@ -281,9 +332,11 @@ class roachInterface(object):
         write_to_fpga_register(self.fpga, { 'udp_start_reg': 1 }, self.firmware_reg_list, sleep_time = 0.1 )
         write_to_fpga_register(self.fpga, { 'udp_start_reg': 0 }, self.firmware_reg_list, sleep_time = 0.1 )
 
+        print cm.OKGREEN + "Downlink registers configured" + cm.ENDC
+
         return
 
-    def gen_waveform_from_freqs(self, freqs, amps = None, phases = None, which = "dac_lut"):
+    def gen_waveform_from_freqs(self, freqs, amps = None, phases = None, which = "dac_lut",iq_correction=None,phase_error_radians=None):
         """
         Method to generate the I and Q waveforms that will be sent to the DAC and DDS look-up tables.
 
@@ -320,21 +373,54 @@ class roachInterface(object):
         samp_freq = self.DAC_SAMP_FREQ if which == "dac_lut" else self.FPGA_SAMP_FREQ/(self.FFT_LEN/2.) if which == "dds_lut" else None
 
         fft_bin_index = _np.round((freqs / samp_freq) * fft_len).astype('int')
+        fft_neg_bin_index = _np.round((-1*freqs / samp_freq) *fft_len).astype('int')
 
         if which == "dds_lut":
             phases, amps = ( _np.zeros_like(fft_bin_index), _np.ones_like(fft_bin_index) )
+            if iq_correction is None:
+                iq_correction = _np.ones_like(fft_bin_index) + 1j*_np.ones_like(fft_bin_index)
+            if phase_error_radians is None:
+                phase_error_radians = _np.zeros_like(fft_bin_index)
         else:
-            phases, amps = ( _np.ones_like(freqs) if amps is None else amps,\
+            amps, phases = ( _np.ones_like(freqs) if amps is None else amps,\
                             _np.random.uniform(0., 2.*_np.pi, len(freqs)) if phases is None else phases )
+            if iq_correction is None:
+                iq_correction = _np.ones_like(freqs) + 1j*_np.ones_like(freqs)
+            if phase_error_radians is None:
+                phase_error_radians = _np.zeros_like(freqs)
 
         _logger.debug( "amps and phases to write: {0}, {1}".format(amps, phases) )
 
         spec = _np.zeros(fft_len, dtype='complex')
         spec[fft_bin_index] = amps * _np.exp( 1j * phases )
         wave = _np.fft.ifft(spec)
-        waveMax = _np.max(_np.abs(wave))
+        
+        #iq amplitude correction
+        ispec = _np.fft.fft(wave.real)
+        ispec[fft_bin_index] /= iq_correction.real
+        ispec[fft_neg_bin_index] /= iq_correction.real
+        iwave = _np.fft.ifft(ispec)
 
-    	return (wave.real/waveMax)*(amp_full_scale), (wave.imag/waveMax)*(amp_full_scale)  # <-- I, Q
+        qspec = _np.fft.fft(wave.imag)
+        qspec[fft_bin_index] /= iq_correction.imag
+        qspec[fft_neg_bin_index] /= iq_correction.imag
+        qwave = _np.fft.ifft(qspec)
+
+        #phase error correction
+        qspec = _np.fft.fft(qwave)
+        phase = _np.exp(-1j*phase_error_radians)
+        qspec[fft_bin_index] *= phase
+        qspec[fft_neg_bin_index] *= phase
+        qwave = _np.fft.ifft(qspec)
+
+        wave    = iwave + 1j*qwave
+        waveMax = _np.max(_np.abs(wave))
+        
+        if which=='dac_lut':
+            print 'waveMax:',waveMax
+        
+        waveMax = 6e-5
+        return (wave.real/waveMax)*(amp_full_scale), (wave.imag/waveMax)*(amp_full_scale)  # <-- I, Q
 
     def select_bins(self, freqs):
         # Calculates the offset from each bin center, to be used as the DDS LUT frequencies, and writes bin numbers to RAM
@@ -353,13 +439,13 @@ class roachInterface(object):
                                                 #enable write ram at address i
 
         # --- From Sam R's Blastfirmware code, but doesn't appear to included in kidPy ---
-		# # This is done to clear any unused channelizer RAM addresses
-		# for n in range(1024 - len(bins)):
-		# 	self.fpga.write_int('bins', 0)#have fft_bin waiting at ram gate
-		#   self.fpga.write_int('load_bins', 2*ch + 1)#enable write ram at address i
-		#   self.fpga.write_int('load_bins', 0)#disable write
-		# 	ch += 1
-		# 	n += 1
+        # # This is done to clear any unused channelizer RAM addresses
+        # for n in range(1024 - len(bins)):
+        #   self.fpga.write_int('bins', 0)#have fft_bin waiting at ram gate
+        #   self.fpga.write_int('load_bins', 2*ch + 1)#enable write ram at address i
+        #   self.fpga.write_int('load_bins', 0)#disable write
+        #   ch += 1
+        #   n += 1
 
         return freq_residuals
 
@@ -378,11 +464,11 @@ class roachInterface(object):
 
         return I_dds, Q_dds
 
-    def pack_luts(self, freqs, amps, phases):
+    def pack_luts(self, freqs, amps, phases,iq_correction=None,phase_error_radians=None):
         # packs the I and Q look-up-tables into strings of 16-b integers, in preparation to write to the QDR.
         # Returns the string-packed look-up-tables
 
-        I_dac, Q_dac = self.gen_waveform_from_freqs(freqs, amps, phases, which = "dac_lut")
+        I_dac, Q_dac = self.gen_waveform_from_freqs(freqs, amps, phases, which = "dac_lut",iq_correction=iq_correction,phase_error_radians=phase_error_radians)
         I_dds, Q_dds = self.define_dds_lut(freqs)
 
         self._I_dds = I_dds
@@ -400,14 +486,133 @@ class roachInterface(object):
 
         return I_lut.astype('>i2').tostring(), Q_lut.astype('>i2').tostring() # I_lut_packed, Q_lut_packed
 
-    def write_freqs_to_qdr(self, freqs, amps, phases):
+    
+  #   def gen_waveform_from_freqs(self, freqs, amps = None, phases = None, which = "dac_lut"):
+  #       """
+  #       Method to generate the I and Q waveforms that will be sent to the DAC and DDS look-up tables.
+
+  #       Parameters:
+
+  #           freqs: array_like
+  #               Array of frequencies of the tones to write
+
+  #           amps: array_like, len(freqs)
+  #               Array of amplitudes, normalised to 1 that is used to set the relative tone powers. If not given, defaults to
+  #               np.ones_like(freqs).
+
+  #           phases: array_like, len(freqs)
+  #               Array of phases of the tones. If not given, defaults to np.zeros_like(freqs). This is usually set so that
+  #               each tone has a random phase.
+
+  #           which: str, one of ['dac_lut' or 'dds_lut']
+  #               Switch used to return a waveform for the DAC_LUT or DDS_LUT, respectively.
+
+  #       Returns
+  #           I, Q:
+  #           Arrays of I and Q waveforms ready to be written to the DAC and DDS.
+  #       """
+  #       # Generates a frequency comb for the DAC or DDS look-up-tables. DAC_LUT = True for the DAC LUT. Returns I and Q
+  #       _logger.debug("frequencies being generated: {0}".format(freqs) )
+
+  #       freqs = _np.round( freqs / self.DAC_FREQ_RES) * self.DAC_FREQ_RES
+  #       amp_full_scale = (2**15 - 1)
+
+  #       assert which in ['dac_lut', 'dds_lut']
+
+  #       # For the DDS_LUT, there are two bins returned for every fpga clock, so the bin sample rate is 256 MHz / half the fft length
+  #       fft_len   = self.LUTBUF_LEN    if which == "dac_lut" else self.LUTBUF_LEN/self.FFT_LEN          if which == "dds_lut" else None
+  #       samp_freq = self.DAC_SAMP_FREQ if which == "dac_lut" else self.FPGA_SAMP_FREQ/(self.FFT_LEN/2.) if which == "dds_lut" else None
+
+  #       fft_bin_index = _np.round((freqs / samp_freq) * fft_len).astype('int')
+
+  #       if which == "dds_lut":
+  #           phases, amps = ( _np.zeros_like(fft_bin_index), _np.ones_like(fft_bin_index) )
+  #       else:
+  #           phases, amps = (_np.random.uniform(0., 2.*_np.pi, len(freqs)) if phases is None else phases,\
+  #                           _np.ones_like(freqs) if amps is None else amps)
+
+  #       _logger.debug( "amps and phases to write: {0}, {1}".format(amps, phases) )
+
+  #       spec = _np.zeros(fft_len, dtype='complex')
+  #       spec[fft_bin_index] = amps * _np.exp( 1j * phases )
+  #       wave = _np.fft.ifft(spec)
+  #       waveMax = _np.max(_np.abs(wave))
+
+  #   	return (wave.real/waveMax)*(amp_full_scale), (wave.imag/waveMax)*(amp_full_scale)  # <-- I, Q
+
+  #   def select_bins(self, freqs):
+  #       # Calculates the offset from each bin center, to be used as the DDS LUT frequencies, and writes bin numbers to RAM
+  #       fft_bin_index = _np.round( (freqs/2/self.FPGA_SAMP_FREQ) * self.FFT_LEN ).astype('int')
+  #       f_bin = fft_bin_index * self.DAC_SAMP_FREQ/self.FFT_LEN
+  #       fft_bin_index[ fft_bin_index < 0 ] += self.FFT_LEN
+  #       freq_residuals = freqs - f_bin
+  #       bin_freqs = _np.unique(f_bin)
+
+  #       # this is a bit slow...
+  #       for ch, idx in enumerate(fft_bin_index):
+  #           write_to_fpga_register(self.fpga, { 'bins_reg': idx, \
+  #                                               'load_bins_reg': 2*ch + 1}, self.firmware_reg_list, sleep_time = 0. )
+  #           write_to_fpga_register(self.fpga, {'load_bins_reg': 0 }, self.firmware_reg_list, sleep_time = 0. )
+
+  #                                               #enable write ram at address i
+
+  #       # --- From Sam R's Blastfirmware code, but doesn't appear to included in kidPy ---
+		# # # This is done to clear any unused channelizer RAM addresses
+		# # for n in range(1024 - len(bins)):
+		# # 	self.fpga.write_int('bins', 0)#have fft_bin waiting at ram gate
+		# #   self.fpga.write_int('load_bins', 2*ch + 1)#enable write ram at address i
+		# #   self.fpga.write_int('load_bins', 0)#disable write
+		# # 	ch += 1
+		# # 	n += 1
+
+  #       return freq_residuals
+
+  #   def define_dds_lut(self, freqs): # SLOW - takes ~1 s to run with 101 tones
+  #       # Builds the DDS look-up-table from I and Q given by freq_comb. freq_comb is called with the sample rate equal to the
+  #       # sample rate for a single FFT bin.
+  #       # There are two bins returned for every fpga clock, so the bin sample rate is 256 MHz / half the fft length
+  #       freq_residuals = self.select_bins(freqs)
+  #       I_dds, Q_dds = _np.zeros( (2, self.LUTBUF_LEN) )
+
+  #       for idx, freq in enumerate(freq_residuals):
+  #           I, Q = self.gen_waveform_from_freqs(freq, amps=None, phases=None, which='dds_lut')
+  #           I_dds[idx::self.FFT_LEN] = I
+  #           Q_dds[idx::self.FFT_LEN] = Q
+  #       # store this somewhere useful?
+
+  #       return I_dds, Q_dds
+
+  #   def pack_luts(self, freqs, amps, phases):
+  #       # packs the I and Q look-up-tables into strings of 16-b integers, in preparation to write to the QDR.
+  #       # Returns the string-packed look-up-tables
+
+  #       I_dac, Q_dac = self.gen_waveform_from_freqs(freqs, amps, phases, which = "dac_lut")
+  #       I_dds, Q_dds = self.define_dds_lut(freqs)
+
+  #       self._I_dds = I_dds
+  #       self._Q_dds = Q_dds
+
+  #       I_lut, Q_lut = _np.zeros( (2, 2 * self.LUTBUF_LEN) )
+  #       I_lut[0::4] = I_dac[1::2]
+  #       I_lut[1::4] = I_dac[0::2]
+  #       I_lut[2::4] = I_dds[1::2]
+  #       I_lut[3::4] = I_dds[0::2]
+  #       Q_lut[0::4] = Q_dac[1::2]
+  #       Q_lut[1::4] = Q_dac[0::2]
+  #       Q_lut[2::4] = Q_dds[1::2]
+  #       Q_lut[3::4] = Q_dds[0::2]
+
+  #       return I_lut.astype('>i2').tostring(), Q_lut.astype('>i2').tostring() # I_lut_packed, Q_lut_packed
+
+    @progress_wrapped(description=cm.BOLD+"Writting tones"+cm.ENDC, estimated_time=15.75)
+    def write_freqs_to_qdr(self, freqs, amps, phases, iq_correction=None,phase_error_radians=None, **kwargs):
         # Writes packed LUTs to QDR
 
         #write fft_shift ?
         fft_shift = 2**5 if len(freqs) >= 400 else 2**9
         write_to_fpga_register(self.fpga, { "fft_shift_reg": fft_shift - 1} , self.firmware_reg_list, sleep_time = 0. )
 
-        I_lut_packed, Q_lut_packed = self.pack_luts(freqs, amps, phases)
+        I_lut_packed, Q_lut_packed = self.pack_luts(freqs, amps, phases, iq_correction=iq_correction, phase_error_radians=phase_error_radians)
         write_to_fpga_register(self.fpga, { "dac_reset_reg": 1} , self.firmware_reg_list, sleep_time = 0. )
         write_to_fpga_register(self.fpga, { "dac_reset_reg": 0, \
                                             "start_dac_reg": 0 }, self.firmware_reg_list, sleep_time = 0. )
@@ -420,7 +625,7 @@ class roachInterface(object):
 
         write_to_fpga_register(self.fpga, { "accum_reset_reg": 1, \
                                             "write_comb_len_reg": len(freqs) }, self.firmware_reg_list, sleep_time = 0. )
-        print 'Done.'
+        print cm.OKGREEN + 'Tones written.' + cm.ENDC
 
     def make_freq_comb(self, nfreq = 101):
 
@@ -470,8 +675,10 @@ class roachInterface(object):
     def active_pps(self, active=True):
         if active:
             write_to_fpga_register(self.fpga,{'pps_start_reg':1}, self.firmware_reg_list)
+            print cm.OKGREEN + "PPS Registers Enabled" + cm.ENDC
         else:
             write_to_fpga_register(self.fpga,{'pps_start_reg':0}, self.firmware_reg_list)
+            print cm.OKGREEN + "PPS Registers Disabled" + cm.ENDC
 
     # KidPy functions
     # 1. Read ADC
