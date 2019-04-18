@@ -7,7 +7,7 @@ from ..synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT
 print "synth dict : ", _SYNTH_HW_DICT
 
 import threading as _threading
-import pyudev as _udev
+#import pyudev as _udev
 import time as _time
 
 from ..configuration import color_msg as cm
@@ -27,13 +27,13 @@ _attenObj = _namedtuple("attenObj", ["config", "attenobj"])
 
 class usb_detector():
     ''' Monitor udev for detection of usb '''
- 
+
     def __init__(self):
         ''' Initiate the object '''
         thread = _threading.Thread(target=self._work)
         thread.daemon = True
         thread.start()
- 
+
     def _work(self):
         self.context = _udev.Context()
         self.monitor = _udev.Monitor.from_netlink(self.context)

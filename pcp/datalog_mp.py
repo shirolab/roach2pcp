@@ -397,11 +397,8 @@ class dataLogger(object):
         i = 0 # loop iteration index, used for debugging
 
         # set niceness of this process
-<<<<<<< Updated upstream
-        #os.nice(15)
-=======
+
         os.nice(15)
->>>>>>> Stashed changes
 
         #assert isinstance(self._writer_queue, deque), "queue object doesn't appear to be correct"
         # check that a dirfile exists before starting wirter loop

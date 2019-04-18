@@ -45,7 +45,7 @@ from .lib import lib_dirfiles as _lib_dirfiles, lib_fpga as _lib_fpga
 
 from .configuration import color_msg as cm
 
-from .lib.lib_hardware import usb_detector
+#from .lib.lib_hardware import usb_detector
 
 from .lib.lib_hardware import initialise_connected_synths as _initialise_connected_synths
 SYNTHS_IN_USE = _initialise_connected_synths()
@@ -84,7 +84,7 @@ class muxChannel(object):
         self.current_sweep_dirfile = None
 
         # start usb monitoring
-        self.usb_device = usb_detector()
+        #self.usb_device = usb_detector()
 
         # get configuration for specific roach
         self.ROACH_CFG = roach_config[self.roachid]
