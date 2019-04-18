@@ -126,39 +126,40 @@ class pcp_apsinSource(_apsin.apsinSynthSource):
 
     def __init__(self,device,source):
         # instantiate class to get all of the factory provided methods
+
+        # as the methods are defined correctly in the drivers (as we wrote them!), nothing else is needed
         super(pcp_apsinSource, self).__init__(device,source)
 
-    # make sure all methods are defined in the same way, and return the same item
-
-    # only show example here, as the base class for dummySynth was written in this way
-    @property
-    def frequency(self):
-        """Get or set the frequency of the synthesizer. Units should all be in Hz."""
-        self._frequency = self.frequency
-        return self._frequency
-
-    @frequency.setter
-    def frequency(self, frequency):
-        self.frequency = frequency
-        self._frequency = frequency
-        print ("frequency set to {f}".format(f=frequency))
-
-    # Power getter
-    @property
-    def power(self):
-        self._power = self.output_power
-        return self._power
-
-    # Power getter
-    @power.setter
-    def power(self, power):
-        self.output_power = power
-        self._power = power
-        print ("power set to {p}".format(p=power))
 
     # add a print status method for convenience
     def print_status(self):
         _pprint.pprint(vars(self), width=1)
+
+    # # only show example here, as the base class for dummySynth was written in this way
+    # @property
+    # def frequency(self):
+    #     """Get or set the frequency of the synthesizer. Units should all be in Hz."""
+    #     self._frequency = self.frequency
+    #     return self._frequency
+    #
+    # @frequency.setter
+    # def frequency(self, frequency):
+    #     self.frequency = frequency
+    #     self._frequency = frequency
+    #     print ("frequency set to {f}".format(f=frequency))
+    #
+    # # Power getter
+    # @property
+    # def power(self):
+    #     self._power = self.output_power
+    #     return self._power
+    #
+    # # Power getter
+    # @power.setter
+    # def power(self, power):
+    #     self.output_power = power
+    #     self._power = power
+    #     print ("power set to {p}".format(p=power))
 
 # ===========================================================================================
 # === WINDFREAK =============================================================================

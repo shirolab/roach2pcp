@@ -463,7 +463,6 @@ class muxChannel(object):
         # change frequencies in self.toneslist
 
         # write to qdr (optional)
-        print cm.OKGREEN + "Data saved" + cm.ENDC
 
         #return sweep_data_dict
         # close dirfile to prevent further writing
