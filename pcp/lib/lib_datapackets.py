@@ -3,6 +3,8 @@
 # functions to handle and parse the datapackets
 # most of this code is taken from Sam Gordons kidpy module https://github.com/sbg2133/kidPy
 
+from memory_profiler import profile
+
 import os, sys, socket, time, string, struct # stdlib imports
 from random import choice
 import numpy as np, pygetdata as _gd
@@ -77,6 +79,7 @@ def generate_datapacket_dict( roachid, tones ):
 
     return datapacket_dict
 
+#@profile
 # now parse the data and put it into this structure !
 def parse_datapacket_dict(packets, datapacket_dict):
     """
@@ -89,9 +92,9 @@ def parse_datapacket_dict(packets, datapacket_dict):
 
     header_len = datapacket_dict["_header_len"]
 
-    for packet in packets:
-        assert len(packet) == 2 and type(packet) == tuple
-        packet, python_time = packet
+    for pkt in packets:
+        assert len(pkt) == 2 and type(pkt) == tuple
+        packet, python_time = pkt
 
         for field_name, item in datapacket_dict.iteritems():
             # "item" is a list containing [entry_type, field_datatype, datatype, slice(startidx,stopidx,stepidx), DATA]
@@ -102,6 +105,7 @@ def parse_datapacket_dict(packets, datapacket_dict):
                 item[-1].append( data ) if data.size > 0 else None                      # <-- appending the data to the data container
 
         # write python_timestamp and raw_packet manually
+        
         datapacket_dict["raw_packet"][-1].append(packet)
         datapacket_dict["python_timestamp"][-1].append(python_time)
 
@@ -153,7 +157,7 @@ def parse_datapacket_dict(packets, datapacket_dict):
 
 # get packet from saved example packet
 TESTPACKETFILE = os.path.abspath( os.path.join (os.path.dirname(__file__), os.pardir, "testing/20180324_testpacket") )
-print TESTPACKETFILE
+#print TESTPACKETFILE
 assert os.path.exists(TESTPACKETFILE)
 # read packet and store
 with open (TESTPACKETFILE) as fin:

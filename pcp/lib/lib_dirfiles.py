@@ -197,8 +197,8 @@ def generate_main_rawfields(dirfile, roachid, tones, fragnum=0 ):#, field_suffix
     aux_entries_to_write = []
 
     for field_name, (entry_type, field_datatype, __, __, __, __) in aux_fields.items():
-        print eval(entry_type), eval(field_datatype)
-        print _GDENTRYMAP[entry_type], _GDDATAMAP[field_datatype]
+        #print eval(entry_type), eval(field_datatype)
+        #print _GDENTRYMAP[entry_type], _GDDATAMAP[field_datatype]
         aux_entries_to_write.append( _gd.entry( _GDENTRYMAP[entry_type], namespace + field_name, \
                                                 fragnum, \
                                                 (_GDDATAMAP[field_datatype], 1) ) )
@@ -231,11 +231,13 @@ def generate_sweep_fields(dirfile, tones, array_size = 501 ):#, field_suffix="")
     #swp_fields = ["K{kidnum:04d}".format(kidnum=i) for i in range(tones)]
     _logger.debug("size of carray for sweep data = {0}".format(array_size) )
 
-    sweep_entry_freq       = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + "lo_freqs", 0, (_gd.FLOAT64,   array_size)) ]
+    # Parameters 
+    sweep_entry_freq  = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + "lo_freqs", 0, (_gd.FLOAT64,   array_size)) ]
+    sweep_entry_bb    = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + "bb_freqs", 0, (_gd.FLOAT64,   len(tones))) ]
     sweep_entries_to_write = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + field_name, 0, (_gd.COMPLEX64, array_size)) for field_name in swp_fields ]
     _logger.debug("generating new sweep fields: {0}".format(sweep_entries_to_write) )
     #return sweep_entries_to_write
-    for entry in sweep_entry_freq + sweep_entries_to_write:
+    for entry in sweep_entry_freq + sweep_entry_bb + sweep_entries_to_write:
         dirfile.add(entry)
 
     dirfile.sync()
@@ -337,57 +339,57 @@ def add_sweep_to_dirfile(dirfile):
     #
     pass
 
-def create_sweep_derived_fields(dirfile):
+def create_sweep_derived_fields(dirfile, f_tone):
 
     calfrag = dirfile.include("calibration", flags = _gd.EXCL|_gd.RDWR )
 
-    dirf.add( gd.entry( gd.CONST_ENTRY,'_cal_tone_freq_%04d'%chan,calfrag,(gd.FLOAT64,) ) )
-    dirf.put_constant('_cal_tone_freq_%04d'%chan, f_tone)
+    for chan in channels:
+        dirfile.add( _gd.entry( _gd.CONST_ENTRY,'_cal_tone_freq_%04d'%chan,calfrag,(_gd.FLOAT64,) ) )
+        dirfile.put_constant('_cal_tone_freq_%04d'%chan, f_tone[chan])
 
-    #i-i0 q-q0
-    dirf.add(gd.entry(gd.LINCOM_ENTRY, '_cal_i_sub_i0_%04d'%chan, calfrag, (("I%04d"%chan,),(1,),(-1*i_tone,))))
-    dirf.add(gd.entry(gd.LINCOM_ENTRY, '_cal_q_sub_q0_%04d'%chan, calfrag, (("Q%04d"%chan,),(1,),(-1*q_tone,))))
+        #i-i0 q-q0
+        dirfile.add(_gd.entry(_gd.LINCOM_ENTRY, '_cal_i_sub_i0_%04d'%chan, calfrag, (("I%04d"%chan,),(1,),(-1*i_tone,))))
+        dirfile.add(_gd.entry(_gd.LINCOM_ENTRY, '_cal_q_sub_q0_%04d'%chan, calfrag, (("Q%04d"%chan,),(1,),(-1*q_tone,))))
 
-    #Complex values
-    dirf.add(gd.entry(gd.LINCOM_ENTRY,'_cal_complex_%04d'%chan,calfrag, (("I%04d"%chan,"Q%04d"%chan),(1,1j),(0,0))))
+        #Complex values
+        dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'_cal_complex_%04d'%chan,calfrag, (("I%04d"%chan,"Q%04d"%chan),(1,1j),(0,0))))
 
-    #Amplitude
-    dirf.add(gd.entry(gd.PHASE_ENTRY,'amplitude_%04d'%chan,calfrag, (('_cal_complex_%04d.m'%chan),0)))
+        #Amplitude
+        dirfile.add(_gd.entry(_gd.PHASE_ENTRY,'amplitude_%04d'%chan,calfrag, (('_cal_complex_%04d.m'%chan),0)))
 
-    #Phase
-    dirf.add(gd.entry(gd.LINCOM_ENTRY,'phase_raw_%04d'%chan,calfrag,
-    (('_cal_complex_%04d.a'%chan,),(1,1j),(0,))))
+        #Phase
+        dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'phase_raw_%04d'%chan,calfrag,
+        (('_cal_complex_%04d.a'%chan,),(1,1j),(0,))))
 
-    #Complex_centered:
-    dirf.add(gd.entry(gd.LINCOM_ENTRY,'_cal_centred_%04d'%chan,calfrag,
-    (("_cal_complex_%04d"%chan,),(1,),(-c[0]-1j*c[1],))))
+        #Complex_centered:
+        dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'_cal_centred_%04d'%chan,calfrag,
+        (("_cal_complex_%04d"%chan,),(1,),(-c[0]-1j*c[1],))))
 
-    #Complex_rotated
-    dirf.add(gd.entry(gd.LINCOM_ENTRY,'_cal_rotated_%04d'%chan,calfrag,
-    (("_cal_centred_%04d"%chan,),(np.exp(-1j*phi_tone),),(0,))))
+        #Complex_rotated
+        dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'_cal_rotated_%04d'%chan,calfrag,
+        (("_cal_centred_%04d"%chan,),(np.exp(-1j*phi_tone),),(0,))))
 
-    #Phase
-    dirf.add(gd.entry(gd.LINCOM_ENTRY,'phase_rotated_%04d'%chan,calfrag,
-    (('_cal_rotated_%04d.a'%chan,),(1,),(0,))))
+        #Phase
+        dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'phase_rotated_%04d'%chan,calfrag,
+        (('_cal_rotated_%04d.a'%chan,),(1,),(0,))))
 
-    #df = ((i[0]-i)(di/df) + (q[0]-q)(dq/df) ) / ((di/df)**2 + (dq/df)**2)
-    dirf.add(gd.entry(gd.CONST_ENTRY,'_cal_didf_mult_%04d'%chan,calfrag,(gd.FLOAT64,)))
-    dirf.add(gd.entry(gd.CONST_ENTRY,'_cal_dqdf_mult_%04d'%chan,calfrag,(gd.FLOAT64,)))
-    dirf.put_constant('_cal_didf_mult_%04d'%chan,didf_tone/(didf_tone**2+dqdf_tone**2))
-    dirf.put_constant('_cal_dqdf_mult_%04d'%chan,dqdf_tone/(didf_tone**2+dqdf_tone**2))
-    dirf.add(gd.entry(gd.LINCOM_ENTRY,'_cal_i0_sub_i_%04d'%chan,calfrag,
-    (("I%04d"%chan,),(-1,),(i_tone,))))
-    dirf.add(gd.entry(gd.LINCOM_ENTRY,'_cal_q0_sub_q_%04d'%chan,calfrag,
-    (("Q%04d"%chan,),(-1,),(q_tone,))))
-    dirf.add(gd.entry(gd.LINCOM_ENTRY, 'delta_f_%04d'%chan, calfrag,
-    (("_cal_i0_sub_i_%04d"%chan,"_cal_q0_sub_q_%04d"%chan),
-    ("_cal_didf_mult_%04d"%chan,"_cal_dqdf_mult_%04d"%chan),
-    (0,0))))
+        #df = ((i[0]-i)(di/df) + (q[0]-q)(dq/df) ) / ((di/df)**2 + (dq/df)**2)
+        dirfile.add(_gd.entry(_gd.CONST_ENTRY,'_cal_didf_mult_%04d'%chan,calfrag,(_gd.FLOAT64,)))
+        dirfile.add(_gd.entry(_gd.CONST_ENTRY,'_cal_dqdf_mult_%04d'%chan,calfrag,(_gd.FLOAT64,)))
+        dirfile.put_constant('_cal_didf_mult_%04d'%chan,didf_tone/(didf_tone**2+dqdf_tone**2))
+        dirfile.put_constant('_cal_dqdf_mult_%04d'%chan,dqdf_tone/(didf_tone**2+dqdf_tone**2))
+        dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'_cal_i0_sub_i_%04d'%chan,calfrag,
+        (("I%04d"%chan,),(-1,),(i_tone,))))
+        dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'_cal_q0_sub_q_%04d'%chan,calfrag,
+        (("Q%04d"%chan,),(-1,),(q_tone,))))
+        dirfile.add(_gd.entry(_gd.LINCOM_ENTRY, 'delta_f_%04d'%chan, calfrag,
+        (("_cal_i0_sub_i_%04d"%chan,"_cal_q0_sub_q_%04d"%chan),
+        ("_cal_didf_mult_%04d"%chan,"_cal_dqdf_mult_%04d"%chan),
+        (0,0))))
 
-    #x = df/f0
-    dirf.add(gd.entry(gd.LINCOM_ENTRY,'x_%04d'%chan,calfrag,
-    (('delta_f_%04d'%chan,),(1./f_tone,),(0,))))
-
+        #x = df/f0
+        dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'x_%04d'%chan,calfrag,
+        (('delta_f_%04d'%chan,),(1./f_tone[chan],),(0,))))
 
 
 # Functions used to handle dirfile data saving
@@ -438,13 +440,11 @@ def append_to_dirfile(dirfile, datapacket_dict): #, datatag=""):
     _logger.debug("current size and index of first sample of data chunk to write = {0}".format( currentsize ) )
 
     for field_name in field_list:
-        data = get_data_from_datapacket_dict(datapacket_dict, field_name)
+        dirfile.putdata(field_name, get_data_from_datapacket_dict(datapacket_dict, field_name), first_sample = currentsize ) #+ 1)
 
-        dirfile.putdata(field_name, data, first_sample = currentsize ) #+ 1)
+    ####dirfile.flush()
 
-    #dirfile.flush()
-
-def generate_sweep_dirfile( roachid, dirfilename, lo_frequencies, complex_sweep_data_dict ):#, field_suffix = "" ):
+def generate_sweep_dirfile( roachid, dirfilename, lo_frequencies, bb_frequencies, complex_sweep_data_dict ):#, field_suffix = "" ):
     """
     Generate a sweep dirfile from arrays of F, I, Q. In addition, add constants from
     di/df, dq/df vs freq, di/df ^2, dq/df ^2, centred + rotated IQ circle + anything else you can get from the sweep!
@@ -460,6 +460,7 @@ def generate_sweep_dirfile( roachid, dirfilename, lo_frequencies, complex_sweep_
     # create new dirfile for derived sweep
     sweep_dirfile = create_pcp_dirfile(roachid, dirfilename, dirfile_type = "sweep", tones = tone_names, array_size = num_sweep_points, filename_suffix = "sweep")
 
+    sweep_dirfile.put_carray("sweep." + "bb_freqs", bb_frequencies)
     sweep_dirfile.put_carray("sweep." + "lo_freqs", lo_frequencies)
 
     for field_name, sweep_data in complex_sweep_data_dict.items():

@@ -15,10 +15,13 @@
 #       - daemon tracker - associated information regarding the daemon packet receiving daemonself.
 #           - this should have a live status update of whether saving is on/off...etc
 
+#from memory_profiler import profile
+
 import os, sys, time, logging as _logging, numpy as np, pandas as _pd
 
 import atexit
 from functools import wraps as _wraps
+from tqdm import tqdm as _tqdm
 import pygetdata as _gd
 
 _logger = _logging.getLogger(__name__)
@@ -37,6 +40,10 @@ from .synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT # note that we might ne
 
 from . import toneslist, datalog_mp
 from .lib import lib_dirfiles as _lib_dirfiles, lib_fpga as _lib_fpga
+
+from .configuration import color_msg as cm
+
+from .lib.lib_hardware import usb_detector
 
 from .lib.lib_hardware import initialise_connected_synths as _initialise_connected_synths
 SYNTHS_IN_USE = _initialise_connected_synths()
@@ -70,6 +77,9 @@ class muxChannel(object):
         self.current_dirfile       = None
         self.current_sweep_dirfile = None
 
+        # start usb monitoring
+        self.usb_device = usb_detector()
+
         # get configuration for specific roach
         self.ROACH_CFG = roach_config[self.roachid]
 
@@ -79,7 +89,7 @@ class muxChannel(object):
         os.makedirs(self.DIRFILE_SAVEDIR) if not os.path.exists(self.DIRFILE_SAVEDIR) else None
 
         #self._initialise_daemon_writer()
-        #self.initialse_hardware()
+        #self.initialise_hardware()
 
 ################################################################################
 ################################################################################
@@ -96,7 +106,36 @@ class muxChannel(object):
         writer_daemon.start_daemon()
         return writer_daemon
 
-    def initialse_hardware(self):
+    def refresh_connections(self):
+        global SYNTHS_IN_USE
+        global ATTENS_IN_USE
+
+        SYNTHS_IN_USE = _initialise_connected_synths()
+        ATTENS_IN_USE = _initialise_connected_attens()
+
+        self.initialise_hardware()
+
+    def _check_connections(self):
+        # Check Connection status
+        for synth in SYNTHS_IN_USE:
+            dev = SYNTHS_IN_USE[synth].synthobj
+            # Try to get the frequency
+            try:
+                get_freq = dev.frequency
+                print "[ " + cm.OKGREEN + "ok" + cm.ENDC +" ] {synth} Connected :)".format(synth = synth) 
+            except:
+                print "[ " + cm.FAIL + "fail" + cm.ENDC +" ] {synth} Not connected :)".format(synth = synth) 
+
+        for atten in ATTENS_IN_USE:
+            dev = ATTENS_IN_USE[atten].attenobj
+            # Try to get the frequency
+            try:
+                get_atten = dev.attenuation
+                print "[ " + cm.OKGREEN + "ok" + cm.ENDC +" ] {atten} Connected :)".format(atten = atten) 
+            except:
+                print "[ " + cm.FAIL + "fail" + cm.ENDC +" ] {atten} Not connected :)".format(atten = atten) 
+
+    def initialise_hardware(self):
         # initialise the synthesisers
         self._initialise_synth_clk()
         self._initialise_synth_lo()
@@ -121,6 +160,7 @@ class muxChannel(object):
         if synthid_clk is not None:
             # get the dictionary of live synths and initialise
             self.synth_clk = SYNTHS_IN_USE[synthid_clk].synthobj
+
             #set the clk frequency
             self.synth_clk.clk_or_lo = 'clk'
             self.synth_clk.frequency = 512.0e6
@@ -298,15 +338,22 @@ class muxChannel(object):
 
         #loop over LO frequencies, while saving time at lo_step
         try:
-            #for lo_freq in lo_freqs:
-            for lo_freq in self.toneslist.sweep_lo_freqs:
+            #for lo_freq in lo_freqs
+            pbar = _tqdm(self.toneslist.sweep_lo_freqs, ncols=75)
+            for lo_freq in pbar:
                 self.synth_lo.frequency = lo_freq
                 step_times.append( time.time() )
+                pbar.set_description(cm.BOLD + "LO: %i" % lo_freq + cm.ENDC)
                 time.sleep(sleeptime)
+            pbar.close()
+            print cm.OKGREEN + "Sweep done!" + cm.ENDC
         except KeyboardInterrupt:
             pass
 
         self.writer_daemon.pause_writing()
+
+        # Back to the central frequency
+        self.synth_lo.frequency = self.toneslist.lo_freq
 
         # save lostep_times to current dirfile
         self.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lo_freqs"    , 0, (_gd.FLOAT64, 1) ) )
@@ -334,7 +381,7 @@ class muxChannel(object):
         startidx = np.int32(startidx)
         stopidx  = np.int32(stopidx) if stopidx is not None else stopidx
 
-        for field in self.current_dirfile.field_list( _gd.RAW_ENTRY ):
+        for field in _tqdm(self.current_dirfile.field_list( _gd.RAW_ENTRY ), desc=cm.BOLD+"Writing data"+cm.ENDC, ncols=75):
 
             if ("_I" in field) or ("_Q" in field): #field.startswith("K"):
 
@@ -360,10 +407,12 @@ class muxChannel(object):
                     continue
 
         # create new sweep dirfile and keep hold of it
-        self.current_sweep_dirfile = _lib_dirfiles.generate_sweep_dirfile(self.roachid, self.DIRFILE_SAVEDIR, self.toneslist.sweep_lo_freqs, sweep_data_dict)
+        self.current_sweep_dirfile = _lib_dirfiles.generate_sweep_dirfile(self.roachid, self.DIRFILE_SAVEDIR, self.toneslist.sweep_lo_freqs, self.toneslist.bb_freqs.get_values(), sweep_data_dict)
 
         # add metadata
         _lib_dirfiles.add_metadata_to_dirfile(self.current_sweep_dirfile, {"raw_sweep_filename": self.current_dirfile.name})
+
+        print cm.OKGREEN + "Data saved" + cm.ENDC
 
         #return sweep_data_dict
         # close dirfile to prevent further writing
@@ -381,6 +430,7 @@ class muxChannel(object):
 
         # playing with subdirfiles
 
+    #@profile
     def start_stream(self, **stream_kwargs):
         """
 
@@ -394,15 +444,19 @@ class muxChannel(object):
         filename_suffix = stream_kwargs.pop("filename_suffix", "")
         stream_time     = stream_kwargs.pop("stream_time", None)
         save_data       = stream_kwargs.pop("save_data", True) # currently not used
+        dont_ask        = stream_kwargs.pop("dont_ask", False) # currently not used
 
         dirfile_name = stream_kwargs.pop("dirfilename", "") # allow the user to pass in and append to an existing dirfile
 
         # check that sweep exists - warn if not and give option to proceed
         if self.current_sweep_dirfile is None:
             _logger.warning( "no sweep file available - limited functionality available" )
-            response = raw_input("Proceed? [y/n] ")
-            if response == "n":
-                return
+            if dont_ask==False:
+                response = raw_input("Proceed? [y/n] ")
+                if response == "n":
+                    return
+            else:
+                response='y'
 
         # create a new dirfile for the observation
         self.set_active_dirfile( dirfile_name = dirfile_name, filename_suffix = filename_suffix )

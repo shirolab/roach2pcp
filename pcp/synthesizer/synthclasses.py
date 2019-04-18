@@ -88,6 +88,18 @@ class pcp_dummySynthSource(_dummy_synth.dummySynthSource):
         _time.sleep(0.001) # emulate time to switch frequency
         print ("frequency set to {f}".format(f=frequency))
 
+    # Power getter
+    @property
+    def power(self):
+        return self._power
+
+    # Power getter
+    @power.setter
+    def power(self, power):
+        self._power = power
+        _time.sleep(0.001)
+        print ("power set to {p}".format(p=power))
+
     # add a print status method for convenience
     def print_status(self):
         _pprint.pprint(vars(self), width=1)
@@ -122,11 +134,27 @@ class pcp_apsinSource(_apsin.apsinSynthSource):
     @property
     def frequency(self):
         """Get or set the frequency of the synthesizer. Units should all be in Hz."""
+        self._frequency = self.frequency
         return self._frequency
+
     @frequency.setter
     def frequency(self, frequency):
+        self.frequency = frequency
         self._frequency = frequency
-        _time.sleep(0.001) # emulate time to switch frequency
+        print ("frequency set to {f}".format(f=frequency))
+
+    # Power getter
+    @property
+    def power(self):
+        self._power = self.output_power
+        return self._power
+
+    # Power getter
+    @power.setter
+    def power(self, power):
+        self.output_power = power
+        self._power = power
+        print ("power set to {p}".format(p=power))
 
     # add a print status method for convenience
     def print_status(self):
@@ -143,9 +171,9 @@ class pcp_windfreaksynthDevice(_windfreaksynth.SynthHDDevice):
     VENDOR = _windfreaksynth.VENDOR
     MODELNUMS = _windfreaksynth.MODELNUMS
 
-    def __init__(self):
+    def __init__(self,serial):
         # instantiate class to get all of the factory provided methods
-        super(pcp_windfreaksynthDevice, self).__init__()
+        super(pcp_windfreaksynthDevice, self).__init__(serial)
 
         #TODO: this will be set to external when synths locked
         self.setReferenceSelect(1) #internal 27MHz
@@ -161,7 +189,7 @@ class pcp_windfreaksynthSource(_windfreaksynth.SynthHDSource):
         super(pcp_windfreaksynthSource, self).__init__(device,source)
 
         #set all settings as required for muscat
-        #self.setAMRunContinuously(0)
+        self.setAMRunContinuously(0)
 
         #self.setControlChannel(0)
         #self.setPLLPowerOn(True)
@@ -177,10 +205,10 @@ class pcp_windfreaksynthSource(_windfreaksynth.SynthHDSource):
         #really needs to link to config file.
         #self.clk_or_lo='clk'
 
-
     # make sure all methods are defined in the same way, and return the same item
 
     # only show example here, as the base class for dummySynth was written in this way
+    # frequency getter
     @property
     def frequency(self): # getter
         #clk_or_lo='lo'
@@ -188,14 +216,88 @@ class pcp_windfreaksynthSource(_windfreaksynth.SynthHDSource):
         self._frequency = self.getFrequency()
         return self._frequency
 
+    # frequency setter
     @frequency.setter
     def frequency(self, frequency):
         self.setFrequencyFast(frequency)
         self._frequency=frequency
-        
+        #print ("frequency set to {f}".format(f=frequency))
+
+    # power getter
+    @property
+    def power(self):
+        self._power = self.getPower()
+        return self._power
+
+    # power setter
+    @power.setter
+    def power(self, power):
+        self.setPower(power)
+        self._power = power
+        print ("power set to {p}".format(p=power))
+
     # add a print status method for convenience
     def print_status(self):
         _pprint.pprint(vars(self), width=1)
+
+# ===========================================================================================
+# === Valon 5009 ============================================================================
+# ===========================================================================================
+
+# Valon 5009
+
+import valon5009 as _synth_valon5009 # hide the base class from the user by prepending "_"
+
+class pcp_valon5009synthDevice(_synth_valon5009.ValonDevice):
+    # pass vendor and model nums as class attributes for checking when creating SYNTH_HW_DICT
+    VENDOR = _synth_valon5009.VENDOR
+    MODELNUMS = _synth_valon5009.MODELNUMS
+
+    def __init__(self, serial):
+        # instantiate class to get all of the factory provided methods
+        super(pcp_valon5009synthDevice, self).__init__(serial)
+
+    def getSourceObj(self,channel):
+        return pcp_valon5009synthSource(self,channel)
+
+class pcp_valon5009synthSource(_synth_valon5009.ValonSource):
+
+    def __init__(self,device,source):
+        # instantiate class to get all of the factory provided methods
+        super(pcp_valon5009synthSource, self).__init__(device,source)
+        self.source = source
+
+    # frequency getter
+    @property
+    def frequency(self): # getter
+        """Get or set the frequency of the synthesizer. Units should all be in Hz."""
+        self._frequency = self.Frequency
+        return self._frequency
+
+    # frequency setter
+    @frequency.setter
+    def frequency(self, frequency):
+        self.Frequency = frequency
+        self._frequency = frequency
+        print ("frequency set to {f}".format(f=frequency))
+
+    # power getter
+    @property
+    def power(self):
+        self._power = self.powerLevel
+        return self._power
+
+    # power setter
+    @power.setter
+    def power(self, power):
+        self.powerLevel = power
+        self._power = power
+        print ("power set to {p}".format(p=power))
+
+    # add a print status method for convenience
+    def print_status(self):
+        _pprint.pprint(vars(self), width=1)
+
 
 # ===========================================================================================
 # === Synthesizer ADF4355====================================================================
@@ -233,7 +335,7 @@ class pcp_adf4355synthSource(_synth_ADF4355.ADF4355synthSource):
     def frequency(self, frequency):
         self.setFrequency(frequency)
         self._frequency=frequency
-        
+
     # add a print status method for convenience
     def print_status(self):
         _pprint.pprint(vars(self), width=1)
