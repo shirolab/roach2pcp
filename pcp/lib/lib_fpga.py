@@ -603,7 +603,7 @@ class roachInterface(object):
 
   #       return I_lut.astype('>i2').tostring(), Q_lut.astype('>i2').tostring() # I_lut_packed, Q_lut_packed
 
-    @progress_wrapped(description=cm.BOLD+"Writting tones"+cm.ENDC, estimated_time=15.75)
+    @progress_wrapped(description=cm.BOLD+"Writing tones"+cm.ENDC, estimated_time=15.75)
     def write_freqs_to_qdr(self, freqs, amps, phases, iq_correction=None,phase_error_radians=None, **kwargs):
         # Writes packed LUTs to QDR
 
