@@ -8,7 +8,9 @@
 
 import pykst as kst
 import glob, os
-#import netCDF4 as nc
+
+#################################################################3
+# Auxiliary functions
 
 def find_latestfile(dataloc = "/data/dirfiles/roach0/",
                     datapattern = "20??????_??????"):
@@ -16,25 +18,43 @@ def find_latestfile(dataloc = "/data/dirfiles/roach0/",
     latest_file = max(list_of_files, key = os.path.getctime)
     return latest_file
 
-# Data vectors require parameters to control how many data frames are
-# read and plotted...
-# start: starting index of vector, -1 for count from end
-# num_frames: number of frames to read, -1 for read to end
-# skip: number of frames to skip, 0 to read everything
-def frametype(type = "all",
-              fpm = 60.*488., # frames per min
-              m2r = 2., # mins to read
-              skip = 0):
-    if type == "all":
-        frame_start = -1
-        frame_num = -1
-        frame_skip = skip
-    if type == "lastnmins":
-        frame_start = -1
-        frame_num = fpm * m2r
-        frame_skip = skip
+def kill(client):
+    client.clear()
+    client.quit()
 
-    return int(frame_start), int(frame_num), int(frame_skip)
+def frametype(type = "lastnmins", f_s = 488.0, m2r = 2., ds = 1.):
+    """ Data vectors require parameters to control how many data frames are
+        read and plotted (see pykst documentation) - outputted in dict:
+        start: starting index of vector, -1 for count from end
+        num_frames: number of frames to read, -1 for read to end
+        skip: number of frames to skip, 0 to read everything
+
+        Arguments:
+        type:
+          'all':       Plot everything in the dirfile (not recommended)
+          'lastnmins': Plot last n mins.  Frame count determined by f_s
+          'firstnmins': Plot first n mins 
+        fs: Sampling rate, Hz
+        m2r: Minutes to read
+        ds: downsampling factor (1 = none, 2 = every other frame, etc.)
+    """
+    skip = ds - 1
+        
+    if type == "all":
+        start = -1
+        num_frames = -1
+    if type == "lastnmins":
+        start = -1
+        num_frames = f_s * 60 * m2r
+    if type == "firstnmins":
+        start = 1
+        num_frames = f_s * 60 * m2r
+
+    # Assemble everything into a dict.  Need to be ints!
+    framedict = {'start'      : int(start),
+                 'num_frames' : int(num_frames),
+                 'skip'       : int(skip)}
+    return framedict
 
 def check_timestamp(x_axis, plothandle):
     if x_axis == "python_timestamp":
@@ -42,8 +62,8 @@ def check_timestamp(x_axis, plothandle):
         plothandle.set_x_axis_display(display = "yyyy-MM-dd hh:mm:ss")
         plothandle.set_bottom_label(' ') # Adding another label clutters too much
     return
-    
-def df_equationstring(chan, sweepdict, Ifield, Qfield):
+
+def equationstring_df(chan, sweepdict, Ifield, Qfield):
     # ((I-I_f0)*dIdf + (Q-Q_f0)*dQdf)/(dIdf^2 + dQdf^2)
     f0 = sweepdict[chan]['f0']
     I_f0 = sweepdict[chan]['I_f0']
@@ -58,246 +78,125 @@ def df_equationstring(chan, sweepdict, Ifield, Qfield):
     # add division by freq?
     return eqn
 
-def mag_equationstring(Ifield, Qfield):
-    eqn = 'SQRT([' + Ifield + ']^2 + [' + Qfield + ']^2)'
-    return eqn
+def equationstring_IQ(eqn, Ifield, Qfield):
+    if eqn == "mag":
+        equationstring = 'SQRT([' + Ifield + ']^2 + [' + Qfield + ']^2)'
+    if eqn == "phase":
+        equationstring = 'ATAN([' + Ifield + ']/[' + Qfield + '])'
+    return equationstring
 
-def phase_equationstring(Ifield, Qfield):
-    eqn = 'ATAN([' + Ifield + ']/[' + Qfield + '])'
-    return eqn
-    
-def plot_dirfile_mag(chanlist, 
-                    client_name = find_latestfile(),
-                    datafile = find_latestfile(),
-                    x_axis = "python_timestamp",
-                    plottype = "all",
-                    minstoread = 2):
+#################################################################3
+# Plotting functions
 
-    # Find plot type params
-    frame_start, frame_num, frame_skip = frametype(type = plottype,
-                                                   m2r = minstoread)
+def plot_dirfile_rawfield(myfields, datafile, client_name = None,
+                          x_axis = "python_timestamp", fd = None):
+    """ Plot raw fields from a dirfile
+    Inputs:
+       myfield: string for dirfile field, e.g. 'K000_I'
+                Can be a list of strings
+       datafile: dirfile or .txt sourcefile
+       client_name: string for title of plot, unique handle
+       x_axis: python timestamp for human-readability, 
+               kst default is "INDEX" (frame count, 1 per packet)
+       fd: frame dict
+    """
+    if type(myfields) == str:
+        myfields = [myfields]
 
-    client = kst.Client(client_name)
-    client.hide_window()
-    X = client.new_data_vector(datafile,
-                               field = x_axis,
-                               start = frame_start,
-                               num_frames = frame_num,
-                               skip = frame_skip)
-
-    for chan in chanlist:
-        Ifield = chan + '_I'
-        I = client.new_data_vector(datafile,
-                                   field = Ifield,
-                                   start = frame_start,
-                                   num_frames = frame_num,
-                                   skip = frame_skip,
-                                   name = Ifield)
-        I.set_name(Ifield)
-        Qfield = chan + '_Q'
-        Q = client.new_data_vector(datafile,
-                                   field = Qfield,
-                                   start = frame_start,
-                                   num_frames = frame_num,
-                                   skip = frame_skip,
-                                   name = Qfield)
-        Q.set_name(Qfield)
-        
-        equationstring = mag_equationstring(Ifield, Qfield)
-
-        e1 = client.new_equation(X, equationstring, name= chan + ' mag')
-        c1 = client.new_curve(e1.x(), e1.y())
-        p1 = client.new_plot()
-        p1.add(c1)
-
-        check_timestamp(x_axis, p1)
-        
-    client.show_window()
-    return client
-
-def plot_dirfile_phase(chanlist, 
-                    client_name = find_latestfile(),
-                    datafile = find_latestfile(),
-                    x_axis = "python_timestamp",
-                    plottype = "all",
-                    minstoread = 2):
-
-    # Find plot type params
-    frame_start, frame_num, frame_skip = frametype(type = plottype,
-                                                   m2r = minstoread)
+    if fd == None:
+        fd = frametype()
 
     client = kst.Client(client_name)
     client.hide_window()
     X = client.new_data_vector(datafile,
                                field = x_axis,
-                               start = frame_start,
-                               num_frames = frame_num,
-                               skip = frame_skip)
+                               start = fd['start'],
+                               num_frames = fd['num_frames'],
+                               skip = fd['skip'])
 
-    for chan in chanlist:
-        Ifield = chan + '_I'
-        I = client.new_data_vector(datafile,
-                                   field = Ifield,
-                                   start = frame_start,
-                                   num_frames = frame_num,
-                                   skip = frame_skip,
-                                   name = Ifield)
-        I.set_name(Ifield)
-        Qfield = chan + '_Q'
-        Q = client.new_data_vector(datafile,
-                                   field = Qfield,
-                                   start = frame_start,
-                                   num_frames = frame_num,
-                                   skip = frame_skip,
-                                   name = Qfield)
-        Q.set_name(Qfield)
-        
-        equationstring = phase_equationstring(Ifield, Qfield)
+    for field in myfields:
+        y_axis = field
+        Y = client.new_data_vector(datafile,
+                                   field = y_axis,
+                                   start = fd['start'],
+                                   num_frames = fd['num_frames'],
+                                   skip = fd['skip'])
 
-        e1 = client.new_equation(X, equationstring, name= chan + ' phase')
-        c1 = client.new_curve(e1.x(), e1.y())
-        p1 = client.new_plot()
-        p1.add(c1)
-
-        check_timestamp(x_axis, p1)
-        
-    client.show_window()
-    return client
-
-
-
-def plot_dirfile_rawfield(myfield,
-                          client_name = find_latestfile(),
-                          datafile = find_latestfile(),
-                          x_axis = "python_timestamp",
-                          plottype = "all",
-                          minstoread = 2):
-
-    # Find plot type params
-    frame_start, frame_num, frame_skip = frametype(type = plottype,
-                                                   m2r = minstoread)
-
-    client = kst.Client(client_name)
-    client.hide_window()
-    X = client.new_data_vector(datafile,
-                               field = x_axis,
-                               start = frame_start,
-                               num_frames = frame_num,
-                               skip = frame_skip)
-
-    y_axis = myfield
-    Y = client.new_data_vector(datafile,
-                                 field = y_axis,
-                                 start = frame_start,
-                                 num_frames = frame_num,
-                                 skip = frame_skip)
-    c1 = client.new_curve(X,Y)
-    p1 = client.new_plot()
-    L1 = client.new_legend(p1)
-    p1.add(c1)
-
-    check_timestamp(x_axis, p1)
-
-    client.show_window()
-    return client
-
-def plot_dirfile_equation(myfield, equation,
-                          client_name = find_latestfile(),
-                          datafile = find_latestfile(),
-                          x_axis = "INDEX",
-                          plottype = "all",
-                          minstoread = 2):
-
-    # Find plot type params
-    frame_start, frame_num, frame_skip = frametype(type = plottype,
-                                                   m2r = minstoread)
-
-    client = kst.Client(client_name)
-    client.hide_window()
-    X = client.new_data_vector(datafile,
-                               field = x_axis,
-                               start = frame_start,
-                               num_frames = frame_num,
-                               skip = frame_skip)
-    Y = client.new_data_vector(datafile,
-                               field = myfield,
-                               start = frame_start,
-                               num_frames = frame_num,
-                               skip = frame_skip)
-
-    e1 = client.new_equation(Y, equation)
-    c1 = client.new_curve(X, e1.y())
-    p1 = client.new_plot()
-    p1.add(c1)
-
-    check_timestamp(x_axis, p1)
-
-    client.show_window()
-    return client
-
-def plot_dirfile_chanIQ(client_name = find_latestfile(),
-                        datafile = find_latestfile(),
-                        x_axis = "INDEX",
-                        chanrange = [0],
-                        dofft = 0,
-                        plottype = "all",
-                        minstoread = 2):
-
-    # Find plot type params
-    frame_start, frame_num, frame_skip = frametype(type = plottype,
-                                                   m2r = minstoread)
-
-    client = kst.Client(client_name)
-    client.hide_window()
-    X = client.new_data_vector(datafile,
-                               field = x_axis,
-                               start = frame_start,
-                               num_frames = frame_num,
-                               skip = frame_skip)
-    # Go through each channel and overplot I/Q
-    for ii in range(len(chanrange)):
-        y_axis = 'I_' + str(chanrange[ii])
-        Y_I = client.new_data_vector(datafile,
-                                     field = y_axis,
-                                     start = frame_start,
-                                     num_frames = frame_num,
-                                     skip = frame_skip)
-        c1 = client.new_curve(X,Y_I)
-        y_axis = 'Q_' + str(chanrange[ii])
-        Y_Q = client.new_data_vector(datafile,
-                                     field = y_axis,
-                                     start = frame_start,
-                                     num_frames = frame_num,
-                                     skip = frame_skip)
-        c2 = client.new_curve(X,Y_Q)
-            
+        c1 = client.new_curve(X,Y)
         p1 = client.new_plot()
         L1 = client.new_legend(p1)
         p1.add(c1)
-        p1.add(c2)
 
-        if dofft == 1:
-            S_I = client.new_spectrum(Y_I,
-                                      sample_rate = 488,
-                                      interleaved_average = True,
-                                      fft_length = 9,
-                                      output_type = 3)
-            S_Q = client.new_spectrum(Y_Q,
-                                      sample_rate = 488,
-                                      interleaved_average = True,
-                                      fft_length = 9,
-                                      output_type = 3)
-            c3 = client.new_curve(S_I.x(), S_I.y())
-            c4 = client.new_curve(S_Q.x(), S_Q.y())
-            p2 = client.new_plot()
-            L2 = client.new_legend(p2)
-            p2.add(c3)
-            p2.add(c4)
-            
-    #p1.set_x_axis_interpretation(interp = 'ctime')
+        check_timestamp(x_axis, p1)
+
     client.show_window()
     return client
 
+def plot_dirfile_IQequation(chanlist, datafile, client_name = None,
+                            eqnlist = ["mag"],
+                            x_axis = "python_timestamp", fd = None):
+    """ Plot an equation involving IQ for a channel list
+    Inputs:
+       chanlist: list of KIDs, e.g. ['K000','K002']
+                 Looks for fields 'K000_I', 'K000_Q', etc.
+       datafile: dirfile or .txt sourcefile
+       client_name: string for title of plot, unique handle
+       eqn: list of equations or functions of (Ifield, Qfield)
+            usually ["mag","phase"]
+       x_axis: python timestamp for human-readability, 
+               kst default is INDEX (frame count, 1 per packet)
+       fd: frame dict
+    """
+
+    # If single strings for chanlist and eqnlist, turn into lists
+    if type(chanlist) == str:
+        chanlist = [chanlist]
+    if type(eqnlist) == str:
+        eqnlist = [eqnlist]
+        
+    if fd == None:
+        fd = frametype()
+
+    client = kst.Client(client_name)
+    client.hide_window()
+    X = client.new_data_vector(datafile,
+                               field = x_axis,
+                               start = fd['start'],
+                               num_frames = fd['num_frames'],
+                               skip = fd['skip'])
+    for chan in chanlist:
+        Ifield = chan + '_I'
+        I = client.new_data_vector(datafile,
+                                   field = Ifield,
+                                   start = fd['start'],
+                                   num_frames = fd['num_frames'],
+                                   skip = fd['skip'])
+        I.set_name(Ifield)
+        Qfield = chan + '_Q'
+        Q = client.new_data_vector(datafile,
+                                   field = Qfield,
+                                   start = fd['start'],
+                                   num_frames = fd['num_frames'],
+                                   skip = fd['skip'])
+        Q.set_name(Qfield)
+
+        for eqn in eqnlist:
+            equationstring = equationstring_IQ(eqn, Ifield, Qfield)
+            print equationstring
+            e1 = client.new_equation(X, equationstring, name = chan + ' ' + eqn)
+            c1 = client.new_curve(e1.x(), e1.y())
+            p1 = client.new_plot()
+            p1.add(c1)
+            
+            check_timestamp(x_axis, p1)
+
+    client.show_window()
+    return client
+
+#################################################################3
+# Old functions
+
+"""
 def add_plottoclient(client,
                      new_plot,
                      datafile = find_latestfile(),
@@ -419,7 +318,7 @@ def plot_fakeroach(client_name = "Test fakeroach",
 if __name__ == '__main__':
     client = plot_dirfile_chanIQ()
 
-
+"""
 #############
 # Minimal example
 
