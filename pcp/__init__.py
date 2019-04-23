@@ -19,7 +19,7 @@ import sys as _sys, pkgutil as _pkgutil, time as _time, logging as _logging, log
 import multiprocessing_logging as _multiprocessing_logging
 #import sub-libraries required for logger (these packages are needed first)
 import configuration, lib, logfile
-
+from log import ssLog
 # setup the logging configuration according to the configuration file
 _logconfig.dictConfig(configuration.logging_config)
 
