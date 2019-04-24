@@ -21,39 +21,43 @@ def plot_aux_data(client=None):
     return client
 
 
-def plot_kidrange_mag(kidarray,client=None): # array of numbers
+def plot_kidrange_mag(kidarray,df = None,client=None): # array of numbers
 
     if client != None:
         client.quit()
 
-    df = ssMonitor.find_latestfile()
+    if df == None:
+        df = ssMonitor.find_latestfile()
+
     client_name = 'magnitude'
 
     chanlist = []
     for kk, kn in enumerate(kidarray):
         chanlist.append('K%03i' % kn)
         
-    client = ssMonitor.plot_dirfile_mag(chanlist,
-                                        client_name = client_name,
-                                        datafile = df)
+    client = ssMonitor.plot_dirfile_IQequation(chanlist, df,
+                                               client_name = client_name,
+                                               eqnlist = ["mag"])
 
     return client
 
-def plot_kidrange_phase(kidarray,client=None): # array of numbers
+def plot_kidrange_phase(kidarray,df = None,client=None): # array of numbers
 
     if client != None:
         client.quit()
 
-    df = ssMonitor.find_latestfile()
+    if df == None:
+        df = ssMonitor.find_latestfile()
+        
     client_name = 'phase'
 
     chanlist = []
     for kk, kn in enumerate(kidarray):
         chanlist.append('K%03i' % kn)
         
-    client = ssMonitor.plot_dirfile_phase(chanlist,
-                                        client_name = client_name,
-                                        datafile = df)
+    client = ssMonitor.plot_dirfile_IQequation(chanlist, df,
+                                               client_name = client_name,
+                                               eqnlist = ["phase"])
 
     return client
 

@@ -20,7 +20,7 @@ r0.initialise_hardware()
 r0.roach_iface.initialise_fpga(force_reupload=True)
 
 log('Setting tones list and writing to QDR')
- Set tones amplitudes and frequencies
+# Set tones amplitudes and frequencies
 r0.toneslist.amps = np.ones_like(r0.toneslist.bb_freqs)
 r0.toneslist.set_phases()
 r0.roach_iface.write_freqs_to_qdr(r0.toneslist.bb_freqs,

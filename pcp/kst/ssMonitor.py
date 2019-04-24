@@ -8,6 +8,8 @@
 
 import pykst as kst
 import glob, os
+import pygetdata as gd
+import numpy as np
 
 #################################################################3
 # Auxiliary functions
@@ -18,11 +20,17 @@ def find_latestfile(dataloc = "/data/dirfiles/roach0/",
     latest_file = max(list_of_files, key = os.path.getctime)
     return latest_file
 
+def find_lastsweep(dataloc = '/data/dirfiles/roach0/',
+                   datapattern = "20??????_??????_sweep"):
+    list_of_files = glob.glob(dataloc + datapattern)
+    latest_file = max(list_of_files, key = os.path.getctime)
+    return latest_file
+    
 def kill(client):
     client.clear()
     client.quit()
 
-def frametype(type = "lastnmins", f_s = 488.0, m2r = 2., ds = 1.):
+def frametype(type = "lastnmins", f_s = 122.0, m2r = 2., ds = 1.):
     """ Data vectors require parameters to control how many data frames are
         read and plotted (see pykst documentation) - outputted in dict:
         start: starting index of vector, -1 for count from end
@@ -128,6 +136,53 @@ def plot_dirfile_rawfield(myfields, datafile, client_name = None,
         p1.add(c1)
 
         check_timestamp(x_axis, p1)
+
+    client.show_window()
+    return client
+
+def plot_lastsweep(chanlist, sweepfile = None, client_name = None):
+    """ Quickly plot result of the derived sweep dirfile
+    Inputs:
+       chanlist: list of KIDs, e.g. ['K000','K002']
+                 Looks for fields 'sweep.K000' in 'entry'
+       sweepfile: dirfile, default is latest matching 
+                  'yyyymmdd_hhmmss_sweep'
+       client_name: string for title of plot, unique handle
+                    default is sweep dirfile name
+    """
+    if type(chanlist) == str:
+        chanlist = [chanlist]
+
+    if sweepfile == None:
+        sweepfile = find_lastsweep()
+
+    if client_name == None:
+        client_name = sweepfile[-21:]
+
+    # Load in dirfile and static fields
+    df = gd.dirfile(sweepfile, gd.RDONLY | gd.UNENCODED)
+    lo = df.get_carray('sweep.lo_freqs')/1e6 # MHz
+    bb = df.get_carray('sweep.bb_freqs')/1e6 # MHz
+    
+    client = kst.Client(client_name)
+    client.hide_window()
+
+    for chan in chanlist:
+        # Find BB freq for this chan - super janky
+        ind = np.int(chan[-3:])
+        
+        F = client.new_editable_vector(lo + bb[ind])
+        s21 = df.get_carray('sweep.' + chan)
+        S21 = client.new_editable_vector(10*np.log10(np.abs(s21)))
+        S21.set_name(chan)
+        
+        c1 = client.new_curve(F,S21)
+        p1 = client.new_plot()
+
+        p1.set_bottom_label('Frequency (MHz)')
+        p1.set_left_label('10*log10(mag)')
+        p1.set_top_label(chan)
+        p1.add(c1)
 
     client.show_window()
     return client
