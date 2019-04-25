@@ -71,27 +71,87 @@ def check_timestamp(x_axis, plothandle):
         plothandle.set_bottom_label(' ') # Adding another label clutters too much
     return
 
-def equationstring_df(chan, sweepdict, Ifield, Qfield):
-    # ((I-I_f0)*dIdf + (Q-Q_f0)*dQdf)/(dIdf^2 + dQdf^2)
+def process_sweep(sweepfile = None):
+    """ Given a 'processed' sweep file, generate 
+        I_fo, Q_fo, dIdf, dQdf and return a dict for all KIDs
+    """
+    if sweepfile == None:
+        sweepfile = find_lastsweep()
+
+    # Load in dirfile
+    df = gd.dirfile(sweepfile, gd.RDONLY | gd.UNENCODED)
+    lo = df.get_carray('sweep.lo_freqs')
+    bb = df.get_carray('sweep.bb_freqs')
+    
+    # Get a list of KIDs...super non-robust
+    kidlist = []
+    for key in df.field_list():
+        if key[-4] == 'K':
+            kidlist.append(key[-4:])
+
+    # Index for f0...probably a smarter way to do this
+    ind = len(lo)/2
+
+    # Build up sweepdict
+    sweepdict = {}
+    for kid in kidlist:
+        thisdict = {}
+        kidind = int(kid[-3:])
+        thisdict['f0'] = lo[ind] + bb[kidind]
+        mysweep = df.get_carray('sweep.' + kid)
+        thisdict['I_f0'] = np.real(mysweep[ind])
+        thisdict['Q_f0'] = np.imag(mysweep[ind])
+        # Use the two points around f0 to get a slope
+        thisdict['dIdf'] = (np.real(mysweep[ind+1]-mysweep[ind-1]))/ \
+                           (lo[ind+1]-lo[ind-1])
+        thisdict['dQdf'] = (np.imag(mysweep[ind+1]-mysweep[ind-1]))/ \
+                           (lo[ind+1]-lo[ind-1])
+        sweepdict[kid] = thisdict
+    
+    return sweepdict
+
+def equationstring_df_x(chan, sweepdict, Ifield, Qfield):
+    # ((I_f0-I)*dIdf + (Q_f0-Q)*dQdf)/(dIdf^2 + dQdf^2)
     f0 = sweepdict[chan]['f0']
     I_f0 = sweepdict[chan]['I_f0']
     Q_f0 = sweepdict[chan]['Q_f0']
     dIdf = sweepdict[chan]['dIdf'] # at f0
     dQdf = sweepdict[chan]['dQdf']
 
-    eqn = '((([' + Ifield + ']-%3f)*%3f)'  % (I_f0,dIdf) + \
-          '+(([' + Qfield + ']-%3f)*%3f))' % (Q_f0,dQdf) + \
-          '/(%3f^2 + %3f^2)  '             % (dIdf,dQdf)
+    eqnstring_df = '(((%3f-[' % (I_f0) + Ifield + '])*(%3f))'  % (dIdf) + \
+                   '+((%3f-[' % (Q_f0) + Qfield + '])*(%3f)))' % (Q_f0) + \
+                   '/((%3f)^2 + (%3f)^2)  '                    % (dIdf,dQdf)
+    eqnstring_x = '((((%3f-[' % (I_f0) + Ifield + '])*(%3f))' % (dIdf) + \
+                  '+((%3f-[' % (Q_f0) + Qfield + '])*(%3f)))' % (dQdf) + \
+                  '/((%3f)^2 + (%3f)^2)) '                    % (dIdf,dQdf) + \
+                  '/%3f '                                     % (f0)
 
-    # add division by freq?
-    return eqn
+    return eqnstring_df, eqnstring_x
 
-def equationstring_IQ(eqn, Ifield, Qfield):
+def equationstring_IQ(eqn, Ifield, Qfield, sweepdict = None):
+    """ Return a kst equation involving fields I and Q
+    """
     if eqn == "mag":
-        equationstring = 'SQRT([' + Ifield + ']^2 + [' + Qfield + ']^2)'
+        eqnstring = 'SQRT([' + Ifield + ']^2 + [' + Qfield + ']^2)'
     if eqn == "phase":
-        equationstring = 'ATAN([' + Ifield + ']/[' + Qfield + '])'
-    return equationstring
+        eqnstring = 'ATAN([' + Ifield + ']/[' + Qfield + '])'
+    if (eqn == "df") or (eqn == "x"):
+        f0 = sweepdict['f0']
+        I_f0 = sweepdict['I_f0']
+        Q_f0 = sweepdict['Q_f0']
+        dIdf = sweepdict['dIdf'] # at f0
+        dQdf = sweepdict['dQdf']
+        if eqn == "df":
+            eqnstring = '(((%3f-[' % (I_f0) + Ifield + '])*(%3f))'  % (dIdf) + \
+                        '+((%3f-[' % (Q_f0) + Qfield + '])*(%3f)))' % (Q_f0) + \
+                        '/((%3f)^2 + (%3f)^2)  '                    % (dIdf,dQdf)
+        if eqn == "x":
+            eqnstring = '((((%3f-[' % (I_f0) + Ifield + '])*(%3f))' % (dIdf) + \
+                        '+((%3f-[' % (Q_f0) + Qfield + '])*(%3f)))' % (dQdf) + \
+                        '/((%3f)^2 + (%3f)^2)) '                    % (dIdf,dQdf) + \
+                        '/%3f '                                     % (f0)
+            
+    return eqnstring
 
 #################################################################3
 # Plotting functions
@@ -140,7 +200,7 @@ def plot_dirfile_rawfield(myfields, datafile, client_name = None,
     client.show_window()
     return client
 
-def plot_lastsweep(chanlist, sweepfile = None, client_name = None):
+def plot_sweep(chanlist, sweepfile = None, client_name = None):
     """ Quickly plot result of the derived sweep dirfile
     Inputs:
        chanlist: list of KIDs, e.g. ['K000','K002']
@@ -157,7 +217,8 @@ def plot_lastsweep(chanlist, sweepfile = None, client_name = None):
         sweepfile = find_lastsweep()
 
     if client_name == None:
-        client_name = sweepfile[-21:]
+        # Client name can't start with number
+        client_name = 'sweep_' + sweepfile[-21:-6] 
 
     # Load in dirfile and static fields
     df = gd.dirfile(sweepfile, gd.RDONLY | gd.UNENCODED)
@@ -188,7 +249,8 @@ def plot_lastsweep(chanlist, sweepfile = None, client_name = None):
     return client
 
 def plot_dirfile_IQequation(chanlist, datafile, client_name = None,
-                            eqnlist = ["mag"],
+                            eqnlist = ["mag"], sweepdict = None,
+                            sweepfile = None,
                             x_axis = "python_timestamp", fd = None):
     """ Plot an equation involving IQ for a channel list
     Inputs:
@@ -197,7 +259,8 @@ def plot_dirfile_IQequation(chanlist, datafile, client_name = None,
        datafile: dirfile or .txt sourcefile
        client_name: string for title of plot, unique handle
        eqn: list of equations or functions of (Ifield, Qfield)
-            usually ["mag","phase"]
+            usually ["mag","phase","df","x"]
+       sweepdict: dict output from process_sweep, needed for df or x
        x_axis: python timestamp for human-readability, 
                kst default is INDEX (frame count, 1 per packet)
        fd: frame dict
@@ -212,6 +275,10 @@ def plot_dirfile_IQequation(chanlist, datafile, client_name = None,
     if fd == None:
         fd = frametype()
 
+    # If requested df or x and don't have sweepdict, load it
+    if (("df" in eqnlist) or ("x" in eqnlist)):
+        sweepdict = process_sweep(sweepfile)
+        
     client = kst.Client(client_name)
     client.hide_window()
     X = client.new_data_vector(datafile,
@@ -236,9 +303,11 @@ def plot_dirfile_IQequation(chanlist, datafile, client_name = None,
         Q.set_name(Qfield)
 
         for eqn in eqnlist:
-            equationstring = equationstring_IQ(eqn, Ifield, Qfield)
-            print equationstring
-            e1 = client.new_equation(X, equationstring, name = chan + ' ' + eqn)
+            if (eqn == "df") or (eqn == "x"):
+                eqnstring = equationstring_IQ(eqn, Ifield, Qfield, sweepdict[chan])
+            else:
+                eqnstring = equationstring_IQ(eqn, Ifield, Qfield)
+            e1 = client.new_equation(X, eqnstring, name = chan + ' ' + eqn)
             c1 = client.new_curve(e1.x(), e1.y())
             p1 = client.new_plot()
             p1.add(c1)
