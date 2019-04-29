@@ -101,6 +101,59 @@ def is_dirfile_valid(dirfile):
     except _gd.BadDirfileError:
         return False
 
+def check_valid_sweep_dirfile(dirfile):
+    """
+    Function to check if a given dirfile appears to be a valid pcp sweep file, by checking for the metadata.type
+    field.
+
+    Parameters
+    ----------
+    dirfile : pygetdata.dirfile
+        Input dirfile to check. Must be a pygetdata dirfile.
+
+    Returns
+    -------
+    isvalid_sweep : bool
+        True or False depending on whether the dirfile looks like a pcp sweep dirfile.
+
+    """
+    assert is_dirfile_valid(dirfile), "{0} doesn't appear to be a valid dirfile. Ensure the dirfile is open and try again.".format(dirfile)
+
+    try:
+        return dirfile.get_string("metadata.type") == 'sweep'
+    except _gd.BadCodeError:
+        print "metadata fragment doesn't appear to exist"
+        return False
+
+def list_fragments_in_dirfile(dirfile):
+    return [os.path.basename(dirfile.fragment(i).name) for i in range(dirfile.nfragments)]
+
+def check_fragment_valid(dirfile, frag_name):
+    """
+    Function to check if a given fragment name is included in dirfile.
+
+    Parameters
+    ----------
+    dirfile : pygetdata.dirfile
+        Input dirfile to check. Must be a pygetdata dirfile.
+
+    fragname : str
+        Fragment name to check. Assumes a string input.
+
+    Returns
+    -------
+    (frag_exists, frag_idx) : (bool, int)
+        Tuple returning True/False and the corresponding index. If False, index will be None.
+
+    """
+    assert is_dirfile_valid(dirfile), "{0} doesn't appear to be a valid dirfile. Ensure the dirfile is open and try again.".format(dirfile)
+    assert isinstance(frag_name, str), "{0} is not a string."
+    # check if metadata fragment exists, and create if not
+    try:
+        return True, list_fragments_in_dirfile(dirfile).index(frag_name)
+    except ValueError:
+        return False, None
+
 def create_pcp_dirfile(roachid, dirfilename="", dirfile_type = "stream", tones=21, *dirfile_creation_flags, **kwargs):
     """
     High level function to create a new dirfile according to the pcp standards. This creates a format file with a number of tones
@@ -191,8 +244,9 @@ def generate_main_rawfields(dirfile, roachid, tones, fragnum=0 ):#, field_suffix
     elif roachid not in roach_config.keys():
         print "Unrecognised roachid = {0}".format(roachid)
         return
-    # str to add to file path (only applies to new filenames)
-    #field_suffix = "__" + field_suffix if field_suffix else ""
+
+    # add metadata fragment and add "type" field
+    add_metadata_to_dirfile(dirfile, {"type": "stream"})
 
     # get the appropriate namespace for the fragment to add to the fields
     namespace = dirfile.fragment(fragnum).namespace
@@ -223,29 +277,41 @@ def generate_main_rawfields(dirfile, roachid, tones, fragnum=0 ):#, field_suffix
     dirfile.sync()
     return dirfile
 
-
 def generate_sweep_fields(dirfile, tones, array_size = 501 ):#, field_suffix=""):
     """Generate fragment file for the derived sweep file """
 
-    # can get rid of F files, as the frequency should be the same for all
-    #swp_fields_F = ["SWP_F_K{kidnum:04d}{datatag}".format(kidnum=i, datatag=datatag) for i in range(ntones)]
+    # add metadata fragment and add "type" field
+    add_metadata_to_dirfile(dirfile, {"type": "sweep"})
 
-    #sweep_frag = dirfile.include("sweep_frag", flags = _gd.CREAT|_gd.EXCL)
-
-    #field_suffix = "_" + field_suffix if field_suffix else ""
-    # create list of field names
     swp_fields = toneslist.get_tone_fields( tones )
     #swp_fields = ["K{kidnum:04d}".format(kidnum=i) for i in range(tones)]
     _logger.debug("size of carray for sweep data = {0}".format(array_size) )
 
     # Parameters
-    sweep_entry_freq  = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + "lo_freqs", 0, (_gd.FLOAT64,   array_size)) ]
-    sweep_entry_bb    = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + "bb_freqs", 0, (_gd.FLOAT64,   len(tones))) ]
+    sweep_entry_freq       = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + "lo_freqs", 0, (_gd.FLOAT64,   array_size)) ]
+    sweep_entry_bb         = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + "bb_freqs", 0, (_gd.FLOAT64,   len(tones))) ]
     sweep_entries_to_write = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + field_name, 0, (_gd.COMPLEX64, array_size)) for field_name in swp_fields ]
+
     _logger.debug("generating new sweep fields: {0}".format(sweep_entries_to_write) )
-    #return sweep_entries_to_write
-    for entry in sweep_entry_freq + sweep_entry_bb + sweep_entries_to_write:
-        dirfile.add(entry)
+
+    map(dirfile.add, sweep_entry_freq + sweep_entry_bb + sweep_entries_to_write)
+
+    # --- add calibration fragment ---
+
+    # constants for F0s, i0, q0, didf0, dqdf0, didq0
+    cal_data_fields = ["f0s", "i0", "q0", "didf0", "dqdf0", "didq2"]
+    # arrays for cal data
+    # constants for centres and rotation for phase (just start with df)
+
+    cal_fragment = dirfile.include("calibration", flags = _gd.CREAT|_gd.EXCL)
+
+    # add calibration fields to the dirfile
+    cal_param_entries        = [ _gd.entry(_gd.CARRAY_ENTRY, "cal."     + field_name, cal_fragment, (_gd.FLOAT64, len(tones)) )  for field_name in cal_data_fields]
+    caldata_entries_to_write = [ _gd.entry(_gd.CARRAY_ENTRY, "caldata." + field_name, cal_fragment, (_gd.COMPLEX64, array_size)) for field_name in swp_fields ]
+
+    _logger.debug("generating new sweep cal fields: {0}".format(cal_param_entries + caldata_entries_to_write) )
+
+    map(dirfile.add, cal_param_entries + caldata_entries_to_write)
 
     dirfile.sync()
 
@@ -332,6 +398,31 @@ def add_subdirfile_to_existing_dirfile(subdirfile, dirfile, namespace = "", over
     # flush the changes and update the format file
     dirfile.flush()
 
+def write_sweep_cal_params(dirfile, cal_params, cal_data_dict):
+
+    assert is_dirfile_valid(dirfile)
+
+    assert isinstance(cal_data_dict, dict), "cal data is required to be in a dictionary with tonename: caldata as key: value"
+    # cal params = (sweep_f[idxs], sweep_i[idxs], sweep_q[idxs], didf[idxs], dqdf[idxs])
+    # cal_data  = (didf, dqdf, didq2)
+
+    # check that sweep cal_fragment is available
+    is_frag_valid, calfrag = check_fragment_valid(dirfile, "calibration")
+    if not is_frag_valid:
+        _logger.warning("there doesn't appear to be a claibration fragment. Calibration parameters not written.")
+        return
+
+    cal_param_fields = ["f0s", "i0", "q0", "didf0", "dqdf0", "didq2"]
+    cal_data_fields = ["didf", "dqdf", "didf2"] # dictionaries
+
+    for cal_param_field, cal_param in zip(cal_param_fields, cal_params):
+        dirfile.put_carray("cal." + cal_param_field, cal_param)
+
+    for tone_name, cal_data in cal_data_dict.items():
+        dirfile.put_carray("caldata." + tone_name, cal_data)
+
+    dirfile.flush()
+
 def add_sweep_to_dirfile(dirfile):
     """
 
@@ -345,6 +436,12 @@ def add_sweep_to_dirfile(dirfile):
 
     #
     pass
+
+def get_calibration_data_from_sweep(sweep_dirfile, which = "di"):
+    pass
+    # checks that the sweep dirfile is valid
+    # return the di/df dq/df, i0, q0... etc
+    # also can return phase parameters?
 
 def create_sweep_derived_fields(dirfile, f_tone):
 
@@ -485,14 +582,18 @@ def generate_sweep_dirfile( roachid, dirfilename, lo_frequencies, bb_frequencies
 def add_metadata_to_dirfile(dirfile, metadata_dict):
     """
 
-    Function to add metadata to a dirfile as a new fragmentself.
+    Function to add metadata to a dirfile as a new fragment.
 
     Currently all data is written as a string for simplicity.
 
     """
+    # check if metadata fragment exists, and create if not
+    is_frag_valid, metadata_frag = check_fragment_valid(dirfile, "metadata")
 
-    # create new fragment to dirfile and add fields to dirfile
-    metadata_frag = dirfile.include("metadata", flags = _gd.CREAT|_gd.EXCL)
+    if not is_frag_valid:
+        metadata_frag = dirfile.include("metadata", flags = _gd.CREAT|_gd.EXCL)
+
+    # add new entries to the dirfile
     map(dirfile.add, [ _gd.entry(_gd.STRING_ENTRY, ".".join(("metadata", field_name)), metadata_frag) for field_name in metadata_dict.keys() ] )
 
     # write metadata to file
