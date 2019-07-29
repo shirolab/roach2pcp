@@ -150,6 +150,14 @@ class muxChannel(object):
         self._initialise_atten_in()
         self._initialise_atten_out()
 
+    # def shutdown_hardware(self):
+    #     #close connections to hardware
+    #     self._shutdown_synth_connections()
+    #
+    # def _shutdown_synth_connections(self):
+    #     if self.synth_lo not None:
+    #         self.synth_lo.device.close()
+
     def _initialise_synth_lo(self):
         # get configuration
         synthid_lo = self.ROACH_CFG["synthid_lo"]

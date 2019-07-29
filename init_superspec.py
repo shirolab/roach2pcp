@@ -33,6 +33,7 @@ r0.roach_iface.write_freqs_to_qdr(r0.toneslist.bb_freqs,
 log('Initializing synthesizer to ' + \
     str(r0.toneslist.lo_freq/1e6) + ' MHz')
 r0.synth_lo.frequency = r0.toneslist.lo_freq
+r0.synth_lo.output_power = 8.0
 r0.synth_lo.rf_output = True
 
 ###############################
@@ -43,3 +44,28 @@ log('Initialization complete')
 
 
 
+"""
+# Minimal list for testing output
+
+import pcp
+import numpy as np
+import os
+import matplotlib.pyplot as plt
+
+r0 = pcp.mux_channel.muxChannel('roach0')
+r0.initialise_hardware()
+r0.roach_iface.initialise_fpga(force_reupload=True)
+r0.toneslist.amps = np.ones_like(r0.toneslist.bb_freqs)
+r0.toneslist.set_phases()
+r0.toneslist.lo_freq = 200e6
+r0.roach_iface.write_freqs_to_qdr(r0.toneslist.bb_freqs,
+                                  r0.toneslist.amps,
+                                  r0.toneslist.phases)
+r0.synth_lo.frequency = r0.toneslist.lo_freq
+r0.synth_lo.output_power = 8.0
+r0.synth_lo.rf_output = True
+r0.input_atten.att = 6.0
+
+r0.synth_lo.device.close()
+
+"""

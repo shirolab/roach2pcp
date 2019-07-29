@@ -18,6 +18,7 @@ from ..configuration import color_msg as cm
 
 from ..attenuator import ATTEN_HW_DICT as _ATTEN_HW_DICT
 from ..attenuator import rudat_6000_30_usb_v2
+
 print "atten dict : ", _ATTEN_HW_DICT
 
 from collections import namedtuple as _namedtuple

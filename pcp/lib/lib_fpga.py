@@ -95,7 +95,7 @@ def get_fpga_instance(ipaddress):
 # ---------------------------Progress bar-----------------------------------
 # This should be in another place
 
-# Based in the code of duckythescientist: 
+# Based in the code of duckythescientist:
 # https://gist.github.com/duckythescientist/c06d87617b5d6ac1e00a622df760709d
 
 def progress_bar(function, estimated_time, description, tstep=0.2, tqdm_kwargs={}, args=[], kwargs={}):
@@ -360,6 +360,7 @@ class roachInterface(object):
             Arrays of I and Q waveforms ready to be written to the DAC and DDS.
         """
         # Generates a frequency comb for the DAC or DDS look-up-tables. DAC_LUT = True for the DAC LUT. Returns I and Q
+        import time
         _logger.debug("frequencies being generated: {0}".format(freqs) )
 
         freqs = _np.round( freqs / self.DAC_FREQ_RES) * self.DAC_FREQ_RES
@@ -391,9 +392,10 @@ class roachInterface(object):
         _logger.debug( "amps and phases to write: {0}, {1}".format(amps, phases) )
 
         spec = _np.zeros(fft_len, dtype='complex')
+
         spec[fft_bin_index] = amps * _np.exp( 1j * phases )
         wave = _np.fft.ifft(spec)
-        
+
         #iq amplitude correction
         ispec = _np.fft.fft(wave.real)
         ispec[fft_bin_index] /= iq_correction.real
@@ -414,11 +416,11 @@ class roachInterface(object):
 
         wave    = iwave + 1j*qwave
         waveMax = _np.max(_np.abs(wave))
-        
+
         if which=='dac_lut':
             print 'waveMax:',waveMax
-        
-        waveMax = 6e-5
+
+        # waveMax = 6e-5
         return (wave.real/waveMax)*(amp_full_scale), (wave.imag/waveMax)*(amp_full_scale)  # <-- I, Q
 
     def select_bins(self, freqs):
@@ -468,6 +470,7 @@ class roachInterface(object):
         # Returns the string-packed look-up-tables
 
         I_dac, Q_dac = self.gen_waveform_from_freqs(freqs, amps, phases, which = "dac_lut",iq_correction=iq_correction,phase_error_radians=phase_error_radians)
+
         I_dds, Q_dds = self.define_dds_lut(freqs)
 
         self._I_dds = I_dds
@@ -485,7 +488,7 @@ class roachInterface(object):
 
         return I_lut.astype('>i2').tostring(), Q_lut.astype('>i2').tostring() # I_lut_packed, Q_lut_packed
 
-    
+
   #   def gen_waveform_from_freqs(self, freqs, amps = None, phases = None, which = "dac_lut"):
   #       """
   #       Method to generate the I and Q waveforms that will be sent to the DAC and DDS look-up tables.
