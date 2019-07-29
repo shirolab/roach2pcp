@@ -9,7 +9,7 @@ import time
 
 def write_dirfilename():
     while True:
-        cmd = 'ls -1d /data/dirfiles/roach0/20??????_?????? > /home/superspec/Documents/ksk/multitone_20190419/pcp/kst/roach0_sf.txt'
+        cmd = 'ls -1d /data/dirfiles/roach0/20190704_?????? > /home/superspec/Documents/ksk/multitone_20190419/pcp/kst/roach0_sf.txt'
         os.system(cmd)
         time.sleep(5)
 

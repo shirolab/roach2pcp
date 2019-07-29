@@ -86,7 +86,7 @@ def process_sweep(sweepfile = None):
     # Get a list of KIDs...super non-robust
     kidlist = []
     for key in df.field_list():
-        if key[-4] == 'K':
+        if (key[-4] == 'K') or (key[-4] == 'B'):
             kidlist.append(key[-4:])
 
     # Index for f0...probably a smarter way to do this
