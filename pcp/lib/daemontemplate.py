@@ -119,7 +119,7 @@ class daemonTemplate(object):
                 logfd_to_preserve.append( handler.stream )
             else:
                 logfd_to_preserve.append(handler)
-                
+
         commfd_to_preserve = [self._fifohandle]
 
         # make list of file descriptors to preserve, including any passed through kwargs

@@ -372,14 +372,15 @@ class muxChannel(object):
         #loop over LO frequencies, while saving time at lo_step
         try:
             #for lo_freq in lo_freqs
-            pbar = _tqdm(self.toneslist.sweep_lo_freqs, ncols=75)
-            for lo_freq in pbar:
+            #pbar = _tqdm(self.toneslist.sweep_lo_freqs, ncols=75)
+            #for lo_freq in pbar:
+            for lo_freq in self.toneslist.sweep_lo_freqs:
                 self.synth_lo.frequency = lo_freq
                 step_times.append( time.time() )
-                pbar.set_description(cm.BOLD + "LO: %i" % lo_freq + cm.ENDC)
+                #pbar.set_description(cm.BOLD + "LO: %i" % lo_freq + cm.ENDC)
                 time.sleep(sleeptime)
-            pbar.close()
-            print cm.OKGREEN + "Sweep done!" + cm.ENDC
+            #pbar.close()
+            #print cm.OKGREEN + "Sweep done!" + cm.ENDC
         except KeyboardInterrupt:
             pass
 
@@ -452,6 +453,21 @@ class muxChannel(object):
 
         self.sweep.calc_sweep_cal_params()
         self.sweep.write_sweep_cal_params(overwrite=True) # overwrite
+
+    def test_loop(self):
+        step_times = []
+        sleeptime = 1.
+        #self.set_active_dirfile()
+        #self.writer_daemon.start_writing()
+        try:
+            for lo_freq in self.toneslist.sweep_lo_freqs:
+                self.synth_lo.frequency = lo_freq
+                step_times.append( time.time() )
+                time.sleep(sleeptime)
+
+        except KeyboardInterrupt:
+            print "out of loop"
+        #self.writer_daemon.pause_writing()
 
 
     def tune_resonators(self, method = "maxspeed"):

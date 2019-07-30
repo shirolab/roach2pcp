@@ -215,13 +215,13 @@ class Toneslist(object):
 		return self._lo_freq
 
 	@lo_freq.setter
-	def lo_freq(self, lo_freq):
+	def lo_freq(self, lo_freq, reset_all = False):
 		# coerce new value to given resolution
 		lo_freq = self.synth_resolution * round( float(lo_freq) / self.synth_resolution) if lo_freq is not None else None
 		# set the lo frequency
 		self._lo_freq = lo_freq
 		# recalculate bb_freqs
-		self._update_frequencies()
+		self._update_frequencies(reset_all = False)
 		# check tones fit in bandwidth?
 
 	@property
@@ -247,7 +247,7 @@ class Toneslist(object):
 			_logger.info ( "bb_freqs = {0}".format(bb_freqs) )
 			self._bb_freqs = bb_freqs
 
-	def _update_frequencies(self):
+	def _update_frequencies(self, reset_all = False):
 		"""
 		Function to update the class variables that store the frequency lists "rf_freqs", "bb_freqs"...etc
 		"""
@@ -256,8 +256,10 @@ class Toneslist(object):
 		if self._lo_freq is not None:
 			self.rf_freqs = self.data['freq'] #if not baseband else data['freq'] + self.lo_freq
 			self.bb_freqs = self.data['freq'] - self.lo_freq #if     baseband else data['freq'] - self.lo_freq
-			self.amps     = None
-			self.phases   = None
+
+			if reset_all = True:
+				self.amps     = None
+				self.phases   = None		
 
 		else:
 			_logger.warning( 'LO frequency must be set when loading RF frequencies.' )
