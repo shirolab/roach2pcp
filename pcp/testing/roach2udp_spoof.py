@@ -5,6 +5,7 @@
 # to a network.
 # configure a socket server and send to ip address
 
+# python /Users/PeteBarry/Documents/analysiscode/multitone/pcp/testing/roach2udp_spoof.py --sleep_time 1.
 import sys, socket, time, string, struct # stdlib imports
 from random import choice
 import numpy as np

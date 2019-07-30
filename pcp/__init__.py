@@ -19,12 +19,13 @@ import sys as _sys, pkgutil as _pkgutil, time as _time, logging as _logging, log
 import multiprocessing_logging as _multiprocessing_logging
 #import sub-libraries required for logger (these packages are needed first)
 import configuration, lib, logfile
-from log import ssLog
+
+#from log import ssLog
 # setup the logging configuration according to the configuration file
-_logconfig.dictConfig(configuration.logging_config)
+# _logconfig.dictConfig(configuration.logging_config)
 
 # set up the root logger to be able to print from each process
-_multiprocessing_logging.install_mp_handler()
+#_multiprocessing_logging.install_mp_handler()
 
 # lists of important information defined at the top level for convenience (i.e. pcp.ROACH_LIST)
 # will show the list of roaches defined in the confiruation files
@@ -35,8 +36,8 @@ ATTEN_LIST = configuration.hardware_config['atten_config'].keys()
 # import all other sub-libraries
 import kid, synthesizer, unittests, mux_channel, datalog_mp, toneslist, scripts, attenuator
 
-_logger = _logging.getLogger(__name__)
-_logger.info("Logging configuration completed - current loglevel = {0}".format(_logging.getLevelName(_logger.root.handlers[0].level)))
+#_logger = _logging.getLogger(__name__)
+#_logger.info("Logging configuration completed - current loglevel = {0}".format(_logging.getLevelName(_logger.root.handlers[0].level)))
 
 # import aliases for convenience functions to top level
 from lib.lib_misc import help_screen as help

@@ -3,36 +3,78 @@
 # any code related to KID/resonator functions should be included here
 
 
-def find_f0_from_sweep(freq, i, q, method="maxspeed", **kwargs):
+import logging as _logging, numpy as _np
+
+_logger = _logging.getLogger(__name__)
+
+def calc_sweep_cal_params(sweep_f, sweep_i, sweep_q, tone_freqs = None , **kwargs):
 
     """
-    Given arrays of frequency, I and Q, find the resonant frequency using the speicfied method.
-
-    Arrays of I and Q can be 2D, but the length of the last dimension should be equal ot the length of freqs
-    Available kwargs:
-
-    filter_dict : a set of filter parameters to be used to filter the data before finding. Format
-        is k,v where v is a list-like containing a filter function and any args to go along with that filter
-
+    Given a sweep dataset, this function will return  I,Q,dI/df,dQ/df at f0. If a list of tone_freqs is specified, then the function returns calibration parameters at that
+    frequency, otherwise the maximum values are calculated.
 
     """
 
-    assert method in ["maxspeed", "mins21"], "invalid method given {0}".format(method)
-
-    assert i.shape[-1] == q.shape[-1] == freq.shape[0]
+    assert sweep_i.shape[-1] == sweep_q.shape[-1] == sweep_f.shape[-1], "data does not appear to be in the correct shape"
 
     # convert to at least 2d to vectorise processing for multiple resonators at once
-    i,q = np.atleast_2d(i,q)
+    sweep_f, sweep_i, sweep_q = _np.atleast_2d(sweep_f, sweep_i, sweep_q)
 
-    ### parse kwargs ###
+    # calculate gradient parameters
+    df   = _np.gradient( sweep_f, axis=1 )
+    didf = _np.gradient( sweep_i, axis=1 ) / df
+    dqdf = _np.gradient( sweep_q, axis=1 ) / df
+    didq = _np.sqrt( didf**2 + dqdf**2 )
 
-    # filter dict
-    filter_dict = ( kwargs.pop("filter_dict", {"filter": []}) )
+    if tone_freqs is not None:
 
-    if method == "mins21":
-        return freq[ np.argmin(np.sqrt(i**2 + q**2), axis = 1) ]
+        tone_freqs = _np.atleast_1d(tone_freqs)
 
-    elif method == "maxspeed":
-        di = np.gradient(i, axis = 1)
-        dq = np.gradient(q, axis = 1)
-        return freq[ np.argmax( np.sqrt(di**2 + dq**2), axis = 1) ]
+        assert len(tone_freqs) == sweep_f.shape[0], "length of written tones does not match the data shape"
+        # check that the given tone frequencies are within the range of the sweep frequencies
+        assert _np.logical_and( tone_freqs > sweep_f.min(), tone_freqs < sweep_f.max() ).all(),\
+                                            "some frequencies appear to lie outside of the given sweep range"
+        # find the frequency index in the sweep freq data that corresponds to the closest tone frequency
+        idxs = _np.argmin( _np.abs(sweep_f - tone_freqs[:, _np.newaxis]), axis=1 )
+    else:
+        # return the maximum values
+        idxs = _np.argmax( didq, axis=1 )
+
+    idxs = ( _np.arange(len(idxs)), idxs )
+
+    return (sweep_f[idxs], sweep_i[idxs], sweep_q[idxs], didf[idxs], dqdf[idxs]), (didf + 1j*dqdf)
+
+
+# def find_f0_from_sweep(freq, i, q, method="maxspeed", **kwargs):
+#
+#     """
+#     Given arrays of frequency, I and Q, find the resonant frequency using the speicfied method.
+#
+#     Arrays of I and Q can be 2D, but the length of the last dimension should be equal to the length of freqs
+#     Available kwargs:
+#
+#     filter_dict : a set of filter parameters to be used to filter the data before finding. Format
+#         is k,v where v is a list-like containing a filter function and any args to go along with that filter
+#
+#
+#     """
+#
+#     assert method in ["maxspeed", "mins21"], "invalid method given {0}".format(method)
+#
+#     assert i.shape[-1] == q.shape[-1] == freq.shape[0]
+#
+#     # convert to at least 2d to vectorise processing for multiple resonators at once
+#     i,q = _np.atleast_2d(i,q)
+#
+#     ### parse kwargs ###
+#
+#     # filter dict
+#     filter_dict = ( kwargs.pop("filter_dict", {"filter": []}) )
+#
+#     if method == "mins21":
+#         return freq[ _np.argmin(_np.sqrt(i**2 + q**2), axis = 1) ]
+#
+#     elif method == "maxspeed":
+#         di = _np.gradient(i, axis = 1)
+#         dq = _np.gradient(q, axis = 1)
+#         return freq[ _np.argmax( _np.sqrt(di**2 + dq**2), axis = 1) ]

@@ -83,7 +83,7 @@ class Toneslist(object):
 	# plot routines to visualise toneslist
 	# include "phases"
 	#	- random
-	#	- other? Sam R has nice routines to reduce sideband leakage (sacrificing half the tones)
+	#	- other? Sam R has nice routines to reduce sideband leakage
 
 	# include "amplitudes"
 	#	- for each tone, specify a tone power (normalised to 1) --> used when writing to roach
@@ -93,7 +93,10 @@ class Toneslist(object):
 
 	# -- ideal functionality --
 	# interactive modification of toneslist to include/exclude tones (code exists in kidpy by JW)
-	# have a "loader" that allows anyone to write a loader function and provide a
+	# have a "loader" that allows anyone to write a loader function and provide an interface to a custom tonesfile format
+
+	# -- sweep functionality --
+	#
 
 	def __init__(self, roachid, loader_function = _pd.read_csv, auto_load = True, synth_res = 1., **loaderkwargs):
 		"""
@@ -212,13 +215,13 @@ class Toneslist(object):
 		return self._lo_freq
 
 	@lo_freq.setter
-	def lo_freq(self, lo_freq):
+	def lo_freq(self, lo_freq, reset_all = False):
 		# coerce new value to given resolution
 		lo_freq = self.synth_resolution * round( float(lo_freq) / self.synth_resolution) if lo_freq is not None else None
 		# set the lo frequency
 		self._lo_freq = lo_freq
 		# recalculate bb_freqs
-		self._update_frequencies()
+		self._update_frequencies(reset_all = False)
 		# check tones fit in bandwidth?
 
 	@property
@@ -431,6 +434,9 @@ class Toneslist(object):
 		if len(ax) > 1:
 			ax[1].plot(self._lo_freqs/multiplier, self._counts, marker = 'o', ls = '')
 		return fig, ax
+
+
+
 
 	# def compile_toneslist(self):
 	#

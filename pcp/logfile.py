@@ -245,7 +245,7 @@ def configure_logging():
     logger.info('Logging configuration initialised as {logname}'.format(logname=LOGNAME))
     return logger
 
-def initalise_tcpserver(serve_forever=False):
+def _initalise_tcpserver(serve_forever=False):
 
     logger = logging.getLogger(LOGNAME)
     #logger.debug('instantiated loggingDaemon succesfully')
@@ -283,12 +283,12 @@ def start_logging_daemon():
      # runs the __main__ function in this script. -m runs this as a module so that relative imports are handled correctly
     command_to_run = ["python" , "-m", "pcp.logfile"]
 
-    # Therefore, this will import a new separe instance of pcp, read all the configuration files and start this script. This could be
+    # Therefore, this will import a new separate instance of pcp, read all the configuration files and start this script. This could be
     # done more elegantly, but as the log daemon is designed to be a separate independent process, this should work fine
 
     # Temporarily redirect stdout to silence the introductory welcome messages upon importing this module (there might be a better way)
-    subp = _subprocess.Popen(command_to_run, stdout = open(os.devnull, 'w') ) #sys.stdout)
-
+    subp = _subprocess.Popen(command_to_run), stdout = open(os.devnull, 'w') ) #sys.stdout)
+    print subp.pid
     time.sleep(1) # wait a second for process to be generated
     subp.communicate() # kills zombie process left behind when daemon process spawns
 
@@ -300,7 +300,7 @@ def get_new_logger(logname = "", initial_log_level = logging.NOTSET):
     Function that will return a logging instance configured to write to the remote logging server. This can be called anywhere,
     in any process, and will add a socketHandler to logger specified by logname.
 
-    From other scripts, call using "from readout_new.logfile import get_new_logger".
+    From other scripts, call using "from pcp.logfile import get_new_logger".
 
     As this is a socketHandler, there is no need to define a formatter, since a socket handler sends the event as
     an unformatted pickle. The formatter is defined by the server in the by the logging daemon (and configure logging)
@@ -412,4 +412,4 @@ if __name__ =="__main__":
     logger = configure_logging()
     # change this to logDaemon
     d = daemonTemplate(daemonname, loglevel = logging.INFO)
-    d.run( initalise_tcpserver, True, stdout = sys.stdout, stderr = sys.stdout ) # daemonTemplate call signature should be changed here for clairty
+    d.run( _initalise_tcpserver, True, stdout = sys.stdout, stderr = sys.stdout ) # daemonTemplate call signature should be changed here for clairty

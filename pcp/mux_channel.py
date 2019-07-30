@@ -40,7 +40,7 @@ from .configuration import ROOTDIR, filesys_config, roach_config, network_config
 # import the synth dictionary from
 from .synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT # note that we might need to be careful of import order here
 
-from . import toneslist, datalog_mp
+from . import toneslist, datalog_mp, sweep
 from .lib import lib_dirfiles as _lib_dirfiles, lib_fpga as _lib_fpga
 
 from .configuration import color_msg as cm
@@ -53,7 +53,7 @@ SYNTHS_IN_USE = _initialise_connected_synths()
 from .lib.lib_hardware import initialise_connected_attens as _initialise_connected_attens
 ATTENS_IN_USE = _initialise_connected_attens()
 
-from .kid.resonator_routines import find_f0_from_sweep as _find_f0_from_sweep
+import kid.resonator_routines as _resonator_routines
 
 class muxChannel(object):
     def __init__(self, roachid):
@@ -72,6 +72,9 @@ class muxChannel(object):
         self.toneslist       = toneslist.Toneslist(roachid, loader_function = _pd.read_csv)
         self.writer_daemon.initialise_datapacket_dict( self.toneslist )
         self.toneslist.load_tonelist = self._decorate_tonelist_loader( self.toneslist.load_tonelist )
+
+        # set up the sweep object
+        self.sweep = sweep.pcpSweep()
 
         self._last_written_bb_freqs = None
 
@@ -377,14 +380,15 @@ class muxChannel(object):
         #loop over LO frequencies, while saving time at lo_step
         try:
             #for lo_freq in lo_freqs
-            pbar = _tqdm(self.toneslist.sweep_lo_freqs, ncols=75)
-            for lo_freq in pbar:
+            #pbar = _tqdm(self.toneslist.sweep_lo_freqs, ncols=75)
+            #for lo_freq in pbar:
+            for lo_freq in self.toneslist.sweep_lo_freqs:
                 self.synth_lo.frequency = lo_freq
                 step_times.append( time.time() )
-                pbar.set_description(cm.BOLD + "LO: %i" % lo_freq + cm.ENDC)
+                #pbar.set_description(cm.BOLD + "LO: %i" % lo_freq + cm.ENDC)
                 time.sleep(sleeptime)
-            pbar.close()
-            print cm.OKGREEN + "Sweep done!" + cm.ENDC
+            #pbar.close()
+            #print cm.OKGREEN + "Sweep done!" + cm.ENDC
         except KeyboardInterrupt:
             pass
 
@@ -445,10 +449,34 @@ class muxChannel(object):
                     continue
 
         # create new sweep dirfile and keep hold of it
-        self.current_sweep_dirfile = _lib_dirfiles.generate_sweep_dirfile(self.roachid, self.DIRFILE_SAVEDIR, self.toneslist.sweep_lo_freqs, self.toneslist.bb_freqs.get_values(), sweep_data_dict)
+        self.sweep.load_sweep_dirfile( _lib_dirfiles.generate_sweep_dirfile(self.roachid, \
+                                                                            self.DIRFILE_SAVEDIR,
+                                                                            self.toneslist.sweep_lo_freqs, \
+                                                                            self.toneslist.bb_freqs.get_values(),\
+                                                                            sweep_data_dict) )
+        # # add metadata
+        _lib_dirfiles.add_metadata_to_dirfile(self.sweep.dirfile, {"raw_sweep_filename": self.current_dirfile.name})
 
-        # add metadata
-        _lib_dirfiles.add_metadata_to_dirfile(self.current_sweep_dirfile, {"raw_sweep_filename": self.current_dirfile.name})
+        # -- add calibration parameters for sweep
+
+        self.sweep.calc_sweep_cal_params()
+        self.sweep.write_sweep_cal_params(overwrite=True) # overwrite
+
+    def test_loop(self):
+        step_times = []
+        sleeptime = 1.
+        #self.set_active_dirfile()
+        #self.writer_daemon.start_writing()
+        try:
+            for lo_freq in self.toneslist.sweep_lo_freqs:
+                self.synth_lo.frequency = lo_freq
+                step_times.append( time.time() )
+                time.sleep(sleeptime)
+
+        except KeyboardInterrupt:
+            print "out of loop"
+        #self.writer_daemon.pause_writing()
+
 
     def tune_resonators(self, method = "maxspeed"):
         """
@@ -492,7 +520,7 @@ class muxChannel(object):
         filename_suffix = stream_kwargs.pop("filename_suffix", "")
         stream_time     = stream_kwargs.pop("stream_time", None)
         save_data       = stream_kwargs.pop("save_data", True) # currently not used
-        dont_ask        = stream_kwargs.pop("dont_ask", False) # currently not used
+        dont_ask        = stream_kwargs.pop("dont_ask", False)
 
         dirfile_name = stream_kwargs.pop("dirfilename", "") # allow the user to pass in and append to an existing dirfile
 
@@ -503,8 +531,11 @@ class muxChannel(object):
                 response = raw_input("Proceed? [y/n] ")
                 if response == "n":
                     return
-            else:
-                response='y'
+            #
+
+        #     else:
+        #         response='y'
+        # else:
 
         # create a new dirfile for the observation
         self.set_active_dirfile( dirfile_name = dirfile_name, filename_suffix = filename_suffix )
