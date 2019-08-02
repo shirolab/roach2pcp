@@ -287,7 +287,7 @@ def start_logging_daemon():
     # done more elegantly, but as the log daemon is designed to be a separate independent process, this should work fine
 
     # Temporarily redirect stdout to silence the introductory welcome messages upon importing this module (there might be a better way)
-    subp = _subprocess.Popen(command_to_run), stdout = open(os.devnull, 'w') ) #sys.stdout)
+    subp = _subprocess.Popen(command_to_run, stdout = open(os.devnull, 'w') ) #sys.stdout)
     print subp.pid
     time.sleep(1) # wait a second for process to be generated
     subp.communicate() # kills zombie process left behind when daemon process spawns

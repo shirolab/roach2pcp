@@ -60,7 +60,7 @@ import numpy as np
 import multiprocessing as mp; from multiprocessing.managers import SyncManager as _syncmanager
 _syncmanager.register('deque', deque, exposed = [d for d in dir(deque) if not d.startswith("__") or d == "__len__"] )
 
-_deque_manager = _syncmanager(); #_deque_manager.start(signal.signal, (signal.SIGINT, signal.SIG_IGN) )
+_deque_manager = _syncmanager(); _deque_manager.start(signal.signal, (signal.SIGINT, signal.SIG_IGN) )
 
 import setproctitle
 import logging as _logging
