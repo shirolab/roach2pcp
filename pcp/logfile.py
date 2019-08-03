@@ -50,6 +50,7 @@ Usage
 
 # general stdlib imports
 import os, sys, errno, itertools, time, logging, psutil, pickle, struct, select, subprocess as _subprocess
+import multiprocessing as mp
 import multiprocessing_logging as _multiprocessing_logging
 # imports for daemon creation
 import signal, daemon, daemon.pidfile
@@ -145,15 +146,15 @@ class LogRecordSocketReceiver(SocketServer.ThreadingTCPServer):
 
     """
     logger = logging.getLogger(daemonname + ".logsocketserver")
+    logging_process_event = mp.Event() # create event to be used for clean shutdown from the main thread
 
-    allow_reuse_address = True
     def __init__(self,  host = LOGHOST, port = LOGPORT, handler = LogRecordStreamHandler):
 
         # make sure that the port is not in use
         try:
             #print host, port
-            logger.debug( "Initialising TCP server on {host}:{port}".format(host=host, port=port) )
-            SocketServer.ThreadingTCPServer.__init__(self, (host, port), handler, False)
+            self.logger.debug( "Initialising TCP server on {host}:{port}".format(host=host, port=port) )
+            SocketServer.ThreadingTCPServer.__init__(self, (host, port), handler, bind_and_activate = False)
             self.allow_reuse_address = True # Prevent 'cannot bind to address' errors on restart
             self.server_bind()     # Manually bind, to support allow_reuse_address
             self.server_activate() # ( see above )
@@ -161,42 +162,56 @@ class LogRecordSocketReceiver(SocketServer.ThreadingTCPServer):
         except socket.error as err:
             if err.errno == errno.EADDRINUSE:
                 # get and close the socket?
-                self.logger.error("confiugration of tcpserver failed; address already in use")
+                self.logger.error("configuration of tcpserver failed; address already in use")
                 #print "error, check to see if logdaemon is already running"
             else:
                 self.logger.exception("configuration of tcpserver failed")
 
         # these may not currently be in use
         self.abort = 0
-        self.timeout = 0.2
+        self.timeout = 1.
         #self.logname = None
 
     def serve_until_stopped(self):
         """
-        Function that monitors the tcp socket for logging entries. Shutdown is initiated by KeyboardInterrupt
-        or equivalently, signal.SIGINT/ctrl+c.
+        Function that monitors the tcp socket for logging entries. Shutdown is initiated by either setting
+        self.logging_process_event, or KeyboardInterrupt or equivalently, signal.SIGINT/ctrl+c.
         """
-        while True: # this should be replaced by self.__shutdown_request, or something similar
+        logger = logging.getLogger(name = "pcp.tcplogserver")
+        print logger, logger.level, logger.root
+        while not self.logging_process_event.is_set():
+            print logger, logger.level, logger.root, logger.root.level
+
             try:
                 rd, wr, ex = select.select( [self.socket.fileno()], [], [], self.timeout )
+
                 if rd:
                     self.handle_request() # is a method in ThreadingTCPServer that uses the handler to process the request
-
+                else:
+                    logger.debug("tcpserver.serve_until_stopped; no record found")
             # catch the system call interupt when using daemon
             except select.error as err:
                 if err.args[0] == 4:
                     continue
                 else:
-                    self.logger.exception("tcpserver.serve_until_stopped; error reading from select")
+                    logger.exception("tcpserver.serve_until_stopped; error reading from select")
 
             # catch signal.SIGINT sent from main process to shut down
             except KeyboardInterrupt:
-                self.logger.info("tcpserver.serve_until_stopped; received keyboard interupt, stop serving")
+                logger.info("tcpserver.serve_until_stopped; received keyboard interupt, stop serving")
                 break
 
         # close the logger appropriately
         logging.shutdown()
-        self.logger.info("tcpserver.serve_until_stopped; logger successfully shutdown")
+        #self.shutdown() <- this is only
+        self.logging_process_event.clear()
+
+        logger.info("tcpserver.serve_until_stopped; logger successfully shutdown")
+
+    def terminate(self):
+
+        self.logging_process_event.set()
+        self.server_close()
 
 class logDaemon(daemonTemplate):
     """
@@ -215,7 +230,7 @@ class logDaemon(daemonTemplate):
 class loggingController(daemonControl):
     def __init__(self, daemonname):
         super(loggingController, self).__init__(daemonname) # initalise the parent class
-    # implement log level controller in here - it will write update local loggers as well as in the logging daemon
+    # implement log level controller in here - it will update local loggers as well as in the logging daemon
 
 #  ------  Function definitions ------
 
@@ -243,6 +258,9 @@ def configure_logging():
 
     logger = logging.getLogger(LOGNAME)
     logger.info('Logging configuration initialised as {logname}'.format(logname=LOGNAME))
+
+    #_multiprocessing_logging.install_mp_handler()
+
     return logger
 
 def _initalise_tcpserver(serve_forever=False):
@@ -267,7 +285,7 @@ def _initalise_tcpserver(serve_forever=False):
             raise
 
 
-def start_logging_daemon():
+def start_logging_daemon(logger = None):
     """
     Initialise the logging server. When run, this script spawns a daemon process that will listen on
     a TCP port for incoming logging entries and save them to the log file defined in the configuration
@@ -280,20 +298,29 @@ def start_logging_daemon():
     -------
 
     """
+    logger = logging.getLogger() if not logger else logger
+    tcpserver            = LogRecordSocketReceiver()
+    tcpserver.logprocess = mp.Process( target = tcpserver.serve_until_stopped,
+                                        name  = 'pcp_logging')
+                                        #args = (logger,) )
+    tcpserver.logprocess.start()
+
+    return tcpserver
      # runs the __main__ function in this script. -m runs this as a module so that relative imports are handled correctly
-    command_to_run = ["python" , "-m", "pcp.logfile"]
-
-    # Therefore, this will import a new separate instance of pcp, read all the configuration files and start this script. This could be
-    # done more elegantly, but as the log daemon is designed to be a separate independent process, this should work fine
-
-    # Temporarily redirect stdout to silence the introductory welcome messages upon importing this module (there might be a better way)
-    subp = _subprocess.Popen(command_to_run), stdout = open(os.devnull, 'w') ) #sys.stdout)
-    print subp.pid
-    time.sleep(1) # wait a second for process to be generated
-    subp.communicate() # kills zombie process left behind when daemon process spawns
-
-    # return an instance of the loggingController class that allows simple communication with the daemon process
-    return loggingController(daemonname)
+    # command_to_run = ["python" , "-m", "pcp.logfile"]
+    #
+    # # Therefore, this will import a new separate instance of pcp, read all the configuration files and start this script. This could be
+    # # done more elegantly, but as the log daemon is designed to be a separate independent process, this should work fine
+    #
+    # # Temporarily redirect stdout to silence the introductory welcome messages upon importing this module (there might be a better way)
+    # subp = _subprocess.Popen(command_to_run, stdout = open(os.devnull, 'w') ) #sys.stdout)
+    # print subp.pid
+    # time.sleep(1) # wait a second for process to be generated
+    # subp.communicate() # kills zombie process left behind when daemon process spawns
+    #
+    # # return an instance of the loggingController class that allows simple communication with the daemon process
+    # return loggingController(daemonname)
+    #
 
 def get_new_logger(logname = "", initial_log_level = logging.NOTSET):
     """
@@ -367,7 +394,7 @@ def set_log_level(which = 'screen', level = logging.INFO):
         _logger.warning("No handlers available for {0}".format(logger.name))
 
     for handler in logger.handlers:
-        assert isinstance(handler, _multiprocessing_logging.MultiProcessingHandler), "only multiprocessing logging current implemented"
+        assert isinstance(handler, _multiprocessing_logging.MultiProcessingHandler), "only multiprocessing logging currently implemented"
         #    handler = handler.sub_handler
         if which == "all":
             handler.setLevel(level)
@@ -406,10 +433,20 @@ def log_to_screen(onoff, level=logging.DEBUG):
         logger.addHandler(h)
         logger.info("Logging to screen with level: {0}".format( logging.getLevelName(h.level)) )
 
+# def test_mp_logging():
+#     logger = logging.getLogger(name = 'testpcplogger')
+#     print logger.level, logger.parent.level
+#     logger.info('test')
+#     logger.critical('test')
+#     logger.critical('done testing. finishing')
+#
+
+
+
 if __name__ =="__main__":
-    print "running main"
+    pass
     # this is the main script that is run in start_logging_daemon() to spawn the daemon process
-    logger = configure_logging()
-    # change this to logDaemon
-    d = daemonTemplate(daemonname, loglevel = logging.INFO)
-    d.run( _initalise_tcpserver, True, stdout = sys.stdout, stderr = sys.stdout ) # daemonTemplate call signature should be changed here for clairty
+    # logger = configure_logging()
+    # # change this to logDaemon
+    # d = daemonTemplate(daemonname, loglevel = logging.INFO)
+    # d.run( _initalise_tcpserver, True, stdout = sys.stdout, stderr = sys.stdout ) # daemonTemplate call signature should be changed here for clairty

@@ -22,10 +22,10 @@ import configuration, lib, logfile
 
 #from log import ssLog
 # setup the logging configuration according to the configuration file
-# _logconfig.dictConfig(configuration.logging_config)
+_logconfig.dictConfig(configuration.logging_config)
 
 # set up the root logger to be able to print from each process
-#_multiprocessing_logging.install_mp_handler()
+_multiprocessing_logging.install_mp_handler()
 
 # lists of important information defined at the top level for convenience (i.e. pcp.ROACH_LIST)
 # will show the list of roaches defined in the confiruation files
