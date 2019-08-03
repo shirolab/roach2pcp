@@ -284,7 +284,7 @@ class muxChannel(object):
         assert _lib_dirfiles.is_path_a_dirfile(path_to_sweep)
         self.current_sweep_dirfile = _gd.dirfile(path_to_sweep, _gd.RDWR)
 
-    def sweep_lo(self, **sweep_kwargs):
+    def sweep_lo(self, stop_event = None, **sweep_kwargs):
         """
         Function to sweep the LO. Takes in a number of optional keyword arugments. If not given,
         defaults from the configuration files are assumed.
@@ -317,6 +317,8 @@ class muxChannel(object):
             - implement a method to determine if packets are being captured correctly? this is done!
 
         """
+        stop_event = _multiprocessing.Event() if not isinstance( stop_event, _multiprocessing.synchronize.Event ) else stop_event
+
         valid_kwargs = ["sweep_span", "sweep_step", "sweep_avgs", "startidx", "stopidx", "save_data"]
 
         # parse the keyword arguments
@@ -390,9 +392,11 @@ class muxChannel(object):
                     t0 = time.time()
                     while self.synth_lo.frequency <= lo_freq and time.time() <= t0 + sleeptime :
                         time.sleep(sleeptime / 10.)
-                        print "moving on"
 
                 step_times.append( time.time() )
+
+                if stop_event.is_set():
+                    break
                 #pbar.set_description(cm.BOLD + "LO: %i" % lo_freq + cm.ENDC)
                 time.sleep(sleeptime)
 
@@ -674,20 +678,38 @@ class muxChannelList(object):
         for dupidx in set( np.arange( len(synth_list) ) ).difference(idx):
             channel_obj_list[dupidx].loswitch = False
 
-        # perform sweep
         # create multiprocesing.ThreadPool - threads required as synchronisation is based on reading of synth_lo objects
         mp_pool = _multiprocessing_pool.ThreadPool( processes = len(channels_to_sweep) )
-        # #list_of_results = mp_pool.map(_worker, ( (obj, "sweep_lo") for obj in channel_obj_list ) )
-        #
-        res = [mp_pool.apply_async(obj.sweep_lo, (), sweep_kwargs)  for obj in channel_obj_list ]
-        #
+
+        stop_sweep = _multiprocessing.Event()
+        sweep_kwargs.update( {"stop_event": stop_sweep} )
+
+        # start the sweeps
+        try:
+            res = [mp_pool.apply_async(obj.sweep_lo, (), sweep_kwargs)  for obj in channel_obj_list ]
+
+            # wait for sweeps to finish - allows
+            while not all([r.ready() for r in res]):
+                time.sleep(0.5)
+
+        except KeyboardInterrupt:
+            stop_sweep.set()
+            _logger.info( "sweeps interuptted" )
+
+        # close and join the ThreadPool
         mp_pool.close()
         mp_pool.join()
 
-        # # switch lo back
-        # for ch in synth_list:
-        #     ch.loswitch = True
-        return res
+        # reset the stop Event
+        stop_sweep.clear()
+
+        assert not all( [r.get() for r in res] ) # all results should be None, unless something bad happened
+
+        # finally, switch lo back to on for all
+        for ch in channel_obj_list:
+            ch.loswitch = True
+
+        #return res
 
     def start_stream_multi(self, channels_to_stream, *stream_args):
         pass
@@ -712,10 +734,21 @@ def _worker(arg):
     #return getattr(obj, methname)()
 
 
-def dummy_sweep(**kwargs):
-    print kwargs
-
-
+# def dummy_sweep(i, **kwargs):
+#     stop_event = kwargs.pop("stop_event", _multiprocessing.Event() )
+#     print "loop {0}".format(i), kwargs
+#     try:
+#         for i in range(10):
+#             time.sleep(1)
+#             if stop_event.is_set():
+#                 break
+#
+#     except KeyboardInterrupt:
+#         print "loop{0} interuptted".format(i)
+#
+#     print "loop {0} finished".format(i)
+#
+# #res = [mp_pool.apply_async(obj.sweep_lo, (i,), {'arg1':1, 'arg2':2} ) for i in range(3) ]
 
 # We could write a small helper script to check things are connected would be useful for initial configuration testing
 #   - check dnsmasq is running
