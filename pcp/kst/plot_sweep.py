@@ -41,9 +41,10 @@ def plot_sweep(sweepfile = 'latest', html=None):
             plt.subplot(1,2,1)
             plt.plot(off_freq, s21)
             plt.plot(np.array([off_freq[np.argmax(dSdf)],off_freq[np.argmax(dSdf)]]),
-                     np.array([np.min(s21), np.max(s21)]), '--k',
+                     np.array([np.min(s21), np.max(s21)]), '--r',
                      label='Max dSdf')
-            
+            plt.plot(np.array([0, 0]), np.array([np.min(s21), np.max(s21)]), '-k',
+                     label='Current Tone')
             plt.grid()
             plt.legend(loc='best')
             plt.xlabel('Offset Frequency [kHz]')
