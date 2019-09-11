@@ -35,6 +35,7 @@ except ImportError:
     casperfpga = None
     pass
 
+from . import ROACH_LIST
 from .configuration import ROOTDIR, filesys_config, roach_config, network_config, hardware_config, general_config
 
 # import the synth dictionary from
@@ -80,6 +81,9 @@ class muxChannel(object):
 
         self.synth_lo        = None
         self.synth_clk       = None
+
+        self.loswitch        = True # used to turn off LO swtiching during sweep
+
         self.input_atten     = None
         self.output_atten    = None
 
@@ -91,14 +95,14 @@ class muxChannel(object):
 
         # get configuration for specific roach
         self.ROACH_CFG = roach_config[self.roachid]
+        self.sample_rate = self.ROACH_CFG["dac_bandwidth"] / ( 2**self.ROACH_CFG["roach_accum_len"] )
 
         # generate directory path for data saving
         self.DIRFILE_SAVEDIR  = os.path.join(ROOTDIR, filesys_config['savedatadir'], self.roachid)
         # create if doesn't exist already
         os.makedirs(self.DIRFILE_SAVEDIR) if not os.path.exists(self.DIRFILE_SAVEDIR) else None
 
-        #self._initialise_daemon_writer()
-        #self.initialise_hardware()
+        self.initialise_hardware()
 
 ################################################################################
 ################################################################################
@@ -167,8 +171,10 @@ class muxChannel(object):
 
         try:
             self.synth_lo = SYNTHS_IN_USE[synthid_lo].synthobj
+            self.synth_lo.frequency = self.toneslist.lo_freq
         except KeyError:
             print "synthid not recognised. Check configuration file"
+
 
     def _initialise_synth_clk(self):
 
@@ -197,7 +203,6 @@ class muxChannel(object):
 
         else:
             self.input_atten = None
-
 
     def _initialise_atten_out(self):
         # get configuration for attenuators
@@ -279,7 +284,7 @@ class muxChannel(object):
         assert _lib_dirfiles.is_path_a_dirfile(path_to_sweep)
         self.current_sweep_dirfile = _gd.dirfile(path_to_sweep, _gd.RDWR)
 
-    def sweep_lo(self, **sweep_kwargs):
+    def sweep_lo(self, stop_event = None, **sweep_kwargs):
         """
         Function to sweep the LO. Takes in a number of optional keyword arugments. If not given,
         defaults from the configuration files are assumed.
@@ -312,6 +317,8 @@ class muxChannel(object):
             - implement a method to determine if packets are being captured correctly? this is done!
 
         """
+        stop_event = _multiprocessing.Event() if not isinstance( stop_event, _multiprocessing.synchronize.Event ) else stop_event
+
         valid_kwargs = ["sweep_span", "sweep_step", "sweep_avgs", "startidx", "stopidx", "save_data"]
 
         # parse the keyword arguments
@@ -343,21 +350,14 @@ class muxChannel(object):
         # perform a quick check that packets are being streamed to the roach
         assert self.synth_lo is not None, "synthesiser doesn't appear to be initialised. "
         assert self.writer_daemon.check_packets_received(), "packets don't appear to be streaming. Check roaches and try again."
-        # get list of LO frequencies for sweeping
-        # roachcontainer.losweep_freqs # this is calculated from the LO freq, sweep bandwidths
-        # lo_freqs = np.arange(self.synth_lo.frequency - sweep_span/2., \
-        #                         self.synth_lo.frequency + sweep_span/2., \
-        #                         sweep_step,\
-        #                         dtype = np.float32)
 
         # create new dirfile and set it as the active file. Note that data writing is off by default.
-        #self.writer_daemon.set_active_dirfile(datatag = "sweep_raw")
-        self.set_active_dirfile( filename_suffix = "sweep_raw" + filename_suffix ) #, field_suffix = field_suffix )
+        self.set_active_dirfile( filename_suffix = "sweep_raw" + filename_suffix )
 
         # set up sweep timing parameters
         step_times = []
         # # get time for avg factor
-        sleeptime = np.round( sweep_avgs / 488. * 1.05, decimals = 3 )#self.fpga.sample_rate) * 1.05 # num avgs / sample_rate + 5%
+        sleeptime = np.round( sweep_avgs / self.sample_rate * 1.1, decimals = 3 )
         _logger.debug( "sleep time for sweep is {0}".format(sleeptime) )
 
         # alias to current dirfile for convenience
@@ -382,11 +382,24 @@ class muxChannel(object):
             #for lo_freq in lo_freqs
             #pbar = _tqdm(self.toneslist.sweep_lo_freqs, ncols=75)
             #for lo_freq in pbar:
+            sweepdirection = np.sign( np.diff(self.toneslist.sweep_lo_freqs) )[0] # +/- 1 for forward/backward
             for lo_freq in self.toneslist.sweep_lo_freqs:
-                self.synth_lo.frequency = lo_freq
+
+                if self.loswitch == True:
+                    self.synth_lo.frequency = lo_freq
+                else:
+                    # wait until synth_lo.frequency => lo_freq
+                    t0 = time.time()
+                    while self.synth_lo.frequency <= lo_freq and time.time() <= t0 + sleeptime :
+                        time.sleep(sleeptime / 10.)
+
                 step_times.append( time.time() )
+
+                if stop_event.is_set():
+                    break
                 #pbar.set_description(cm.BOLD + "LO: %i" % lo_freq + cm.ENDC)
                 time.sleep(sleeptime)
+
             #pbar.close()
             #print cm.OKGREEN + "Sweep done!" + cm.ENDC
         except KeyboardInterrupt:
@@ -395,7 +408,8 @@ class muxChannel(object):
         self.writer_daemon.pause_writing()
 
         # Back to the central frequency
-        self.synth_lo.frequency = self.toneslist.lo_freq
+        if self.loswitch == True:
+            self.synth_lo.frequency = self.toneslist.lo_freq
 
         # save lostep_times to current dirfile
         self.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lo_freqs"    , 0, (_gd.FLOAT64, 1) ) )
@@ -462,20 +476,20 @@ class muxChannel(object):
         self.sweep.calc_sweep_cal_params()
         self.sweep.write_sweep_cal_params(overwrite=True) # overwrite
 
-    def test_loop(self):
-        step_times = []
-        sleeptime = 1.
-        #self.set_active_dirfile()
-        #self.writer_daemon.start_writing()
-        try:
-            for lo_freq in self.toneslist.sweep_lo_freqs:
-                self.synth_lo.frequency = lo_freq
-                step_times.append( time.time() )
-                time.sleep(sleeptime)
-
-        except KeyboardInterrupt:
-            print "out of loop"
-        #self.writer_daemon.pause_writing()
+    # def test_loop(self):
+    #     step_times = []
+    #     sleeptime = 1.
+    #     #self.set_active_dirfile()
+    #     #self.writer_daemon.start_writing()
+    #     try:
+    #         for lo_freq in self.toneslist.sweep_lo_freqs:
+    #             self.synth_lo.frequency = lo_freq
+    #             step_times.append( time.time() )
+    #             time.sleep(sleeptime)
+    #
+    #     except KeyboardInterrupt:
+    #         print "out of loop"
+    #     #self.writer_daemon.pause_writing()
 
 
     def tune_resonators(self, method = "maxspeed"):
@@ -599,17 +613,21 @@ class muxChannelList(object):
     def __init__(self, channel_list):
 
         channel_list = list(np.atleast_1d(channel_list))
-        _logging.debug("initialising muxChannelList with channel list {0}".format( channel_list ) )
+        _logger.debug("initialising muxChannelList with channel list {0}".format( channel_list ) )
 
-        assert isinstance(channel_list, (list, tuple)) and len(channel_list) > 0, "input {0} not recognised".format( type(channel_list) )
+        assert isinstance(channel_list, (list, tuple)) and len(channel_list) > 0 , "input {0} not recognised".format( type(channel_list) )
 
         self.ROACH_LIST = channel_list
 
-        # create the muxchannels
-        for roachid in channel_list:
+        # determine if the elements of the list are instantiated muxChannel objects
+        if all( [isinstance(el, muxChannel) for el in channel_list]):
+            _logger.debug("found a list of existing muxchannels with roachids: {0}".format( [el.roachid for el in channel_list] ) )
 
-            _logging.debug("initialising muxChannel({roachid}) ".format( roachid=roachid ) )
-            setattr( self, roachid, muxChannel(roachid) )
+        elif set(channel_list).issubset(ROACH_LIST):
+            # create the muxchannels
+            for roachid in channel_list:
+                _logger.debug("initialising muxChannel({roachid}) ".format( roachid=roachid ) )
+                setattr( self, roachid, muxChannel(roachid) )
 
     def _verify_channel_list_valid(self, channel_list):
         assert set(channel_list).issubset(self.ROACH_LIST), "channels given are not valid {0}".format(set(channel_list).difference(self.ROACH_LIST))
@@ -642,7 +660,7 @@ class muxChannelList(object):
             else:
                 _logger.warning("mode not recognised. Nothing done")
 
-    def sweep_lo(self, channels_to_sweep, *sweep_args):
+    def sweep_lo(self, channels_to_sweep, **sweep_kwargs):
         """
         Function to perform an LO sweep of a set of roaches given by channels_to_sweep.
 
@@ -651,16 +669,54 @@ class muxChannelList(object):
         """
         channel_obj_list = [getattr(self, instance) for instance in np.atleast_1d(channels_to_sweep)]
 
-        # create multiprocesing.pool
-        #mp_pool = _multiprocessing.Pool( processes = len(channels_to_sweep) )
+        synth_list = [mc.synth_lo for mc in channel_obj_list]
+
+        # check to see if muxchannels are using the same synths and return repeated indexs
+        unique_synths, idx, inv = np.unique( synth_list, return_index = True, return_inverse = True )
+
+        # turn off loswitching on duplicates
+        for dupidx in set( np.arange( len(synth_list) ) ).difference(idx):
+            channel_obj_list[dupidx].loswitch = False
+
+        # create multiprocesing.ThreadPool - threads required as synchronisation is based on reading of synth_lo objects
         mp_pool = _multiprocessing_pool.ThreadPool( processes = len(channels_to_sweep) )
-        #list_of_results = mp_pool.map(_worker, ( (obj, "sweep_lo") for obj in channel_obj_list ) )
 
-        res = [mp_pool.apply_async(_worker, args = ((obj.synth_lo,)) ) for obj in channel_obj_list ]
+        stop_sweep = _multiprocessing.Event()
+        sweep_kwargs.update( {"stop_event": stop_sweep} )
 
+        # start the sweeps
+        try:
+            res = [mp_pool.apply_async(obj.sweep_lo, (), sweep_kwargs)  for obj in channel_obj_list ]
+
+            # wait for sweeps to finish - allows
+            while not all([r.ready() for r in res]):
+                time.sleep(0.5)
+
+        except KeyboardInterrupt:
+            stop_sweep.set()
+            _logger.info( "sweeps interuptted" )
+
+        # close and join the ThreadPool
         mp_pool.close()
         mp_pool.join()
-        return res
+
+        # reset the stop Event
+        stop_sweep.clear()
+
+        assert not all( [r.get() for r in res] ) # all results should be None, unless something bad happened
+
+        # finally, switch lo back to on for all
+        for ch in channel_obj_list:
+            ch.loswitch = True
+
+        #return res
+
+    def start_stream_multi(self, channels_to_stream, *stream_args):
+        pass
+        # stream all
+
+    def stop_stream_multi(self, channels_to_stream, *stream_args):
+        pass
 
     def shutdown_all(self, which = None):
         for roachid in self.ROACH_LIST:
@@ -676,6 +732,23 @@ def _worker(arg):
     #obj, methname = arg[:2]
     #print obj, methname, arg[2:]
     #return getattr(obj, methname)()
+
+
+# def dummy_sweep(i, **kwargs):
+#     stop_event = kwargs.pop("stop_event", _multiprocessing.Event() )
+#     print "loop {0}".format(i), kwargs
+#     try:
+#         for i in range(10):
+#             time.sleep(1)
+#             if stop_event.is_set():
+#                 break
+#
+#     except KeyboardInterrupt:
+#         print "loop{0} interuptted".format(i)
+#
+#     print "loop {0} finished".format(i)
+#
+# #res = [mp_pool.apply_async(obj.sweep_lo, (i,), {'arg1':1, 'arg2':2} ) for i in range(3) ]
 
 # We could write a small helper script to check things are connected would be useful for initial configuration testing
 #   - check dnsmasq is running

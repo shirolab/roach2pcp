@@ -14,7 +14,6 @@ class pcpSweep(object):
         """
         A pcpSweep object. Used to contain and manipulate the current sweep data.
 
-
         """
         # read in dirfile if given
         if dirfile:

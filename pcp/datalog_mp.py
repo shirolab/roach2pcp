@@ -68,7 +68,7 @@ _logger = _logging.getLogger(__name__)
 import pygetdata as _gd
 
 from .lib import lib_dirfiles, lib_datapackets, lib_network
-
+from . import logfile
 from .configuration import ROOTDIR, filesys_config, network_config, roach_config
 
 # globally define filesystem
@@ -215,8 +215,8 @@ class dataLogger(object):
 
         """
         self.process = mp.Process( target = self._data_logger_main,
-                                    name = self.process_name) #,
-                                    #args = (datapipe_in,)
+                                    name = self.process_name, #,
+                                    args = (_logger,) )
                                     #)
         self.process.daemon = False
         # for convenience, add handle to process start method
@@ -256,13 +256,13 @@ class dataLogger(object):
         #                                         target = self._writer_thread_function)#, args=(dirf, dq,) )
 
         self._filewritethread = mp.Process( target = self._writer_thread_function,
-                                            name = roachid + 'writer_thread' )#,
-                                            #args = (datapipe_out, )
+                                            name = roachid + 'writer_thread' ,
+                                            args = (_logger, ) )
                                             #)
         #self._filewritethread.setDaemon(True) # setting daemon here ensures that the child thread ends with the main thread
         self._filewritethread.daemon = True
 
-    def _data_logger_main(self ):#, datapipe_in ):
+    def _data_logger_main(self, _logger ):#, datapipe_in ):
         # ingore signal.SIGINT and handle terminate manually (allows for clean up)
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
@@ -376,7 +376,7 @@ class dataLogger(object):
         return 0
 
     #@profile
-    def _writer_thread_function( self ):#, datapipe_out):#, data_queue):
+    def _writer_thread_function( self, _logger ):#, datapipe_out):#, data_queue):
         """
         Function to run as the writer thread spawned in the daemon process. Runs self.parse_packet_and_append_to_dirfile()
         continuously until both is_writing is set to False and _exitevent is set. Note that this means that to terminate
@@ -778,6 +778,24 @@ class dataLogger(object):
         if not self.is_writing.value:
             self._add_to_queue_and_wait(command_to_send)
 
+    def set_log_level(self, level = _logging.INFO):
+        """
+
+        Set the logger level in the various processes
+
+        Scope : mainthread
+
+        """
+        # check that the file writer is not running
+        command_to_send = ("SET_LOGLEVEL", level)
+        if not self.is_writing.value:
+            self._add_to_queue_and_wait(command_to_send)
+        else:
+            _logger.error( "currently saving data. Stop and retry" )
+
+        #return self._read_response_from_eventqueue(command_to_send)
+
+
     def _process_command(self):
         """
         Internal method to handle and process any event triggered by event.set(). Note that when running,
@@ -891,6 +909,9 @@ class dataLogger(object):
             self._writer_queue.clear()
             print "Queue cleared"
 
+        elif command == "SET_LOGLEVEL":
+            level = args if isinstance(args, int) else 0
+            logfile.set_log_level(level = level)
 
         elif command == "TERMINATE":
             print "Terminating datalogger. Goodbye."
