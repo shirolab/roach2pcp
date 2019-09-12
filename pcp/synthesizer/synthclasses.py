@@ -176,9 +176,6 @@ class pcp_windfreaksynthDevice(_windfreaksynth.SynthHDDevice):
         # instantiate class to get all of the factory provided methods
         super(pcp_windfreaksynthDevice, self).__init__(serial)
 
-        #TODO: this will be set to external when synths locked
-        self.setReferenceSelect(1) #internal 27MHz
-
     def getSourceObj(self,channel):
         return pcp_windfreaksynthSource(self,channel)
 
@@ -190,17 +187,6 @@ class pcp_windfreaksynthSource(_windfreaksynth.SynthHDSource):
         super(pcp_windfreaksynthSource, self).__init__(device,source)
 
         #set all settings as required for muscat
-        self.setAMRunContinuously(0)
-
-        #self.setControlChannel(0)
-        #self.setPLLPowerOn(True)
-        #self.setPower(0)
-        #self.setRFAmpOn(True)
-
-        #self.setControlChannel(1)
-        #self.setPLLPowerOn(True)
-        #self.setPower(14)
-        #self.setRFAmpOn(True)
 
         #keep track of which source is being controlled
         #really needs to link to config file.

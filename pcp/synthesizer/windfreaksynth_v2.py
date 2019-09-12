@@ -10,31 +10,72 @@ import time
 VENDOR = 'windfreaktech'
 MODELNUMS = ["synthhd"]
 
+def read_acm_ports():
+    acm_ports = []
+    com_ports = serial.tools.list_ports.comports()
+    for port, desc, hwid in com_ports:
+        if port.startswith("/dev/ttyACM"):
+            acm_ports.append(port)
+    return acm_ports
+
+def set_MUSCAT_default_values(serial_number):
+    syn_dev = SynthHDDevice(serial_number)
+
+    # External reference
+    syn_dev.setReferenceSelect(0)
+    # 10 MHz reference
+    syn_dev.setPLLReferenceFrequency(10e6)
+
+    # Channel 0. CLK
+    syn_src_0 = SynthHDSource(syn_dev, 0)
+    syn_src_0.setPLLPowerOn(1)
+    syn_src_0.setFrequency(512e6)
+    # set AM off
+    syn_src_0.setAMRunContinuously(0)
+    # set FM off
+    #syn_src_0.setFMContinuousMode(0)
+
+    # Channel 1. LO
+    syn_src_1 = SynthHDSource(syn_dev, 1)
+    syn_src_1.setPLLPowerOn(1)
+    syn_src_1.setRFAmpOn(1)
+    syn_src_1.setPower(15.75)
+    
+    # set AM off
+    syn_src_1.setAMRunContinuously(0)
+    # set FM off
+    #syn_src_1.setFMContinuousMode(0)
+
+    print "Windfreak default values for MUSCAT set"
+
+ACM_PORTS = read_acm_ports()
+
 #serial port snrs for device identification
 #hwid_snrs = ['4294967295']
 #dev_snrs = ['656']
 
 class SynthHDDevice(object):
 
-    def __init__(self, hwid_snr, open_connection=True):
+    def __init__(self, serial_number, open_connection=True):
 
         self.vendor   = VENDOR
         self.modelnum = MODELNUMS[0]
 
         print 'Connecting to WFT SynthHD Synthesiser...'
-        self.serialNumber   = hwid_snr
+        self.serialNumber   = serial_number
         self.FREQMIN        = 53e6
         self.FREQMAX        = 14000e6
         self.POWMIN         = -60.0
         self.POWMAX         = +20.0
-        self.serialPort     = self._findSerialPort()
+        #self.serialPort     = self._findSerialPort()
+ 	self.serialPort     = self._findSerialPort_byKnownPort()
         self.conn           = serial.Serial(None, timeout=0.01)
         self.conn.port      = self.serialPort
         if open_connection:
             self._openConnection()
             self.getStatus()
         print 'OK :)'
-        self.setReferenceSelect(1) #int27 TODO: this will be external when synths locked
+        #self.setReferenceSelect(1) #int27 TODO: this will be external when synths locked
 
         #keep track of which source is being controlled
         #really needs to link to config file.
@@ -47,6 +88,30 @@ class SynthHDDevice(object):
         for port, desc, hwid in comports:
             if hwid.find(self.serialNumber)>0:
                 return port
+        print 'Error, device not found'
+        return None
+
+    def _findSerialPort_byKnownPort(self):
+        for port in ACM_PORTS:
+            temp_conn = serial.Serial(None, timeout=0.01)
+            temp_conn.port = port
+            try:
+                temp_conn.open()
+            except (OSError, serial.SerialException):
+                print "Port " + port  + " already open"
+
+            # Clear the buffer
+            temp_conn.readlines()
+            # Get the Serial Number
+            temp_conn.write('-')
+            time.sleep(0.01)
+            readlines = temp_conn.readlines()
+            if len(readlines) != 0:
+                snr = readlines[0].strip()
+                temp_conn.close()
+                if snr == self.serialNumber:
+                    print "Port: " + port + "   S/N: " + snr
+                    return port
         print 'Error, device not found'
         return None
 
@@ -179,11 +244,11 @@ class SynthHDSource(object):
 
     def getPLLPowerOn(self):
         self._checkSource()
-        return bool(int(self.sendCommand('E?')))
+        return bool(int(self.SynthHDDevice.sendCommand('E?')))
     def setPLLPowerOn(self,value):
         assert value in (True,False)
         self._checkSource()
-        self.sendCommand('E%d'%(int(value)))
+        self.SynthHDDevice.sendCommand('E%d'%(int(value)))
 
     #I) PLL output power 2, 2
     #U) PLL charge pump current 3, 3
@@ -475,7 +540,7 @@ class SynthHDSource(object):
         elif current_freq<=3400.00e6: assert abs(value)<=5000000
         elif current_freq<=6800.00e6: assert abs(value)<=10000000
         elif current_freq<=14000.0e6: assert abs(value)<=20000000
-        self.sendCommand('>%d'%(value))
+        self.SynthHDDevice.sendCommand('>%d'%(value))
 
     def getFMNumberRepetitions(self):
         self._checkSource()
