@@ -17,8 +17,6 @@ from ..configuration import color_msg as cm
 #from ..synthesizer import synth_class_dict
 
 from ..attenuator import ATTEN_HW_DICT as _ATTEN_HW_DICT
-from ..attenuator import rudat_6000_30_usb_v2
-
 print "atten dict : ", _ATTEN_HW_DICT
 
 from collections import namedtuple as _namedtuple
@@ -207,30 +205,19 @@ entry in the configuration files and try again.".format(attenids=list(atten_chec
         patten_dict[physical_id]['class_key'] = vendor + '_' + model
         atten_config[attenid]['physical_id'] = physical_id
 
-    # Initializing RUDAT USB attenuators
-    rudats = rudat_6000_30_usb_v2.get_attenuators()
 
     #instantiate the synth base classes for each physical device
     patten_device_instances = {}
-    patten_dict_aux = patten_dict.copy()
-    for n in range(len(rudats)):
-        patten = patten_dict.keys()[n]
-
+    
+    for patten in patten_dict:
         atten_dict_key = patten_dict[patten]['class_key']
         atten_dict_serial = patten_dict[patten]['serial']
-
-        atten_dict_class = _ATTEN_HW_DICT[atten_dict_key](rudats[int(atten_dict_serial)])
-        patten_device_instances[patten] = atten_dict_class
-        del patten_dict_aux[patten]
-
-    #instantiate for dummy roaches (not connected attenuators)
-    for patten in patten_dict_aux:
-        atten_dict_key = patten_dict_aux[patten]['class_key']
-        atten_dict_serial = patten_dict[patten]['serial']
-
+        
+        #dummy attenuators
         if atten_dict_serial.lower() == 'none':
             atten_dict_class = _ATTEN_HW_DICT[atten_dict_key]
             patten_device_instances[patten] = atten_dict_class()
+        #other attenuators
         else:
             atten_dict_class = _ATTEN_HW_DICT[atten_dict_key](atten_dict_serial)
             patten_device_instances[patten] = atten_dict_class

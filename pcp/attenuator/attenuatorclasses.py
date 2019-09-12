@@ -78,25 +78,33 @@ class pcp_dummyAttenSource(_dummy_atten.dummyAttenSource):
     def print_status(self):
         _pprint.pprint(vars(self), width=1)
 
+
 # ===========================================================================================
-# ================================== RUDAT 6000-30 ==========================================
+# ================================== RUDAT 6000-XX ==========================================
 # ===========================================================================================
 
-import rudat_6000_30_usb_v2 as _rudat_6000_30_usb
+import rudat6000usb as _rudat6000usb
 
-class pcp_rudat6000Device(_rudat_6000_30_usb.rudat6000Device):
+#perform initial scan to find usb device handles for connected rudats 
+_rudats_connected = _rudat6000usb.get_attenuators()
+
+class pcp_rudat6000Device(_rudat6000usb.rudat6000Device):
     # pass vendor and model nums as class attributes for checking
-    VENDOR = _rudat_6000_30_usb.VENDOR
-    MODELNUMS = _rudat_6000_30_usb.MODELNUMS
+    VENDOR = _rudat6000usb.VENDOR
+    MODELNUMS = _rudat6000usb.MODELNUMS
 
-    def __init__(self,serial):
+    def __init__(self,serial,attmax=60.0,attmin=0.0,attres=0.25):
+        #Get usb device handle from initial usb scan
+        dev = _rudats_connected[int(serial)]
+
+
         # instantiate class to get all of the factory provided methods
-        super(pcp_rudat6000Device, self).__init__(serial)
+        super(pcp_rudat6000Device, self).__init__(dev,attmax,attmin,attres)
 
     def getSourceObj(self,channel):
         return pcp_rudat6000Source(self,channel)
 
-class pcp_rudat6000Source(_rudat_6000_30_usb.rudat6000Source):
+class pcp_rudat6000Source(_rudat6000usb.rudat6000Source):
 
     def __init__(self,device,source):
         # instantiate class to get all of the factory provided methods
@@ -115,3 +123,4 @@ class pcp_rudat6000Source(_rudat_6000_30_usb.rudat6000Source):
     # add a print status method for convenience
     def print_status(self):
         _pprint.pprint(vars(self), width=1)
+
