@@ -702,8 +702,8 @@ class roachInterface(object):
         #adc *= 0.909091
         #I = np.hstack(zip(adc[0::4],adc[1::4]))
         #Q = np.hstack(zip(adc[2::4],adc[3::4]))
-        I = _np.dstack((adc[0::4],adc[1::4])).ravel()
-        Q = _np.dstack((adc[2::4],adc[3::4])).ravel()
+        I = _np.dstack((adc[0::4],adc[2::4])).ravel()
+        Q = _np.dstack((adc[1::4],adc[3::4])).ravel()
         return I,Q
 
     def read_FFT(self):
