@@ -262,9 +262,6 @@ def _cfgcheck_synthids(roach_config, hardware_config):
     """
     Check synth ids are consistent and match
     """
-
-    print cm.WARNING + "Probando" + cm.ENDC
-
     n_roaches = roach_config["roach_params"].keys()
     synth_id_hardware = _num_synths(hardware_config)
 

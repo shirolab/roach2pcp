@@ -20,3 +20,4 @@ LOGCOLORS = {
     'DEBUG'   : CYANTXT,
     'CRITICAL': BLUETXT,
     'ERROR'   : REDTXT }
+
