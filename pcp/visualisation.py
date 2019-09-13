@@ -525,7 +525,12 @@ class pcp_plot(object):
 
             # Settings
             x_tone = _np.median(freqs[kid])
-            y_tone = mag[_np.where(mag<x_tone)[0][0]]
+            arg_y_tone = _np.where(mag<x_tone)
+
+            try:
+                y_tone = mag[arg_y_tone[0][0]]
+            except:
+                continue
 
             self.tones.append(dict(x=x_tone,
                            y=y_tone,

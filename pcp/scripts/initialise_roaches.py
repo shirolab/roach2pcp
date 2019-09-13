@@ -65,7 +65,7 @@ def main(roach_list, force_reupload=False):
         for i in range(len(roaches)):
             if not active_roach[i]:
                 roaches[i].roach_iface.initialise_fpga(force_reupload=True)
-            roaches[i].initialse_hardware()
+            roaches[i].initialise_hardware()
 
     roach_dict = {}
     for roach in roaches:

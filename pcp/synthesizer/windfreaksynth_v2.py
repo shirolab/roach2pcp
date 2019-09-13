@@ -18,36 +18,6 @@ def read_acm_ports():
             acm_ports.append(port)
     return acm_ports
 
-def set_MUSCAT_default_values(serial_number):
-    syn_dev = SynthHDDevice(serial_number)
-
-    # External reference
-    syn_dev.setReferenceSelect(0)
-    # 10 MHz reference
-    syn_dev.setPLLReferenceFrequency(10e6)
-
-    # Channel 0. CLK
-    syn_src_0 = SynthHDSource(syn_dev, 0)
-    syn_src_0.setPLLPowerOn(1)
-    syn_src_0.setFrequency(512e6)
-    # set AM off
-    syn_src_0.setAMRunContinuously(0)
-    # set FM off
-    #syn_src_0.setFMContinuousMode(0)
-
-    # Channel 1. LO
-    syn_src_1 = SynthHDSource(syn_dev, 1)
-    syn_src_1.setPLLPowerOn(1)
-    syn_src_1.setRFAmpOn(1)
-    syn_src_1.setPower(15.75)
-    
-    # set AM off
-    syn_src_1.setAMRunContinuously(0)
-    # set FM off
-    #syn_src_1.setFMContinuousMode(0)
-
-    print "Windfreak default values for MUSCAT set"
-
 ACM_PORTS = read_acm_ports()
 
 #serial port snrs for device identification

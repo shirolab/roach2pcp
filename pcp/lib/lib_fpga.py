@@ -335,7 +335,8 @@ class roachInterface(object):
 
         return
 
-    def gen_waveform_from_freqs(self, freqs, amps = None, phases = None, which = "dac_lut",iq_correction=None,phase_error_radians=None):
+    def gen_waveform_from_freqs(self, freqs, amps = None, phases = None, which = "dac_lut", autoFullScale=True, 
+        dac_iq_gain=None, dac_iq_phase=None, dds_iq_gain=None, dds_iq_phase=None, dds_iq_offset=None):
         """
         Method to generate the I and Q waveforms that will be sent to the DAC and DDS look-up tables.
 
@@ -359,11 +360,14 @@ class roachInterface(object):
             I, Q:
             Arrays of I and Q waveforms ready to be written to the DAC and DDS.
         """
+
         # Generates a frequency comb for the DAC or DDS look-up-tables. DAC_LUT = True for the DAC LUT. Returns I and Q
-        import time
         _logger.debug("frequencies being generated: {0}".format(freqs) )
 
-        freqs = _np.round( freqs / self.DAC_FREQ_RES) * self.DAC_FREQ_RES
+        freqs  = _np.array(freqs)
+        amps   = _np.array(amps)
+        phases = _np.array(phases) 
+        freqs  = _np.round( freqs / self.DAC_FREQ_RES) * self.DAC_FREQ_RES
         amp_full_scale = (2**15 - 1)
 
         assert which in ['dac_lut', 'dds_lut']
@@ -373,56 +377,100 @@ class roachInterface(object):
         samp_freq = self.DAC_SAMP_FREQ if which == "dac_lut" else self.FPGA_SAMP_FREQ/(self.FFT_LEN/2.) if which == "dds_lut" else None
 
         fft_bin_index = _np.round((freqs / samp_freq) * fft_len).astype('int')
-        fft_neg_bin_index = _np.round((-1*freqs / samp_freq) *fft_len).astype('int')
 
+        #define any/all amplitude/phase/i/q corrections
         if which == "dds_lut":
-            phases, amps = ( _np.zeros_like(fft_bin_index), _np.ones_like(fft_bin_index) )
-            if iq_correction is None:
-                iq_correction = _np.ones_like(fft_bin_index) + 1j*_np.ones_like(fft_bin_index)
-            if phase_error_radians is None:
-                phase_error_radians = _np.zeros_like(fft_bin_index)
+            amps   = _np.ones_like(freqs)
+            phases = _np.zeros_like(freqs) 
+            if dds_iq_gain is None:
+                dds_iq_gain = _np.ones_like(freqs) + 1j*_np.ones_like(freqs)
+            if dds_iq_offset is None:
+                dds_iq_offset = 0 + 0j
+            if dds_iq_phase is None:
+                dds_iq_phase = _np.zeros_like(freqs)
         else:
-            amps, phases = ( _np.ones_like(freqs) if amps is None else amps,\
-                            _np.random.uniform(0., 2.*_np.pi, len(freqs)) if phases is None else phases )
-            if iq_correction is None:
-                iq_correction = _np.ones_like(freqs) + 1j*_np.ones_like(freqs)
-            if phase_error_radians is None:
-                phase_error_radians = _np.zeros_like(freqs)
+            amps   = _np.ones_like(freqs) if amps is None else amps           
+            phases = _np.random.uniform(0,2*np.pi,len(freqs)) if phases is None else phases
+            if dac_iq_gain is None:
+                dac_iq_gain = _np.ones_like(freqs) + 1j*_np.ones_like(freqs)
+            if dac_iq_phase is None:
+                dac_iq_phase = _np.zeros_like(freqs)
 
         _logger.debug( "amps and phases to write: {0}, {1}".format(amps, phases) )
-
+        
+        #Generate waveform from iFFT of frequency comb
         spec = _np.zeros(fft_len, dtype='complex')
-
         spec[fft_bin_index] = amps * _np.exp( 1j * phases )
         wave = _np.fft.ifft(spec)
-
-        #iq amplitude correction
-        ispec = _np.fft.fft(wave.real)
-        ispec[fft_bin_index] /= iq_correction.real
-        ispec[fft_neg_bin_index] /= iq_correction.real
-        iwave = _np.fft.ifft(ispec)
-
-        qspec = _np.fft.fft(wave.imag)
-        qspec[fft_bin_index] /= iq_correction.imag
-        qspec[fft_neg_bin_index] /= iq_correction.imag
-        qwave = _np.fft.ifft(qspec)
-
-        #phase error correction
+        iwave = wave.real
+        qwave = wave.imag
+        
+ 	#iq gain correction
+        ispec = _np.fft.fft(iwave)
         qspec = _np.fft.fft(qwave)
-        phase = _np.exp(-1j*phase_error_radians)
-        qspec[fft_bin_index] *= phase
-        qspec[fft_neg_bin_index] *= phase
+        if which=='dac_lut':
+            ispec[fft_bin_index] *= dac_iq_gain.real
+            qspec[fft_bin_index] *= dac_iq_gain.imag
+        if which=='dds_lut':
+            ispec[fft_bin_index] *= dds_iq_gain.real
+            qspec[fft_bin_index] *= dds_iq_gain.imag          
+        iwave = _np.fft.ifft(ispec)
         qwave = _np.fft.ifft(qspec)
 
-        wave    = iwave + 1j*qwave
-        waveMax = _np.max(_np.abs(wave))
-
+        #phase delay correction
+        qspec = _np.fft.fft(qwave)
         if which=='dac_lut':
-            print 'waveMax:',waveMax
+            qspec[fft_bin_index] *= _np.exp(-1j*dac_iq_phase)
+        if which=='dds_lut':
+            qspec[fft_bin_index] *= _np.exp(-1j*dds_iq_phase)
+        qwave = _np.fft.ifft(qspec)
+        
+        wave = iwave + 1j*qwave
+        
+        #return the complex waveform after scaling
+        if autoFullScale:
+            #Scale the output waveform to the 16-bit full scale. 
+            # Always Maximises SNR on the DAC output.
+            # Note: output power of all tones will change even if only one tone's amplitude/phase/frequency is modified.
+            # Also, if phases are left to be randomly generated, two combs of identical freqs and amps may 
+            # have different output powers due to variation in the crest factor
+            waveMax = _np.max(_np.abs(wave))
+            i,q = (wave.real/waveMax)*(amp_full_scale), (wave.imag/waveMax)*(amp_full_scale) 
+            
+            #print only once:
+            if which=='dac_lut':
+                print 'Waveform rescaled to fullscale range: waveMax was:',waveMax,'New Ipp:',_np.ptp(i),'New Qpp:',_np.ptp(q)
+            return i,q
+              
+        else:
+            #Scale the waveform amplitudes by a standard fixed amount.
+            #Eliminates tone power variations when retuning with different freqs/amps/phases
+            #Requires manually checking for DAC saturation and/or usage of full scale range
+            if which=='dac_lut':
+                waveMax = 6e-5 #force this to fit 1000 tones in FS range
+                i,q = (wave.real/waveMax)*(amp_full_scale), (wave.imag/waveMax)*(amp_full_scale)  
+                if max(i.max(),q.max()) > amp_full_scale:
+                    print 'WARNING: DAC SATURATED: range = (%d,%d) but (imax,qmax) = (%.1f,%.1f)'%(-2**15,2**15-1,i.max(),q.max())
+                if min(i.min(),q.min()) < -1*amp_full_scale -1:
+                    print 'WARNING: DAC SATURATED: range = (%d,%d) but (imax,qmax) = (%.1f,%.1f)'%(-2**15,2**15-1,i.min(),q.min())
 
-        # waveMax = 6e-5
-        return (wave.real/waveMax)*(amp_full_scale), (wave.imag/waveMax)*(amp_full_scale)  # <-- I, Q
+            if which=='dds_lut':
+                waveMax = 9.5367431641e-7 #single tone in fs range 
+                i,q = (wave.real/waveMax)*(amp_full_scale), (wave.imag/waveMax)*(amp_full_scale)  # <-- I, Q
+                i+=dds_iq_offset
+                q+=dds_iq_offset
+                if max(i.max(),q.max()) > amp_full_scale:
+                    print 'WARNING: DDS SATURATED: range = (%d,%d) but (imax,qmax) = (%.1f,%.1f)'%(-2**15,2**15-1,i.max(),q.max())
+                if min(i.min(),q.min()) < -1*amp_full_scale -1:
+                    print 'WARNING: DDS SATURATED: range = (%d,%d) but (imax,qmax) = (%.1f,%.1f)'%(-2**15,2**15-1,i.min(),q.min())
 
+            #print only once:
+            if which=='dac_lut':
+                print 'Waveform rescaled by fixed amount: waveMax:',waveMax,'New Ipp:',_np.ptp(i),'New Qpp:',_np.ptp(q)
+            return i,q
+
+
+ 
     def select_bins(self, freqs):
         # Calculates the offset from each bin center, to be used as the DDS LUT frequencies, and writes bin numbers to RAM
         fft_bin_index = _np.round( (freqs/2/self.FPGA_SAMP_FREQ) * self.FFT_LEN ).astype('int')
@@ -437,20 +485,10 @@ class roachInterface(object):
                                                 'load_bins_reg': 2*ch + 1}, self.firmware_reg_list, sleep_time = 0. )
             write_to_fpga_register(self.fpga, {'load_bins_reg': 0 }, self.firmware_reg_list, sleep_time = 0. )
 
-                                                #enable write ram at address i
-
-        # --- From Sam R's Blastfirmware code, but doesn't appear to included in kidPy ---
-        # # This is done to clear any unused channelizer RAM addresses
-        # for n in range(1024 - len(bins)):
-        #   self.fpga.write_int('bins', 0)#have fft_bin waiting at ram gate
-        #   self.fpga.write_int('load_bins', 2*ch + 1)#enable write ram at address i
-        #   self.fpga.write_int('load_bins', 0)#disable write
-        #   ch += 1
-        #   n += 1
-
         return freq_residuals
 
-    def define_dds_lut(self, freqs): # SLOW - takes ~1 s to run with 101 tones
+    def define_dds_lut(self, freqs,autoFullScale=True,dds_iq_gain=None, dds_iq_phase=None, dds_iq_offset=None):
+        # SLOW - takes ~1 s to run with 101 tones
         # Builds the DDS look-up-table from I and Q given by freq_comb. freq_comb is called with the sample rate equal to the
         # sample rate for a single FFT bin.
         # There are two bins returned for every fpga clock, so the bin sample rate is 256 MHz / half the fft length
@@ -458,20 +496,23 @@ class roachInterface(object):
         I_dds, Q_dds = _np.zeros( (2, self.LUTBUF_LEN) )
 
         for idx, freq in enumerate(freq_residuals):
-            I, Q = self.gen_waveform_from_freqs(freq, amps=None, phases=None, which='dds_lut')
+            I, Q = self.gen_waveform_from_freqs(freq, amps=None, phases=None, which='dds_lut',autoFullScale=autoFullScale,
+            dds_iq_gain=dds_iq_gain, dds_iq_phase=dds_iq_phase, dds_iq_offset=dds_iq_offset)
             I_dds[idx::self.FFT_LEN] = I
             Q_dds[idx::self.FFT_LEN] = Q
         # store this somewhere useful?
 
         return I_dds, Q_dds
 
-    def pack_luts(self, freqs, amps, phases,iq_correction=None,phase_error_radians=None):
+    def pack_luts(self, freqs, amps, phases, autoFullScale=True, dac_iq_gain=None, dac_iq_phase=None, dds_iq_gain=None, dds_iq_phase=None, dds_iq_offset=None):
         # packs the I and Q look-up-tables into strings of 16-b integers, in preparation to write to the QDR.
         # Returns the string-packed look-up-tables
 
-        I_dac, Q_dac = self.gen_waveform_from_freqs(freqs, amps, phases, which = "dac_lut",iq_correction=iq_correction,phase_error_radians=phase_error_radians)
+        I_dac, Q_dac = self.gen_waveform_from_freqs(freqs, amps, phases, which = "dac_lut",autoFullScale=autoFullScale,
+            dac_iq_gain=dac_iq_gain, dac_iq_phase=dac_iq_phase)
 
-        I_dds, Q_dds = self.define_dds_lut(freqs)
+        I_dds, Q_dds = self.define_dds_lut(freqs, autoFullScale=autoFullScale,
+            dds_iq_gain=dds_iq_gain, dds_iq_phase=dds_iq_phase, dds_iq_offset=dds_iq_offset)
 
         self._I_dds = I_dds
         self._Q_dds = Q_dds
@@ -607,14 +648,17 @@ class roachInterface(object):
   #       return I_lut.astype('>i2').tostring(), Q_lut.astype('>i2').tostring() # I_lut_packed, Q_lut_packed
 
     @progress_wrapped(description=cm.BOLD+"Writing tones"+cm.ENDC, estimated_time=15.75)
-    def write_freqs_to_qdr(self, freqs, amps, phases, iq_correction=None,phase_error_radians=None, **kwargs):
+    def write_freqs_to_qdr(self, freqs, amps, phases, autoFullScale=True, dac_iq_gain=None, dac_iq_phase=None, dds_iq_gain=None, dds_iq_phase=None, dds_iq_offset=None, **kwargs):
         # Writes packed LUTs to QDR
 
         #write fft_shift ?
         fft_shift = 2**5 if len(freqs) >= 400 else 2**9
         write_to_fpga_register(self.fpga, { "fft_shift_reg": fft_shift - 1} , self.firmware_reg_list, sleep_time = 0. )
 
-        I_lut_packed, Q_lut_packed = self.pack_luts(freqs, amps, phases, iq_correction=iq_correction, phase_error_radians=phase_error_radians)
+        I_lut_packed, Q_lut_packed = self.pack_luts(freqs, amps, phases, autoFullScale=autoFullScale, 
+            dac_iq_gain=dac_iq_gain, dac_iq_phase=dac_iq_phase, 
+            dds_iq_gain=dds_iq_gain, dds_iq_phase=dds_iq_phase, dds_iq_offset=dds_iq_offset)
+
         write_to_fpga_register(self.fpga, { "dac_reset_reg": 1} , self.firmware_reg_list, sleep_time = 0. )
         write_to_fpga_register(self.fpga, { "dac_reset_reg": 0, \
                                             "start_dac_reg": 0 }, self.firmware_reg_list, sleep_time = 0. )
