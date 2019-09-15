@@ -619,6 +619,34 @@ def read_sweep_dirfile(sweep_dirfile):
     return dict( sweep_dirfile.carrays( _gd.COMPLEX, as_list=False) ), dict( sweep_dirfile.strings() )
 
 
+def append_dirfile_to_sourcefile(srcfile, dirfilename, timespan = 120.):
+    """
+    Function to append a dirfile to a source file list for easy reading in KST. Time span, in minutes, is the
+    length of time for which the dirfiles remain in the sourcefile
+    """
+
+    assert not srcfile.closed, "source file appears to be closed - check again"
+
+    # read sourcefile contents
+    srcfile.seek(0)
+    dirfilelist = np.array( [f.strip() for f in srcfile.readlines()] )
+
+    # get last modified timestamps for current files
+    modtimes = np.array( [os.path.getmtime(df) for df in dirfilelist] )
+
+    # choose only where last modified times are greater than timespan
+    dirfilelist = dirfilelist[ modtimes > time.time() - timespan * 60. ]
+    # append new file to the list
+    print dirfilelist
+    dirfilelist = np.append( dirfilelist, dirfilename )
+    print dirfilelist
+
+    # write to file (adding newlines)
+    srcfile.seek(0)
+    srcfile.writelines( np.char.add( dirfilelist, '\n' ) )
+    srcfile.truncate()
+    srcfile.flush()
+
 ######################################################################################################
 ################################################# Graveyard #####################################################
 

@@ -102,6 +102,9 @@ class muxChannel(object):
         # create if doesn't exist already
         os.makedirs(self.DIRFILE_SAVEDIR) if not os.path.exists(self.DIRFILE_SAVEDIR) else None
 
+        # create kst sourcefile in directory if it already doesn't exist
+        self._srcfile = open( os.path.join(self.DIRFILE_SAVEDIR, 'sf.txt'), 'w+')
+
         self.initialise_hardware()
 
 ################################################################################
@@ -278,6 +281,12 @@ class muxChannel(object):
 
         self.current_dirfile = dirfile_name
         time.sleep(0.1)
+
+        # add the file to the source file
+        _lib_dirfiles.append_dirfile_to_sourcefile(self._srcfile,
+                                    self.current_dirfile.name,
+                                    timespan = general_config["srcfile_timespan"] )
+
 
     def read_existing_sweep_file(self, path_to_sweep):
         # check if filename appears to be a valid dirfile
@@ -601,7 +610,10 @@ class muxChannel(object):
 
         # terminate writer daemon threads
         self.writer_daemon.terminate()
+
         # close all local file descriptors
+        self._srcfile.close()
+
         try:
             self.current_dirfile.close()
             self.current_sweep_dirfile.close()
