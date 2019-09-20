@@ -105,6 +105,10 @@ class muxChannel(object):
         # create kst sourcefile in directory if it already doesn't exist
         self._srcfile = open( os.path.join(self.DIRFILE_SAVEDIR, 'sf.txt'), 'w+')
 
+        # convenience access for writing to packet
+        self.write_int = self.roach_iface.fpga.write_int
+        self.read_int = self.roach_iface.fpga.read_int
+        
         self.initialise_hardware()
 
 ################################################################################
