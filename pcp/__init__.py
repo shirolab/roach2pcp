@@ -27,6 +27,9 @@ _logconfig.dictConfig(configuration.logging_config)
 # set up the root logger to be able to print from each process
 _multiprocessing_logging.install_mp_handler()
 
+# create a top level logger (used for interactive logging)
+logger = _logging.getLogger(__name__)
+
 # lists of important information defined at the top level for convenience (i.e. pcp.ROACH_LIST)
 # will show the list of roaches defined in the confiruation files
 ROACH_LIST = configuration.roach_config.keys()

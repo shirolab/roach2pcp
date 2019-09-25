@@ -178,6 +178,8 @@ def create_pcp_dirfile(roachid, dirfilename="", dirfile_type = "stream", tones=2
 
     array_size = kwargs.pop("array_size", 101) # default size used for sweep file creation
 
+    inc_derived_fields = kwargs.pop("inc_derived_fields", False) # option to include derived fields to dirfile
+
     if kwargs:
         raise NameError("Unknown kwarg(s) given {0}".format(kwargs.keys()))
 
@@ -204,6 +206,9 @@ def create_pcp_dirfile(roachid, dirfilename="", dirfile_type = "stream", tones=2
 
     if dirfile_type == "stream":
         dirfile = generate_main_rawfields(dirfile, roachid, tones, fragnum = 0)#, field_suffix = field_suffix)
+        if inc_derived_fields:
+            # add derived fields
+            pass
 
     elif dirfile_type == "sweep":
         dirfile = generate_sweep_fields(dirfile, tones, array_size = array_size)#, field_suffix = field_suffix)
@@ -269,6 +274,11 @@ def generate_main_rawfields(dirfile, roachid, tones, fragnum=0 ):#, field_suffix
 
     kid_entries_to_write = [ _gd.entry(_gd.RAW_ENTRY, field_name, fragnum, (_gd.FLOAT64, 1)) for field_name in kid_fields_I ] \
                          + [ _gd.entry(_gd.RAW_ENTRY, field_name, fragnum, (_gd.FLOAT64, 1)) for field_name in kid_fields_Q ]
+
+    # add derived fields
+
+    # constants for each resonator - can we use an array? need i0, q0, di0, dq0, di0**2 + dq0**2, di0*i0, dq0*q0
+
 
     # add all entries into format file
     for entry in aux_entries_to_write + kid_entries_to_write:
@@ -413,7 +423,7 @@ def write_sweep_cal_params(dirfile, cal_params, cal_data_dict):
         return
 
     cal_param_fields = ["f0s", "i0", "q0", "didf0", "dqdf0", "didq2"]
-    cal_data_fields = ["didf", "dqdf", "didf2"] # dictionaries
+    cal_data_fields  = ["didf", "dqdf", "didf2"] # dictionaries
 
     for cal_param_field, cal_param in zip(cal_param_fields, cal_params):
         dirfile.put_carray("cal." + cal_param_field, cal_param)

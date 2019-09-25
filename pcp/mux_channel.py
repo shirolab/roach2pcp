@@ -88,7 +88,7 @@ class muxChannel(object):
         self.output_atten    = None
 
         self.current_dirfile       = None
-        self.current_sweep_dirfile = None
+        #self.current_sweep_dirfile = None
 
         # start usb monitoring
         #self.usb_device = usb_detector()
@@ -245,7 +245,7 @@ class muxChannel(object):
         # write newly written tones to hidden variable for future checks
         self._last_written_bb_freqs = self.toneslist.bb_freqs
 
-    def set_active_dirfile(self, dirfile_name = "", dirfile_type = "stream", filename_suffix = "", inc_derived_fields = False ):#, field_suffix = ""):
+    def set_active_dirfile(self, dirfile_name = "", filename_suffix = "", inc_derived_fields = False ):
         # if an empty string is given (default), then we pass the DIRFILE_SAVEDIR as the filename to lib_dirfile.create_dirfile,
         # which generates a new filename with the filename format given general_config['default_datafilename_format']).
         # This is likely to be the most used case
@@ -548,7 +548,7 @@ class muxChannel(object):
         dirfile_name = stream_kwargs.pop("dirfilename", "") # allow the user to pass in and append to an existing dirfile
 
         # check that sweep exists - warn if not and give option to proceed
-        if self.current_sweep_dirfile is None:
+        if self.sweep.dirfile is None:
             _logger.warning( "no sweep file available - limited functionality available" )
             if dont_ask==False:
                 response = raw_input("Proceed? [y/n] ")
@@ -565,8 +565,8 @@ class muxChannel(object):
 
         # add sweepdirfile as a new fragment to the new dirfile
 
-        if isinstance( self.current_sweep_dirfile , _gd.dirfile ):
-            _lib_dirfiles.add_subdirfile_to_existing_dirfile(self.current_sweep_dirfile, self.current_dirfile)
+        if isinstance( self.sweep.dirfile , _gd.dirfile ):
+            _lib_dirfiles.add_subdirfile_to_existing_dirfile(self.sweep.dirfile, self.current_dirfile)
 
         # alias to current dirfile for convenience
         self.current_dirfile = self.writer_daemon.current_dirfile
@@ -616,7 +616,7 @@ class muxChannel(object):
 
         try:
             self.current_dirfile.close()
-            self.current_sweep_dirfile.close()
+            self.sweep.dirfile.close()
         except AttributeError:
             pass
 

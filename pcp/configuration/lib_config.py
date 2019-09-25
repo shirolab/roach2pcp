@@ -29,7 +29,8 @@ MIN_NUM_FREQS = 1
 
 config_dir = _os.path.dirname(__file__) # returns this directory, regardless of the cwd
 
-# adds additional functionality to
+# adds additional functionality to YAML loader to properly parse scientific notation 1e9
+# from https://stackoverflow.com/questions/30458977/yaml-loads-5e-6-as-string-and-not-a-number
 pcp_yaml_loader = _yaml.SafeLoader
 pcp_yaml_loader.add_implicit_resolver(  u'tag:yaml.org,2002:float', _re.compile(u'''^(?:
                                         [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
@@ -40,6 +41,7 @@ pcp_yaml_loader.add_implicit_resolver(  u'tag:yaml.org,2002:float', _re.compile(
                                         |\\.(?:nan|NaN|NAN))$''', _re.X),
                                     list(u'-+0123456789.')
                                     )
+
 def load_config_file(config_file):
     with open(config_file, "r") as f:
         msg = "Loaded {0}".format(config_file)

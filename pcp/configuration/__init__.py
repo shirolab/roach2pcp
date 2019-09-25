@@ -22,12 +22,12 @@ SAVEDATADIR = filesys_config['savedatadir'] if _os.path.isabs(filesys_config['sa
                                             else _os.path.join(ROOTDIR, filesys_config['savedatadir'])
 TONELISTDIR = filesys_config['tonelistdir'] if _os.path.isabs(filesys_config['tonelistdir']) \
                                             else _os.path.join(ROOTDIR, filesys_config['tonelistdir'])
-LOGFILEDIR  = filesys_config['logfiledir'] if _os.path.isabs(filesys_config['logfiledir']) \
-                                            else _os.path.join(ROOTDIR, filesys_config['logfiledir'])
 PIDFILEDIR  = filesys_config['pidfiledir'] if _os.path.isabs(filesys_config['pidfiledir']) \
                                             else _os.path.join(ROOTDIR, filesys_config['pidfiledir'])
 LIVEFILEDIR = filesys_config['livefiledir'] if _os.path.isabs(filesys_config['livefiledir']) \
                                             else _os.path.join(ROOTDIR, filesys_config['livefiledir'])
+LOGFILEDIR  = logging_config['logfiledir'] if _os.path.isabs(logging_config['logfiledir']) \
+                                            else _os.path.join(ROOTDIR, logging_config['logfiledir'])
 
 # no checks on permissions...
 if not _os.path.exists(ROOTDIR)    : _os.makedirs(ROOTDIR)

@@ -63,7 +63,7 @@ def get_tone_fields( tones ):
 def gen_tone_iq_fields(tones, namespace="", field_suffix=""):
 
 	#field_suffix = "_" + field_suffix if field_suffix is not "" else ""
-	namespace    = namespace + "."    if namespace    is not "" else ""
+	namespace = namespace + "." if namespace is not "" else ""
 
 	# get array of field names from either tonelist, or automatically generated
 	field_names = _np.core.defchararray.add( "{namespace}".format(namespace=namespace), get_tone_fields(tones) )
@@ -72,6 +72,68 @@ def gen_tone_iq_fields(tones, namespace="", field_suffix=""):
 	kid_fields_Q = _np.core.defchararray.add(field_names, "_Q{suffix}".format(suffix = field_suffix))
 
 	return kid_fields_I, kid_fields_Q
+
+# def gen_tone_derived_fields(tones, namespace="", field_suffix=""):
+
+	# namespace = namespace + "." if namespace is not "" else ""
+	#
+    # dirfile.add(_gd.entry(_gd.LINCOM_ENTRY, '_cal_i_sub_i0_%04d'%chan, calfrag, (("I%04d"%chan,),(1,),(-1*i_tone,))))
+	#
+    # e = _gd.entry(_gd.LINCOM_ENTRY, 'K000_df', calfrag, ( ("K000_I","K000_Q"),('di','dq'), (-1*'i0',) ) )
+
+
+    # calfrag = dirfile.include("calibration", flags = _gd.EXCL|_gd.RDWR )
+	#
+    # for chan in channels:
+    #     dirfile.add( _gd.entry( _gd.CONST_ENTRY,'_cal_tone_freq_%04d'%chan,calfrag,(_gd.FLOAT64,) ) )
+    #     dirfile.put_constant('_cal_tone_freq_%04d'%chan, f_tone[chan])
+	#
+    #     #i-i0 q-q0
+    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY, '_cal_i_sub_i0_%04d'%chan, calfrag, (("I%04d"%chan,),(1,),(-1*i_tone,))))
+    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY, '_cal_q_sub_q0_%04d'%chan, calfrag, (("Q%04d"%chan,),(1,),(-1*q_tone,))))
+	#
+    #     #Complex values
+    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'_cal_complex_%04d'%chan,calfrag, (("I%04d"%chan,"Q%04d"%chan),(1,1j),(0,0))))
+	#
+    #     #Amplitude
+    #     dirfile.add(_gd.entry(_gd.PHASE_ENTRY,'amplitude_%04d'%chan,calfrag, (('_cal_complex_%04d.m'%chan),0)))
+	#
+    #     #Phase
+    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'phase_raw_%04d'%chan,calfrag, (('_cal_complex_%04d.a'%chan,),(1,1j),(0,))))
+	#
+    #     #Complex_centered:
+    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'_cal_centred_%04d'%chan,calfrag,
+    #     (("_cal_complex_%04d"%chan,),(1,),(-c[0]-1j*c[1],))))
+	#
+    #     #Complex_rotated
+    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'_cal_rotated_%04d'%chan,calfrag,
+    #     (("_cal_centred_%04d"%chan,),(np.exp(-1j*phi_tone),),(0,))))
+	#
+    #     #Phase
+    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'phase_rotated_%04d'%chan,calfrag,
+    #     (('_cal_rotated_%04d.a'%chan,),(1,),(0,))))
+	#
+    #     #df = ((i[0]-i)(di/df) + (q[0]-q)(dq/df) ) / ((di/df)**2 + (dq/df)**2)
+    #     dirfile.add(_gd.entry(_gd.CONST_ENTRY,'_cal_didf_mult_%04d'%chan,calfrag,(_gd.FLOAT64,)))
+    #     dirfile.add(_gd.entry(_gd.CONST_ENTRY,'_cal_dqdf_mult_%04d'%chan,calfrag,(_gd.FLOAT64,)))
+    #     dirfile.put_constant('_cal_didf_mult_%04d'%chan,didf_tone/(didf_tone**2+dqdf_tone**2))
+    #     dirfile.put_constant('_cal_dqdf_mult_%04d'%chan,dqdf_tone/(didf_tone**2+dqdf_tone**2))
+    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'_cal_i0_sub_i_%04d'%chan,calfrag,
+    #     (("I%04d"%chan,),(-1,),(i_tone,))))
+    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'_cal_q0_sub_q_%04d'%chan,calfrag,
+    #     (("Q%04d"%chan,),(-1,),(q_tone,))))
+    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY, 'delta_f_%04d'%chan, calfrag,
+    #     (("_cal_i0_sub_i_%04d"%chan,"_cal_q0_sub_q_%04d"%chan),
+    #     ("_cal_didf_mult_%04d"%chan,"_cal_dqdf_mult_%04d"%chan),
+    #     (0,0))))
+	#
+    #     #x = df/f0
+    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'x_%04d'%chan,calfrag,
+    #     (('delta_f_%04d'%chan,),(1./f_tone[chan],),(0,))))
+	#
+	#
+
+
 
 ### === Toneslist class === ###
 

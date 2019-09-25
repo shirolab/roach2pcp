@@ -66,25 +66,19 @@ from .configuration import filesys_config, logging_config, color_msg
 _logger = logging.getLogger(__name__)
 
 # Set up directories from configuration files
-ROOTDIR = filesys_config['rootdir']
-LOGFILEDIR = os.path.join(ROOTDIR, filesys_config['logfiledir'])
-PIDFILEDIR = os.path.join(ROOTDIR, filesys_config['pidfiledir'])
+from .configuration import ROOTDIR, PIDFILEDIR
+from .configuration import LOGFILEDIR
 
-# Ensure that those paths exist
-if not os.path.exists(LOGFILEDIR): os.mkdir(LOGFILEDIR)
-if not os.path.exists(PIDFILEDIR): os.mkdir(PIDFILEDIR)
+# modify the filename (this happens on initial import before logging.dictConfig happens)
+logfilename = logging_config['handlers']['filelog']['filename']
+logging_config['handlers']['filelog']['filename'] = os.path.join(LOGFILEDIR, logfilename)
 
-# Specify the logname for this script for easy modification later on if required
-LOGNAME = "pcp.logfile"
-LOGFILENAME = os.path.join(LOGFILEDIR, logging_config["logfilename"])
 
-# Get host and port from configuration file
-LOGHOST = logging_config["serverconfig"]["host"]
-LOGPORT = logging_config["serverconfig"]["port"]
-LOGPORT = 9075 if LOGPORT == "default" else LOGPORT
+
+
 
 # Set the name of the daemon process to be spawned (for logging purposes)
-daemonname = "loggingdaemon"
+#daemonname = "loggingdaemon"
 
 #------------------------------------------------------------------------------------------------------------
 #  ------  Class definitions ------
@@ -94,7 +88,7 @@ daemonname = "loggingdaemon"
 
 class pcpFormatter(logging.Formatter):
     FORMATS = {logging.DEBUG : logging_config['formatters']['debugformat'].get('format', None),
-               'DEFAULT'     : logging_config['formatters']['screenformat'].get('format', None)}
+               'DEFAULT'     : logging_config['formatters']['fileformat'].get('format', None)}
                #logging.INFO  : logging_config['formatters']['screenformat'].get('format', None),
 
     def format(self, record):
@@ -105,134 +99,7 @@ class pcpFormatter(logging.Formatter):
 
         return logging.Formatter.format(self, record)
 
-class LogRecordStreamHandler(SocketServer.StreamRequestHandler):
-    """
-    Handler for a streaming logging request, which is used by the TCPThreadedServer below
-    to read and parse the logrecord and write it to the log file.
-
-    """
-    def handle(self):
-        """
-        Handle multiple requests - each expected to be a 4-byte length,
-        followed by the LogRecord in pickle format. Logs the record
-        according to whatever policy is configured locally.
-        """
-        while True:
-            chunk = self.connection.recv(4)
-            if len(chunk) < 4:
-                break
-            slen = struct.unpack('>L', chunk)[0]
-            chunk = self.connection.recv(slen)
-            while len(chunk) < slen:
-                chunk = chunk + self.connection.recv(slen - len(chunk))
-            obj = pickle.loads(chunk)
-            logrecord = logging.makeLogRecord(obj)
-            self.handleLogRecord(logrecord)
-            time.sleep(0.1)
-
-    def handleLogRecord(self, logrecord):
-        logger = logging.getLogger(logrecord.name)
-        logger.handle(logrecord)
-
-class LogRecordSocketReceiver(SocketServer.ThreadingTCPServer):
-    """
-    Simple TCP socket-based logging receiver to receive log entries from other parts of the application.
-
-    See here for detailed documentation:
-    https://docs.python.org/2/library/socketserver.html#request-handler-objects
-
-    This works by setting up a local asynchronous TCP server on port 9020 (i.e. threaded so that
-    simultaneous requests are handled correctly) which uses the handler defined by the LogRecordStreamHandler.
-
-    """
-    logger = logging.getLogger(daemonname + ".logsocketserver")
-    logging_process_event = mp.Event() # create event to be used for clean shutdown from the main thread
-
-    def __init__(self,  host = LOGHOST, port = LOGPORT, handler = LogRecordStreamHandler):
-
-        # make sure that the port is not in use
-        try:
-            #print host, port
-            self.logger.debug( "Initialising TCP server on {host}:{port}".format(host=host, port=port) )
-            SocketServer.ThreadingTCPServer.__init__(self, (host, port), handler, bind_and_activate = False)
-            self.allow_reuse_address = True # Prevent 'cannot bind to address' errors on restart
-            self.server_bind()     # Manually bind, to support allow_reuse_address
-            self.server_activate() # ( see above )
-
-        except socket.error as err:
-            if err.errno == errno.EADDRINUSE:
-                # get and close the socket?
-                self.logger.error("configuration of tcpserver failed; address already in use")
-                #print "error, check to see if logdaemon is already running"
-            else:
-                self.logger.exception("configuration of tcpserver failed")
-
-        # these may not currently be in use
-        self.abort = 0
-        self.timeout = 1.
-        #self.logname = None
-
-    def serve_until_stopped(self):
-        """
-        Function that monitors the tcp socket for logging entries. Shutdown is initiated by either setting
-        self.logging_process_event, or KeyboardInterrupt or equivalently, signal.SIGINT/ctrl+c.
-        """
-        logger = logging.getLogger(name = "pcp.tcplogserver")
-        print logger, logger.level, logger.root
-        while not self.logging_process_event.is_set():
-            print logger, logger.level, logger.root, logger.root.level
-
-            try:
-                rd, wr, ex = select.select( [self.socket.fileno()], [], [], self.timeout )
-
-                if rd:
-                    self.handle_request() # is a method in ThreadingTCPServer that uses the handler to process the request
-                else:
-                    logger.debug("tcpserver.serve_until_stopped; no record found")
-            # catch the system call interupt when using daemon
-            except select.error as err:
-                if err.args[0] == 4:
-                    continue
-                else:
-                    logger.exception("tcpserver.serve_until_stopped; error reading from select")
-
-            # catch signal.SIGINT sent from main process to shut down
-            except KeyboardInterrupt:
-                logger.info("tcpserver.serve_until_stopped; received keyboard interupt, stop serving")
-                break
-
-        # close the logger appropriately
-        logging.shutdown()
-        #self.shutdown() <- this is only
-        self.logging_process_event.clear()
-
-        logger.info("tcpserver.serve_until_stopped; logger successfully shutdown")
-
-    def terminate(self):
-
-        self.logging_process_event.set()
-        self.server_close()
-
-class logDaemon(daemonTemplate):
-    """
-    Class for logging daemon, subclassed from the generic daemonTemplate.
-
-    Adds new functionality regarding logging:
-
-    """
-    def __init__(self, daemonname):
-        super(logDaemon, self).__init__(daemonname) # initalise the parent class
-
-    #@self._process_message(message)
-    # def _process_message(self, message):
-
-# Class to create the controller for logging daemon process
-class loggingController(daemonControl):
-    def __init__(self, daemonname):
-        super(loggingController, self).__init__(daemonname) # initalise the parent class
-    # implement log level controller in here - it will update local loggers as well as in the logging daemon
-
-#  ------  Function definitions ------
+# #  ------  Function definitions ------
 
 def configure_logging():
     """
@@ -384,7 +251,7 @@ def get_logging_handlers(logger, get_all = True):
 
     return handler_dict
 
-def set_log_level(which = 'screen', level = logging.INFO):
+def set_log_level(level, which = 'screen'):
     assert which in ['screen', 'file', 'all'], "Unknown option for which handler to set: {0}".format(which)
     logger = logging.getLogger(__name__).root # get the root logger
 
@@ -396,14 +263,16 @@ def set_log_level(which = 'screen', level = logging.INFO):
     for handler in logger.handlers:
         assert isinstance(handler, _multiprocessing_logging.MultiProcessingHandler), "only multiprocessing logging currently implemented"
         #    handler = handler.sub_handler
+        print handler.sub_handler
         if which == "all":
             handler.setLevel(level)
-        elif which == "screen":
-            handler.setLevel(level) if isinstance(handler.sub_handler, logging.StreamHandler) else None
-        elif which == "file":
-            handler.setLevel(level) if isinstance(handler.sub_handler, logging.handlers.SocketHandler) else None
+        elif which == "screen" and type(handler.sub_handler) is logging.StreamHandler:
+            handler.setLevel(level)
+        elif which == "file" and type(handler.sub_handler) in (logging.handlers.TimedRotatingFileHandler,
+                                                            logging.handlers.RotatingFileHandler):
+            handler.setLevel(level)
 
-        logger.info("{handlertype} now logging with level: {level}".format( handlertype = type(handler),\
+        logger.info("{handlertype} now logging with level: {level}".format( handlertype = type(handler.sub_handler),\
                                                                             level = logging.getLevelName(handler.level)) )
 
 def log_to_screen(onoff, level=logging.DEBUG):
@@ -414,7 +283,7 @@ def log_to_screen(onoff, level=logging.DEBUG):
     #assert logname in [""] + logging.root.manager.loggerDict.keys(), "logname is not an existing handler"
 
     logger = logging.getLogger() # get the root logger
-    existing_streamhandlers = [h for h in logger.handlers if isinstance(h, logging.StreamHandler)]
+    existing_streamhandlers = [h for h in logger.handlers if type(h) is logging.StreamHandler]
 
     if any(existing_streamhandlers):
         logger.warning("Removing existing streamhandler")
@@ -440,13 +309,3 @@ def log_to_screen(onoff, level=logging.DEBUG):
 #     logger.critical('test')
 #     logger.critical('done testing. finishing')
 #
-
-
-
-if __name__ =="__main__":
-    pass
-    # this is the main script that is run in start_logging_daemon() to spawn the daemon process
-    # logger = configure_logging()
-    # # change this to logDaemon
-    # d = daemonTemplate(daemonname, loglevel = logging.INFO)
-    # d.run( _initalise_tcpserver, True, stdout = sys.stdout, stderr = sys.stdout ) # daemonTemplate call signature should be changed here for clairty
