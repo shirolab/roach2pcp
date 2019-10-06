@@ -8,6 +8,7 @@ from memory_profiler import profile
 import os, sys, socket, time, string, struct # stdlib imports
 from random import choice
 import numpy as np, pygetdata as _gd
+from numba import jit
 
 from .. import toneslist
 
@@ -32,20 +33,28 @@ def generate_datapacket_dict( roachid, tones ):
     """
     assert isinstance(roachid, str) and roachid in roach_config.keys(), "roachid is string {0}, roachid in config.keys() {1}".format(isinstance(roachid, str), roachid in roach_config.keys())
 
-    #if type(tones) != toneslist.Toneslist:
     if not isinstance(tones, toneslist.Toneslist):
-        print type(tones), tones
         raise TypeError("Input toneslist does not appear to be a pcp.tonelist.Tonelist object. To ensure that data is correctly mapped to disk, a Tonelist is required.")
 
     # get firmware registers for the given roachid
     firmware_dict = get_firmware_register_dict( firmware_registers, roach_config[roachid]["firmware_file"] )
 
+    # number of tones in tonelist
+    ntones = len(tones.data)
+
     datapacket_dict = {}
 
-    datapacket_dict["_header_len"] = firmware_dict["packet_structure"]["header_len"]
-    datapacket_dict["_max_ntones"] = firmware_dict["packet_structure"]["max_ntones"]
+    # construct twos dictionaries - one for aux_fields, and one for tone data
+    datapacket_dict["aux_fields"]  = {}
+    datapacket_dict["tone_fields"] = {}
+    datapacket_dict["tone_data"]   = None
 
-    assert len(tones.data) < datapacket_dict["_max_ntones"], "Number of tones exceeds maximum number allowed."
+    datapacket_dict["_header_len"]  = firmware_dict["packet_structure"]["header_len"]
+    datapacket_dict["_max_ntones"]  = firmware_dict["packet_structure"]["max_ntones"]
+    datapacket_dict["_kiddatatype"] = firmware_dict["packet_structure"]["kid_field_cfg"]["datatype"]
+    datapacket_dict["_ntones"]      = ntones
+
+    assert ntones < datapacket_dict["_max_ntones"], "Number of tones exceeds maximum number allowed."
 
     # get slice objects and list for aux data from configuration (note this currently assumes all roaches have same packet information )
     aux_field_cfg = firmware_dict["packet_structure"]["aux_field_cfg"]
@@ -58,29 +67,65 @@ def generate_datapacket_dict( roachid, tones ):
     # sort the tonelist by increasing frequency to ensure that data is parsed in the correct order
     kid_fields_I, kid_fields_Q = toneslist.gen_tone_iq_fields( tones.data.sort_values('freq', ascending=True)['name'] )
 
-    # configure the datatype and indicies that are used to extract the data from the packet. The indicies will be used to create a slice object
-    kid_fields_Ieven = {fn: [kidentry_type, kid_field_datatype, (4*i),          (4*(i + 1)),           None, kid_datatype] for i,fn in enumerate(kid_fields_I[::2]) }
-    kid_fields_Qeven = {fn: [kidentry_type, kid_field_datatype, (4*(512 + i)),  (4*512  + 4*(i + 1) ), None, kid_datatype] for i,fn in enumerate(kid_fields_Q[::2]) }
-    kid_fields_Iodd  = {fn: [kidentry_type, kid_field_datatype, (4*(1024 + i)), (4*1024 + 4*(i + 1) ), None, kid_datatype] for i,fn in enumerate(kid_fields_I[1::2])}
-    kid_fields_Qodd  = {fn: [kidentry_type, kid_field_datatype, (4*(1536 + i)), (4*1536 + 4*(i + 1) ), None, kid_datatype] for i,fn in enumerate(kid_fields_Q[1::2])}
+    # configure the datatype and indicies that are used to index the packet data.
+    kid_fields_Ieven = {fn: [kidentry_type, kid_field_datatype, 0   + i ] for i,fn in enumerate(kid_fields_I[::2]) }
+    kid_fields_Qeven = {fn: [kidentry_type, kid_field_datatype, 512 + i ] for i,fn in enumerate(kid_fields_Q[::2]) }
+    kid_fields_Iodd  = {fn: [kidentry_type, kid_field_datatype, 1024 + i ] for i,fn in enumerate(kid_fields_I[1::2])}
+    kid_fields_Qodd  = {fn: [kidentry_type, kid_field_datatype, 1536 + i ] for i,fn in enumerate(kid_fields_Q[1::2])}
 
-    # -- old code - to delete --
-    # kid_fields_Ieven = {"K{kidnum:04d}_I".format(kidnum=i): [kidentry_type, kid_field_datatype, (i/2), (i/2+4), None, kid_datatype]              for i in range(ntones)[::2]}
-    # kid_fields_Qeven = {"K{kidnum:04d}_Q".format(kidnum=i): [kidentry_type, kid_field_datatype, (512 + i/2), (512+i/2 + 4), None, kid_datatype]  for i in range(ntones)[::2]}
-    # kid_fields_Iodd = {"K{kidnum:04d}_I".format(kidnum=i): [kidentry_type, kid_field_datatype, (1024 + i/2), (1024+i/2 + 4), None, kid_datatype] for i in range(ntones)[1::2]}
-    # kid_fields_Qodd = {"K{kidnum:04d}_Q".format(kidnum=i): [kidentry_type, kid_field_datatype, (1536 + i/2), (1536+i/2 + 4), None, kid_datatype] for i in range(ntones)[1::2]}
+    # concatenate all the dicts together to make a master kid_field list that contains the correct field index
+    datapacket_dict["tone_fields"] = reduce(lambda x,y: dict(x, **y), (kid_fields_Ieven, kid_fields_Qeven, kid_fields_Iodd, kid_fields_Qodd))
 
-    # concatenate all the dicts together to make a master kid_field list that contains the correct slicing information
-    kid_fields = reduce(lambda x,y: dict(x, **y), (kid_fields_Ieven, kid_fields_Qeven, kid_fields_Iodd, kid_fields_Qodd))
+    # contains the dirfile field names as keys, and values comprise [slice object, data_container]
+    for field_name, (entry_type, field_datatype, startidx, stopidx, stepidx, datatype) in aux_field_cfg.iteritems():
+        datapacket_dict["aux_fields"].update( {field_name:[str(entry_type), str(field_datatype), datatype, slice(startidx, stopidx, stepidx), []] } )
 
-    # construct the dictionary that contains the dirfile field names as keys, and values comprise [slice object, data_container]
-    for field_name, (entry_type, field_datatype, startidx, stopidx, stepidx, datatype) in aux_field_cfg.items() + kid_fields.items():
-        datapacket_dict.update( {field_name:[str(entry_type), str(field_datatype), datatype, slice(startidx, stopidx, stepidx), []] } )
+    datapacket_dict.update( {"python_timestamp": firmware_dict["packet_structure"]["python_timestamp"] + [[]] } )
 
     return datapacket_dict
 
 #@profile
 # now parse the data and put it into this structure !
+
+def parse_datapacket_dict_fast(packets, datapacket_dict):
+    """
+
+    Function to parse data packets and place them into the datapacket dictionary defined by gen_datapacket_dict().
+
+    """
+    # possible upgrade later - https://stackoverflow.com/questions/48896258/reading-in-numpy-array-from-buffer-with-different-data-types-without-copying-arr
+
+    # handle both single and multiple packets
+    packets = packets if isinstance(packets, list) else [packets] # fast way to ensure input is a list
+
+    header_len = datapacket_dict["_header_len"]
+    ntones     = datapacket_dict["_ntones"]
+    tone_dtype = datapacket_dict["_kiddatatype"]
+    maxtones   = datapacket_dict["_max_ntones"]
+
+    assert len(set( map(len, packets))) == 1 # check that the packets are all the same ( and length 2 )
+
+    # determine length of data and extract all tone data at once using count
+    tonedata =  np.array ( [np.frombuffer(pi[0], offset  = header_len,
+                            count = -1,
+                            dtype = tone_dtype) for pi in packets] )
+
+    # make array C-contiguous for getdata
+    datapacket_dict["tone_data"] = np.ascontiguousarray(tonedata.T)
+
+    # write python_timestamp and raw_packet manually
+    #datapacket_dict["raw_packet"][-1].append(packet)
+    datapacket_dict["python_timestamp"][-1].append( np.array( [pi[1] for pi in packets] ).flatten() )
+
+    # fill in the aux_fields dictionary
+    for field_name, item in datapacket_dict['aux_fields'].items():
+        #print field_name
+        # converts data from binary to the specified dtype
+        auxdata = np.array([ packet[0][header_len:][item[-2]] for packet in packets] ).T.astype( item[2] )
+        item[-1].append( auxdata ) if auxdata.size > 0 else None
+
+    return datapacket_dict
+
 def parse_datapacket_dict(packets, datapacket_dict):
     """
 
@@ -88,12 +133,16 @@ def parse_datapacket_dict(packets, datapacket_dict):
 
     """
     # handle both single and multiple packets
-    packets = packets if isinstance(packets, list) else [packets] # fast way to ensure input is a list
+    #packets = packets if isinstance(packets, list) else [packets] # fast way to ensure input is a list
 
     header_len = datapacket_dict["_header_len"]
+    ntones     = datapacket_dict["_ntones"]
+
+    # determine length of data and extract all tone data at once using count
+    #x =  np.array ([np.frombuffer(pi, offset=42, count=1001, dtype = datapacket_dict["_kiddatatype"]) for pi in ])
 
     for pkt in packets:
-        assert len(pkt) == 2 and type(pkt) == tuple
+        assert len(pkt) == 2 #and type(pkt) == tuple
         packet, python_time = pkt
 
         for field_name, item in datapacket_dict.iteritems():
@@ -109,8 +158,17 @@ def parse_datapacket_dict(packets, datapacket_dict):
         datapacket_dict["python_timestamp"][-1].append(python_time)
 
         #print python_time
-    #print "lenght of datapacket dict", len(datapacket_dict["packet_count"][-1])
+    #print "length of datapacket dict", len(datapacket_dict["packet_count"][-1])
     return datapacket_dict
+
+#
+# @jit(nopython=True) # Set "nopython" mode for best performance, equivalent to @njit
+# def parse_datapacket_dict_fast(packetdata, names, slices, data):
+#     """Stripped down fast version of the parsing packet function. This function loops
+#     over the number of packets, and number of tones quickly using Numba jit compiled code.
+#     Returns a """
+#     pass
+
 
 # old code from KIDpy - included here to check pcp code
 # def parse_datapacket(rawpacket):

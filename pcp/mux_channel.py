@@ -105,10 +105,6 @@ class muxChannel(object):
         # create kst sourcefile in directory if it already doesn't exist
         self._srcfile = open( os.path.join(self.DIRFILE_SAVEDIR, 'sf.txt'), 'w+')
 
-        # convenience access for writing to packet
-        self.write_int = self.roach_iface.fpga.write_int
-        self.read_int = self.roach_iface.fpga.read_int
-        
         self.initialise_hardware()
 
 ################################################################################
@@ -223,6 +219,13 @@ class muxChannel(object):
 
         else:
             self.output_atten = None
+
+        # convenience access for writing to packet
+    def write_int(self):
+        self.roach_iface.fpga.write_int
+
+    def read_int(self):
+        self.roach_iface.fpga.read_int
 
     def write_freqs_to_fpga(self, auto_write = False):
         """High level function to write the current toneslist frequencies to the QDR"""

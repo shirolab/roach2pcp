@@ -294,7 +294,7 @@ class dataLogger(object):
         # outer 'exit' loop - once this exit event is set, the function completes and the daemon terminates
         while not self._exitevent.is_set():
             _logger.debug( "in main loop daemon; is writing = {0}".format( self.is_writing ) )
-            c = 0
+            prevcnt = 0
             # inner while loop, runs when no event is set
             while not self._ctrlevent.is_set():
                 #print "in main loop"
@@ -306,11 +306,12 @@ class dataLogger(object):
                 if rd:
                     #print rd[0]
                     packet = self._sockethandle.recv(9000)
-                    count = np.frombuffer(packet[-9:-5],">u4")
-                    if count - c > 1:
-                        print self.roachid," -> PACKET LOST, HELP", c, "  ", count - c - 1, "Packets lost"
+                    newcnt = np.frombuffer(packet[-9:-5],">u4")
+                    if newcnt - prevcnt > 1:
+                        #print self.roachid," -> PACKET LOST, HELP", c, "  ", count - c - 1, "Packets lost"
+                        _logger.warning( "!! Dropped packets !! - {0} packets lost at packet number {1}".format( newcnt - prevcnt , prevcnt)  )
 
-                    c = count
+                    prevcnt = newcnt
                     # append (packet, time.time()) to queue which passes to packet to _writer_thread_function
                     self._writer_queue.appendleft( ( packet, time.time() ) )
 
@@ -354,7 +355,7 @@ class dataLogger(object):
 
         """
 
-        self._datapacket_dict = lib_datapackets.parse_datapacket_dict(datatowrite, self._datapacket_dict)
+        self._datapacket_dict = lib_datapackets.parse_datapacket_dict_fast(datatowrite, self._datapacket_dict)
 
         #print '\n\n\n\n\n\n*****************'
         #print [len(i) for i in self._datapacket_dict.iteritems()]
@@ -363,9 +364,8 @@ class dataLogger(object):
         #print "size of datapacket_dict", len(self._datapacket_dict["packet_count"][-1])
         #print "bytes size of datapacket_dict", sum([sys.getsizeof(v) for v in self._datapacket_dict.values()])
 
-        packet_counts = np.array(self._datapacket_dict['packet_count'][-1]).T.flatten()
+        packet_counts = np.array(self._datapacket_dict["aux_fields"]["packet_count"][-1]).T.flatten()
         packet_check, = np.where( np.diff( packet_counts > 1 ))
-
 
         if packet_check.size > 0:
             _logger.warning ( "PACKET LOST IN WRITER THREAD = {0}".format( packet_counts[packet_check]  ) )
@@ -429,7 +429,7 @@ class dataLogger(object):
                     else :
                         _logger.warning("command not recognised {0}. nothing done.".format(command))
 
-            c = 0
+            prevcnt = 0
             # MAIN DATA WRITING LOOP #
             while self.is_writing.value:
 
@@ -445,10 +445,10 @@ class dataLogger(object):
                     _logger.debug("length of datatowrite {0}".format(len(datatowrite)))
 
                     for packet in datatowrite:
-                        count = np.frombuffer(packet[0][-9:-5],">u4")
-                        if count - c > 1:
-                            print self.roachid," -> Writer thread: ", c, "  ", count - c - 1, "Packets lost"
-                        c = count
+                        newcnt = np.frombuffer(packet[0][-9:-5],">u4")
+                        if newcnt - prevcnt > 1:
+                            _logger.warning( "!! Dropped packets !! - {0} packets lost at packet number {1}".format( newcnt - prevcnt , prevcnt)  )
+                        prevcnt = newcnt
 
                     retcode = self._parse_packet_and_append_to_dirfile(datatowrite) # parse the packet using the datapacket_dict and append ot the dirfile
 
@@ -516,7 +516,10 @@ class dataLogger(object):
         field_list = [ fn.split('__', 1)[0] for fn in self.current_dirfile.field_list( _gd.RAW_ENTRY ) ]
 
         field_name_set = set( field_list )
-        return len( field_name_set.difference( self._datapacket_dict.keys() ) ) == 0
+        #return len( field_name_set.difference( self._datapacket_dict.keys() ) ) == 0
+        return len( field_name_set.difference( self._datapacket_dict["tone_fields"].keys() + \
+                                               self._datapacket_dict["aux_fields"].keys()  + \
+                                                ["python_timestamp"] ) ) == 0
 
     def start_daemon(self):
         # check process isn't already running

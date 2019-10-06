@@ -530,15 +530,15 @@ def gen_dirfilehandle(dirfilename, *dirfileflags):
         return None
 
 
-def get_data_from_datapacket_dict(datapacket_dict, field_name):
+def get_auxdata_from_datapacket_dict(datapacket_dict, field_name):
     # assert field_name in datapacket_dict.keys()
     # assert all([type(x) == np.ndarray for x in datapacket_dict[field_name][-1]]) # adds 1 us to loop time for each field, may be unnecessary
     data = datapacket_dict[field_name][-1]
     return np.ascontiguousarray( [data.pop(0) for i in range(len(data))] ).flatten() # pop to remove data from the data list
 
 def append_to_dirfile(dirfile, datapacket_dict): #, datatag=""):
-    """Function to act as the consumer, that will be given a 2d array of data
-    comprising multiple packets, and will write the data to disk.
+    """Function to act as the consumer, that takes the datapacket_dict with
+    data from multiple packets, and write that data to disk.
     """
 
     #print dirfile.nentries(type  = _gd.RAW_ENTRY), datatowrite.shape[-1]
@@ -548,7 +548,7 @@ def append_to_dirfile(dirfile, datapacket_dict): #, datatag=""):
 
     field_list = dirfile.field_list(_gd.RAW_ENTRY)
 
-    assert len(field_list) <= len(datapacket_dict)
+    #assert len(field_list) <= len(datapacket_dict)
 
     currentsize = dirfile.nframes
     _logger.debug("current size and index of first sample of data chunk to write = {0}".format( currentsize ) )
@@ -557,10 +557,21 @@ def append_to_dirfile(dirfile, datapacket_dict): #, datatag=""):
     #print datapacket_dict['raw_packet'][-1]
     #dirfile.putdata('raw_packet', datapacket_dict['raw_packet'][-1]  )
 
+    # write the data
     for field_name in field_list:
-        dirfile.putdata(field_name, get_data_from_datapacket_dict(datapacket_dict, field_name), first_sample = currentsize ) #+ 1)
 
-    ####dirfile.flush()
+        if field_name in datapacket_dict['aux_fields'].keys() + ['python_timestamp']:
+            dirfile.putdata(field_name, get_auxdata_from_datapacket_dict(datapacket_dict['aux_fields'], field_name), first_sample = currentsize ) #+ 1)
+
+        elif field_name in datapacket_dict['tone_fields'].keys():
+            toneidx = datapacket_dict['tone_fields'][field_name][-1]
+            #print toneidx, field_name
+            dirfile.putdata( field_name, datapacket_dict['tone_data'][toneidx], first_sample = currentsize )
+
+        else:
+            raise TypeError, "warning, unknown field name {0}".format(field_name)
+
+    dirfile.flush()
 
 def generate_sweep_dirfile( roachid, dirfilename, lo_frequencies, bb_frequencies, complex_sweep_data_dict ):#, field_suffix = "" ):
     """

@@ -3,6 +3,18 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
+2019-09-24 [PB]
+- Cleaned up, and modified/improved logging implementation.
+    - removed most of the now deprecated logging daemon code. All logging now relies on the external multiprocessing_logging module described below
+    - implemented configuration of logging from configuration file.
+        - [CONFIG FILE CHANGE]: major change to logging_config. See uploaded config_example.zip
+    - provides pcp.logger as a convenient way to log interactively from the command line
+    - TODO:
+        * update documentation
+
+2019-09-15 [PB]
+- implemented the kst source file writer. Every time a new dirfile is created, the path is appended to a text file which is passed to kst
+
 2019-03-11 - [PB]
 - moved call of activate_pps from muxchannel to roach_iface (so that the code can run in dummy mode, without an fpga instance)
 

@@ -73,6 +73,21 @@ def gen_tone_iq_fields(tones, namespace="", field_suffix=""):
 
 	return kid_fields_I, kid_fields_Q
 
+def write_tonelist_file(tonearray, outputfile):
+	"""Simple function to write an array to a toneslist file.
+
+	"""
+	# check type of input array and convert to pandas dataframe
+	if isinstance(tonearray, _np.ndarray) and len(tonearray.shape) == 1: #
+		# create list of names
+		datatowrite = _np.array([ ['K{0:04d}'.format(v) for v in _np.arange(len(tonearray))], \
+						tonearray, _np.zeros_like(tonearray) ]).T
+		datatowrite = _pd.DataFrame(data = datatowrite)
+		
+	elif isinstance(tonearray, Toneslist):
+		datatowrite = tonearray.data
+
+	datatowrite.to_csv(outputfile, sep='\t', index=False)
 # def gen_tone_derived_fields(tones, namespace="", field_suffix=""):
 
 	# namespace = namespace + "." if namespace is not "" else ""
@@ -397,9 +412,9 @@ class Toneslist(object):
 			# if the toneslist is an array, try to create a dataframe
 			if len(data) == 1:
 				# assume that only a frequency list is given - create name and power arrays
-				data = _np.array([ ['K{0:04d}'.format(v) for v in _np.arange(len(data))] ], \
+				data = _np.array([ ['K{0:04d}'.format(v) for v in _np.arange(len(data))], \
 								data,\
-								np.zeros_like(data)\
+								np.zeros_like(data)]\
 								)
 			if len(data) == 3:
 				# assume that data is an iterable with 3 cols, name, freq, power
