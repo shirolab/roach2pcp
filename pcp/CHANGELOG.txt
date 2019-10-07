@@ -3,17 +3,26 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
+2019-10-06 [PB]
+- Bug fix: excess packet loss observed when using > 300 tones. Narrowed down to pcp.lib.lib_datapackets.parse_datapacket_dict
+function that took a long time when using a larger number of tones.
+    - Fixed to implement more efficient parsing of the packet data into a state where it can be written to the dirfile
+    - modified datapacket_dict structure to facilitate this improvement
+    - comparison shows an improvement of 10^3 for new version.
+    - Now dirfile writing is dominant timescale for writing a large number of tones to disk
+
 2019-09-24 [PB]
 - Cleaned up, and modified/improved logging implementation.
     - removed most of the now deprecated logging daemon code. All logging now relies on the external multiprocessing_logging module described below
     - implemented configuration of logging from configuration file.
         - [CONFIG FILE CHANGE]: major change to logging_config. See uploaded config_example.zip
     - provides pcp.logger as a convenient way to log interactively from the command line
-    - TODO:
-        * update documentation
+    - modified the default log format to a TimedRotatingFileHandler to start a new log file every day at midnight
+    - cleaned up doc strings + user documentation
 
 2019-09-15 [PB]
 - implemented the kst source file writer. Every time a new dirfile is created, the path is appended to a text file which is passed to kst
+- note that the source file currently resets upon a new pcp import.
 
 2019-03-11 - [PB]
 - moved call of activate_pps from muxchannel to roach_iface (so that the code can run in dummy mode, without an fpga instance)

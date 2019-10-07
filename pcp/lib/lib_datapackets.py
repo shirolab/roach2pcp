@@ -87,7 +87,7 @@ def generate_datapacket_dict( roachid, tones ):
 #@profile
 # now parse the data and put it into this structure !
 
-def parse_datapacket_dict_fast(packets, datapacket_dict):
+def parse_datapacket_dict(packets, datapacket_dict):
     """
 
     Function to parse data packets and place them into the datapacket dictionary defined by gen_datapacket_dict().
@@ -99,9 +99,7 @@ def parse_datapacket_dict_fast(packets, datapacket_dict):
     packets = packets if isinstance(packets, list) else [packets] # fast way to ensure input is a list
 
     header_len = datapacket_dict["_header_len"]
-    ntones     = datapacket_dict["_ntones"]
     tone_dtype = datapacket_dict["_kiddatatype"]
-    maxtones   = datapacket_dict["_max_ntones"]
 
     assert len(set( map(len, packets))) == 1 # check that the packets are all the same ( and length 2 )
 
@@ -119,14 +117,14 @@ def parse_datapacket_dict_fast(packets, datapacket_dict):
 
     # fill in the aux_fields dictionary
     for field_name, item in datapacket_dict['aux_fields'].items():
-        #print field_name
         # converts data from binary to the specified dtype
-        auxdata = np.array([ packet[0][header_len:][item[-2]] for packet in packets] ).T.astype( item[2] )
-        item[-1].append( auxdata ) if auxdata.size > 0 else None
+        auxdata = np.frombuffer("".join([packet[0][item[-2]] for packet in packets]), dtype=item[2])
+        # convert to list to get around the endianess of the values extracted from the packet
+        item[-1].append( list(auxdata) ) if auxdata.size > 0 else None
 
     return datapacket_dict
 
-def parse_datapacket_dict(packets, datapacket_dict):
+def parse_datapacket_dict_old(packets, datapacket_dict):
     """
 
     Function to parse data packets and place them into the datapacket dictionary defined by gen_datapacket_dict().
@@ -145,7 +143,7 @@ def parse_datapacket_dict(packets, datapacket_dict):
         assert len(pkt) == 2 #and type(pkt) == tuple
         packet, python_time = pkt
 
-        for field_name, item in datapacket_dict.iteritems():
+        for field_name, item in datapacket_dict['aux_fields'].iteritems():
             # "item" is a list containing [entry_type, field_datatype, datatype, slice(startidx,stopidx,stepidx), DATA]
             if field_name.startswith("_"):
                 pass

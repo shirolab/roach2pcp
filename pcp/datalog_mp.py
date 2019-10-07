@@ -355,7 +355,7 @@ class dataLogger(object):
 
         """
 
-        self._datapacket_dict = lib_datapackets.parse_datapacket_dict_fast(datatowrite, self._datapacket_dict)
+        self._datapacket_dict = lib_datapackets.parse_datapacket_dict(datatowrite, self._datapacket_dict)
 
         #print '\n\n\n\n\n\n*****************'
         #print [len(i) for i in self._datapacket_dict.iteritems()]
