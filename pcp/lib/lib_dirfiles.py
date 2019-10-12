@@ -260,7 +260,10 @@ def generate_main_rawfields(dirfile, roachid, tones, fragnum=0 ):#, field_suffix
     firmware_dict = lib_config.get_firmware_register_dict( firmware_registers, roach_config[roachid]["firmware_file"] )
     aux_fields = firmware_dict["packet_structure"]["aux_field_cfg"]
 
-    aux_entries_to_write = []
+    # write the python_timestamp field manually
+    aux_entries_to_write = [ _gd.entry( _GDENTRYMAP[ firmware_dict["packet_structure"]['python_timestamp'][0] ], namespace + 'python_timestamp', \
+                                            fragnum, \
+                                            (_GDDATAMAP[ firmware_dict["packet_structure"]['python_timestamp'][1] ], 1) ) ]
 
     for field_name, (entry_type, field_datatype, __, __, __, __) in aux_fields.items():
         #print eval(entry_type), eval(field_datatype)
@@ -560,13 +563,19 @@ def append_to_dirfile(dirfile, datapacket_dict): #, datatag=""):
     # write the data
     for field_name in field_list:
 
-        if field_name in datapacket_dict['aux_fields'].keys() + ['python_timestamp']:
+        if field_name in datapacket_dict['aux_fields'].keys():
             dirfile.putdata(field_name, get_auxdata_from_datapacket_dict(datapacket_dict['aux_fields'], field_name), first_sample = currentsize ) #+ 1)
 
         elif field_name in datapacket_dict['tone_fields'].keys():
             toneidx = datapacket_dict['tone_fields'][field_name][-1]
             #print toneidx, field_name
             dirfile.putdata( field_name, datapacket_dict['tone_data'][toneidx], first_sample = currentsize )
+
+        elif field_name in ['python_timestamp']:
+            data = datapacket_dict[field_name][-1]
+            dirfile.putdata( 'python_timestamp', 
+                            np.ascontiguousarray( [data.pop(0) for i in range(len(data))] ).flatten(),
+                            first_sample = currentsize )
 
         else:
             raise TypeError, "warning, unknown field name {0}".format(field_name)

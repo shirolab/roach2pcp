@@ -43,7 +43,8 @@ General
 #------------------------------------------------------------------------------------------------------------
 
 # general stdlib imports
-import, logging, logging.config
+import os as _os
+import logging, logging.config
 import multiprocessing_logging as _multiprocessing_logging
 
 # Load configuration files
@@ -54,7 +55,7 @@ _logger = logging.getLogger(__name__)
 
 # modify the filename (this happens on initial import before logging.dictConfig happens)
 logfilename = logging_config['handlers']['filelog']['filename']
-logging_config['handlers']['filelog']['filename'] = os.path.join(LOGFILEDIR, logfilename)
+logging_config['handlers']['filelog']['filename'] = _os.path.join(LOGFILEDIR, logfilename)
 
 
 #------------------------------------------------------------------------------------------------------------

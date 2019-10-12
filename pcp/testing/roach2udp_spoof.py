@@ -6,7 +6,7 @@
 # configure a socket server and send to ip address
 
 # python /Users/PeteBarry/Documents/analysiscode/multitone/pcp/testing/roach2udp_spoof.py --sleep_time 1.
-import sys, socket, time, string, struct # stdlib imports
+import os, sys, socket, time, string, struct # stdlib imports
 from random import choice
 import numpy as np
 
@@ -18,6 +18,9 @@ parser.add_argument('--sleep_time', type=float, default = 1,
 
 args = parser.parse_args()
 
+pcppath = '/Users/pbarry/Documents/projects/python/multitone' # replace with local multitone directory
+print os.path.exists(pcppath)
+sys.path.append(pcppath)
 
 import pcp; from pcp.lib import lib_datapackets
 

@@ -8,7 +8,6 @@ from memory_profiler import profile
 import os, sys, socket, time, string, struct # stdlib imports
 from random import choice
 import numpy as np, pygetdata as _gd
-from numba import jit
 
 from .. import toneslist
 

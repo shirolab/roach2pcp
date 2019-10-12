@@ -455,7 +455,6 @@ class dataLogger(object):
                     #del datatowrite
                     datatowrite = []
 
-
                 else:
                     time.sleep(sizetowrite/488*0.5)
 
