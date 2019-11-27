@@ -156,14 +156,22 @@ def check_fragment_valid(dirfile, frag_name):
     except KeyError:
         return False, None
 
-def get_fields_in_fragment(dirfile, frag_name):
+def get_fields_in_fragment(dirfile, frag_name, exclude_index=False):
     """Convenience function to grab all fields from a given fragment. Couldn't find this function in pygetdata..."""
 
     isvalid, fragnum = check_fragment_valid(dirfile, frag_name)
 
     assert isvalid, "given fragment '{0}' doesn't appear to be a valid fragment.".format(frag_name)
 
-    return [f for f in dirfile.field_list() if dirfile.fragment_index(f) == fragnum]
+    fields = dirfile.field_list()
+
+    if exclude_index == True:
+        try:
+            fields.remove("INDEX")
+        except ValueError:
+            _logger.warning( "can't find index field in {0}".format(fields) )
+
+    return [f for f in fields if dirfile.fragment_index(f) == fragnum]
 
 def _fix_format_file(dirfile):
     """Hack to bypass a bug found in pygetdata regarding the indexing of CARRAY fields in the definition of
@@ -266,7 +274,7 @@ def create_pcp_dirfile(roachid, dfname="", dftype = "stream", tones=21, *df_crea
     filename_suffix = "_"  + filename_suffix if filename_suffix else ""
 
     dfname = dfname.rstrip("/") + filename_suffix
-    
+
     _logger.debug("dirfile path to write: {0}".format(dfname))
 
     exclusive          = kwargs.pop("exclusive", True) # str to add to file path (only applies to new filenames)

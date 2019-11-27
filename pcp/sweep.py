@@ -65,10 +65,11 @@ class pcpSweep(object):
         """
         assert self.dirfile, "no dirfile loaded. Try loading new dirfile and try again."
 
-        sweep_data_fields = filter(lambda x: x.startswith("sweep."), self.dirfile.entry_list())
+        # sweep_data_fields = filter(lambda x: x.startswith("sweep."), self.dirfile.entry_list())
+        sweep_data_fields = _lib_dirfiles.get_fields_in_fragment(self.dirfile, "format", exclude_index = True) # get the main fragment
 
-        self._bb_freqs = self.dirfile.get_carray( sweep_data_fields.pop(sweep_data_fields.index('sweep.bb_freqs') ))
-        self.lo_freqs  = self.dirfile.get_carray( sweep_data_fields.pop(sweep_data_fields.index('sweep.lo_freqs') ))
+        self._bb_freqs = self.dirfile.get_carray( sweep_data_fields.pop(sweep_data_fields.index('bb_freqs') ))
+        self.lo_freqs  = self.dirfile.get_carray( sweep_data_fields.pop(sweep_data_fields.index('lo_freqs') ))
 
         self._lo_freq  = self.lo_freqs[(self.lo_freqs.shape[0]-1)/2]
         self.rf_freqs  = _np.repeat(self._bb_freqs[:, _np.newaxis], self.lo_freqs.shape[0], axis=1) + self.lo_freqs

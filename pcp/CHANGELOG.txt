@@ -3,7 +3,7 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
-2019-11-26 [PB]
+2019-11-26 [PB] - major additions
 
 - need to fix/clean up create pcp dirfile...
 
@@ -26,13 +26,18 @@ Put most recent commits at the top please!
 - save file with amps, phases, freqs in file
   - add toneslist.load_previously_written_tones() function that can used to recreate a previous state
 
-- Bug Fixes
+% when writing sweep, lofreqs has a number of zeros at the end - is that intentional?
+
+--- Bug Fixes ---
 
   - it appeared that when streaming is paused, any data left in the queue and not a multiple of 'buffer_len_to_write' is
 not written to disk. Fixed this by adding a 'last_iteration' flag that should save remaining data in the buffer when exiting
-the writing while loop. Tested on mac with dummyroach. 
+the writing while loop. Tested on mac with dummyroach.
 
+ - fixed derived sweep files to have the same datetime stamp as the raw sweep file
 
+ - handle effect of ctrl+c in sweep not getting to the end of the sweep where lo_freqs != toneslist.sweep_lo_freqs
+  - fixed by noting how far through the loop and tracking those indexes through to the sweep dirfile
 
 
 2019-10-13 [PB]
@@ -66,14 +71,9 @@ TODO
     - an existing dirfile
     - a path that is an existing dirfile, but has a filename_suffx
 
-
-
 2019-10-11 [PB]
 - Bug fix: python_timestamp wasn't being written to the file correctly with new datapacket_dict structure and sweep failed
   - fixed and tested with dummy roach
-
-- TODO
-  - noted that there's a possibility that unfilled buffer is not written to disk. Need to check this asap.
 
 2019-10-06 [PB]
 - Bug fix: excess packet loss observed when using > 300 tones. Narrowed down to pcp.lib.lib_datapackets.parse_datapacket_dict

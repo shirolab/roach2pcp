@@ -300,69 +300,6 @@ class muxChannel(object):
         self.current_sweep_dirfile = _gd.dirfile(path_to_sweep, _gd.RDWR)
 
     def sweep_lo(self, stop_event = None, **sweep_kwargs):
-        # create the stop event for use when running all roaches at once through the muxChannelList
-        stop_event = _multiprocessing.Event() if not isinstance( stop_event, _multiprocessing.synchronize.Event ) else stop_event
-
-        # configure sweep parameters and start writing
-        sweep_params = self._configure_sweep_and_start_writing(self, sweep_kwargs)
-
-        # # get time for avg factor + 10%
-        sleeptime = np.round( sweep_params["sweep_avgs"] / self.sample_rate * 1.1, decimals = 3 )
-        _logger.debug( "sleep time for sweep is {0}".format(sleeptime) )
-
-        step_times = []
-
-        # acutally do the sweep - loop over LO frequencies, while saving time at lo_step
-        try:
-            sweepdirection = np.sign( np.diff(self.toneslist.sweep_lo_freqs) )[0] # +/- 1 for forward/backward - not used right now
-            for lo_freq in self.toneslist.sweep_lo_freqs:
-
-                if self.loswitch == True: # only switch if the muxchannel is configured to do so
-                    self.synth_lo.frequency = lo_freq
-                else:
-                    # wait until synth_lo.frequency => lo_freq
-                    t0 = time.time()
-                    while self.synth_lo.frequency <= lo_freq and time.time() <= t0 + sleeptime :
-                        time.sleep(sleeptime / 100.)
-
-                step_times.append( time.time() )
-
-                # check the stop event to break out of the loop
-                if stop_event.is_set():
-                    break
-                #pbar.set_description(cm.BOLD + "LO: %i" % lo_freq + cm.ENDC)
-                time.sleep(sleeptime)
-
-            #pbar.close()
-            #print cm.OKGREEN + "Sweep done!" + cm.ENDC
-        except KeyboardInterrupt:
-            pass
-        # sweep has finished, pause the writing and continue to process the data
-        self.writer_daemon.pause_writing()
-
-        # Back to the central frequency
-        if self.loswitch == True:
-            self.synth_lo.frequency = self.toneslist.lo_freq
-
-        # save lostep_times to current timestream dirfile
-        self.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lo_freqs"    , 0, (_gd.FLOAT64, 1) ) )
-        self.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lostep_times", 0, (_gd.FLOAT64, 1) ) )
-
-        self.current_dirfile.putdata("lo_freqs"    , np.ascontiguousarray( self.toneslist.sweep_lo_freqs, dtype = np.float64 ))
-        self.current_dirfile.putdata("lostep_times", np.ascontiguousarray( step_times,                    dtype = np.float64 ))
-
-        # on mac, we need to close and reopen the dirfile to flush the data before reading back in the data
-        # - not sure why, or if this is a problem on linux - it doesn't hurt too much though
-        self.current_dirfile.close()
-        self.current_dirfile = _gd.dirfile(self.writer_daemon.current_filename, _gd.RDWR)
-
-        # analyse the raw sweep dirfile and write to disk
-        self.reduce_and_write_sweep_data()
-
-
-
-
-    def _configure_sweep_and_start_writing(self, **sweep_kwargs):
         """
         Function to sweep the LO. Takes in a number of optional keyword arugments. If not given,
         defaults from the configuration files are assumed.
@@ -394,6 +331,73 @@ class muxChannel(object):
         filename_suffix : str
             allows the user to append an additional string to the end of the filename
         """
+        # create the stop event for use when running all roaches at once through the muxChannelList
+        stop_event = _multiprocessing.Event() if not isinstance( stop_event, _multiprocessing.synchronize.Event ) else stop_event
+
+        # configure sweep parameters and start writing
+        sweep_params = self._configure_sweep_and_start_writing(**sweep_kwargs)
+
+        # # get time for avg factor + 10%
+        sleeptime = np.round( sweep_params["sweep_avgs"] / self.sample_rate * 1.1, decimals = 3 )
+        _logger.debug( "sleep time for sweep is {0}".format(sleeptime) )
+
+        step_times = []
+
+        # acutally do the sweep - loop over LO frequencies, while saving time at lo_step
+        try:
+            sweepdirection = np.sign( np.diff(self.toneslist.sweep_lo_freqs) )[0] # +/- 1 for forward/backward - not used right now
+            for ix, lo_freq in enumerate(self.toneslist.sweep_lo_freqs):
+
+                if self.loswitch == True: # only switch if the muxchannel is configured to do so
+                    self.synth_lo.frequency = lo_freq
+                else:
+                    # wait until synth_lo.frequency => lo_freq
+                    t0 = time.time()
+                    while self.synth_lo.frequency <= lo_freq and time.time() <= t0 + sleeptime :
+                        time.sleep(sleeptime / 100.)
+
+                step_times.append( time.time() )
+
+                # check the stop event to break out of the loop
+                if stop_event.is_set():
+                    break
+                #pbar.set_description(cm.BOLD + "LO: %i" % lo_freq + cm.ENDC)
+                time.sleep(sleeptime)
+
+            #pbar.close()
+            #print cm.OKGREEN + "Sweep done!" + cm.ENDC
+        except KeyboardInterrupt:
+            #step_times= step_times[:ix] # does this help?
+            pass
+
+        # sweep has finished, pause the writing and continue to process the data
+        self.writer_daemon.pause_writing()
+
+        #  get only the indexes that were swept
+        lofreqs_that_were_swept = self.toneslist.sweep_lo_freqs[np.arange(ix+1)]
+
+        # Back to the central frequency
+        if self.loswitch == True:
+            self.synth_lo.frequency = self.toneslist.lo_freq
+
+        # save lostep_times to current timestream dirfile
+        self.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lo_freqs"    , 0, (_gd.FLOAT64, 1) ) )
+        self.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lostep_times", 0, (_gd.FLOAT64, 1) ) )
+
+        self.current_dirfile.putdata("lo_freqs"    , np.ascontiguousarray( lofreqs_that_were_swept, dtype = np.float64 ))
+        self.current_dirfile.putdata("lostep_times", np.ascontiguousarray( step_times,              dtype = np.float64 ))
+
+        # on mac, we need to close and reopen the dirfile to flush the data before reading back in the data
+        # - not sure why, or if this is a problem on linux - it doesn't hurt too much though
+        self.current_dirfile.close()
+        self.current_dirfile = _gd.dirfile(self.writer_daemon.current_filename, _gd.RDWR)
+
+        #delay appears to be required to finish write/open operations before continuing 
+        time.sleep(0.25)
+        # analyse the raw sweep dirfile and write to disk
+        self.reduce_and_write_sweep_data(self.current_dirfile)
+
+    def _configure_sweep_and_start_writing(self, **sweep_kwargs):
 
         valid_kwargs = ["sweep_span", "sweep_step", "sweep_avgs", "save_data"]
 
@@ -427,21 +431,14 @@ class muxChannel(object):
 
         # create new dirfile and set it as the active file. Note that data writing is off by default.
         self.set_active_dirfile( filename_suffix = "sweep_raw" + filename_suffix )
-
-        # # set up sweep timing parameters
-        # step_times = []
-        # # # get time for avg factor + 10%
-        # sleeptime = np.round( sweep_avgs / self.sample_rate * 1.1, decimals = 3 )
-        # _logger.debug( "sleep time for sweep is {0}".format(sleeptime) )
-
         # alias to current dirfile for convenience
         self.current_dirfile = self.writer_daemon.current_dirfile
 
-        # start writing data to file
+        # start writing data to file...
         _logger.debug( "starting to write data" )
         self.writer_daemon.start_writing()
 
-        # wait until writing starts
+        # and wait until writing starts
         t0 = time.time()
         while not self.writer_daemon.is_writing:
             time.sleep(0.01)
@@ -450,56 +447,10 @@ class muxChannel(object):
                 return
             else:
                 continue
-
+        # return the span, step and navgs for the sweep
         return {'sweep_span': sweep_span,
                 'sweep_step': sweep_step,
                 'sweep_avgs': sweep_avgs}
-        # #loop over LO frequencies, while saving time at lo_step
-        # try:
-        #     #for lo_freq in lo_freqs
-        #     #pbar = _tqdm(self.toneslist.sweep_lo_freqs, ncols=75)
-        #     #for lo_freq in pbar:
-        #     sweepdirection = np.sign( np.diff(self.toneslist.sweep_lo_freqs) )[0] # +/- 1 for forward/backward
-        #     for lo_freq in self.toneslist.sweep_lo_freqs:
-        #
-        #         if self.loswitch == True: # only switch if the muxchannel is configured to do so
-        #             self.synth_lo.frequency = lo_freq
-        #         else:
-        #             # wait until synth_lo.frequency => lo_freq
-        #             t0 = time.time()
-        #             while self.synth_lo.frequency <= lo_freq and time.time() <= t0 + sleeptime :
-        #                 time.sleep(sleeptime / 100.)
-        #
-        #         step_times.append( time.time() )
-        #
-        #         # check the stop event to break out of the loop
-        #         if stop_event.is_set():
-        #             break
-        #         #pbar.set_description(cm.BOLD + "LO: %i" % lo_freq + cm.ENDC)
-        #         time.sleep(sleeptime)
-        #
-        #     #pbar.close()
-        #     #print cm.OKGREEN + "Sweep done!" + cm.ENDC
-        # except KeyboardInterrupt:
-        #     pass
-
-        # self.writer_daemon.pause_writing()
-        #
-        # # Back to the central frequency
-        # if self.loswitch == True:
-        #     self.synth_lo.frequency = self.toneslist.lo_freq
-        #
-        # # save lostep_times to current timestream dirfile
-        # self.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lo_freqs"    , 0, (_gd.FLOAT64, 1) ) )
-        # self.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lostep_times", 0, (_gd.FLOAT64, 1) ) )
-        #
-        # self.current_dirfile.putdata("lo_freqs"    , np.ascontiguousarray( self.toneslist.sweep_lo_freqs, dtype = np.float64 ))
-        # self.current_dirfile.putdata("lostep_times", np.ascontiguousarray( step_times,                    dtype = np.float64 ))
-        #
-        # # on mac, we need to close and reopen the dirfile to flush the data before reading back in the data
-        # # - not sure why, or if this is a problem on linux - it doesn't hurt too much though
-        # self.current_dirfile.close()
-        # self.current_dirfile = _gd.dirfile(self.writer_daemon.current_filename, _gd.RDWR)
 
     def reduce_and_write_sweep_data(self, rawsweep_dirfile, startidx = 0, stopidx = None, save_data = True):
         """Function to read a raw sweep file (i.e. a timestream of I and Q), reduce the data and create an analyzed sweep dirfile.
@@ -517,21 +468,23 @@ class muxChannel(object):
         reqfields = {"lostep_times", "python_timestamp"}
         assert reqfields.issubset( set( rawsweep_dirfile.field_list() ) ) , "it doesn't look like that {0} is a raw sweep file".format(rawsweep_dirfile.name)
 
-        # get the filename and extract the datetime string to match the raw sweep file
-        dt = _dateutil.parser.parse(os.path.basename(rawsweep_dirfile.name),fuzzy=True)
-        swpdfname = os.path.join( os.path.dirname(rawsweep_dirfile.name),
-                                dt.strftime(general_config["default_datafilename_format"]) )
-        print swpdfname
-        # create new sweep dirfile and keep hold of it
-        swpdf = _lib_dirfiles.generate_sweep_dirfile( self.roachid, swpdfname, self.toneslist.tonenames)
-
         # with the raw sweep data available, create the derived sweep file and save to the current dirfile (from lib_dirfiles)
         lotimes = self.current_dirfile.getdata( "lostep_times" )
         ptimes  = self.current_dirfile.getdata( "python_timestamp" ) # way to get the python_timestamp field with knowing any field suffix
+        lofreqs = self.current_dirfile.getdata( "lo_freqs" )
 
         # align LO steps with python timestreams
         idxs = np.searchsorted(ptimes, lotimes)[1:] # miss out the first point (should always be 0)
 
+        # get the filename and extract the datetime string to match the raw sweep file
+        dt = _dateutil.parser.parse(os.path.basename(rawsweep_dirfile.name), fuzzy=True)
+        swpdfname = os.path.join( os.path.dirname(rawsweep_dirfile.name),
+                                    dt.strftime(general_config["default_datafilename_format"]) )
+
+        # create new sweep dirfile and keep hold of it
+        swpdf = _lib_dirfiles.generate_sweep_dirfile( self.roachid, swpdfname, self.toneslist.tonenames, numpoints = len(lotimes))
+
+        print lotimes, lofreqs
         # read in IQ data and split up according to LO steps and store in a dictionary
         sweep_data_dict = {}
 
@@ -566,7 +519,7 @@ class muxChannel(object):
         # save the data to the new sweep dirfile
         self.sweep.load_sweep_dirfile( _lib_dirfiles.write_sweepdata_to_sweepdirfile(swpdf,
                                                                     self.toneslist.bb_freqs.get_values(), \
-                                                                    self.toneslist.sweep_lo_freqs,\
+                                                                    lofreqs,\
                                                                     sweep_data_dict) )
 
         # add metadata
