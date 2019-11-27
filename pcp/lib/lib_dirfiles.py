@@ -49,7 +49,7 @@ def is_path_a_dirfile(path_to_check):
     """
     # ensure that the path exists
     if not os.path.exists(path_to_check):
-        _logger.warning( "Path doesn't exist." )
+        _logger.info( "Given path doesn't exist." )
         return False
 
     # ensure that the path is a directory
@@ -126,7 +126,9 @@ def check_valid_sweep_dirfile(dirfile):
         return False
 
 def list_fragments_in_dirfile(dirfile):
-    return [os.path.basename(dirfile.fragment(i).name) for i in range(dirfile.nfragments)]
+    """Returns a dictionary of all fragments in a given dirfile. Syncs the dirfile before checking."""
+    dirfile.sync()
+    return { os.path.basename(dirfile.fragment(i).name) : i for i in range(dirfile.nfragments) }
 
 def check_fragment_valid(dirfile, frag_name):
     """
@@ -150,67 +152,163 @@ def check_fragment_valid(dirfile, frag_name):
     assert isinstance(frag_name, str), "{0} is not a string."
     # check if metadata fragment exists, and create if not
     try:
-        return True, list_fragments_in_dirfile(dirfile).index(frag_name)
-    except ValueError:
+        return True, list_fragments_in_dirfile(dirfile)[frag_name]
+    except KeyError:
         return False, None
 
-def create_pcp_dirfile(roachid, dirfilename="", dirfile_type = "stream", tones=21, *dirfile_creation_flags, **kwargs):
+def get_fields_in_fragment(dirfile, frag_name):
+    """Convenience function to grab all fields from a given fragment. Couldn't find this function in pygetdata..."""
+
+    isvalid, fragnum = check_fragment_valid(dirfile, frag_name)
+
+    assert isvalid, "given fragment '{0}' doesn't appear to be a valid fragment.".format(frag_name)
+
+    return [f for f in dirfile.field_list() if dirfile.fragment_index(f) == fragnum]
+
+def _fix_format_file(dirfile):
+    """Hack to bypass a bug found in pygetdata regarding the indexing of CARRAY fields in the definition of
+    derived fields. This identifies fields that use <idx> in the defintion of the derived field, and assuming that
+    the order of the fields in the dirfile maps onto the order of the CARRAY indexing, replaces the <0> with the
+    corresponding index. Assumes field list from dirfile is sorted (which it should be...) """
+
+    fname = dirfile.name
+
+    isvalid, fragnum = check_fragment_valid(dirfile, "derived")
+    fmtfname = dirfile.fragment(fragnum)
+
+    # sync dirfile before going any further
+    dirfile.sync()
+
+    # get the fields for the derived fragment
+    dervied_fields = get_fields_in_fragment(dirfile, "derived")
+
+    with open(dirfile.fragment(fragnum).name, 'r+') as fin:
+        lines = fin.readlines()
+        #lines_to_change = [l for l in fin.readlines() if "<" in l]
+
+        idx = 0
+        prev_field_name = next(line for line in lines if "<" in line).split(" ")[0]
+
+        for i, line in enumerate(lines):
+
+            if "<" in line:
+                field_name = line.split(" ")[0]
+                if field_name == prev_field_name:
+                    pass
+                else:
+                    prev_field_name = field_name
+                    idx += 1
+                lines[i] = line.replace("<0>","<{0}>".format(idx) )
+
+        # write new lines back to the format file
+        fin.seek(0)
+        fin.writelines(lines)
+
+    dirfile.close()
+
+    return _gd.dirfile(fname, dirfile.flags)
+
+def create_pcp_dirfile(roachid, dfname="", dftype = "stream", tones=21, *df_creation_flags, **kwargs):
     """
-    High level function to create a new dirfile according to the pcp standards. This creates a format file with a number of tones
-    (to be standardised), and other packet information, read from roach_config (to be implmented).
+    High level function to create a new dirfile according to the pcp standards. This creates a format file with a number of tones,
+    and other packet information.
 
-    If no dirfilename is given, or if dirfilename is a path and not a valid dirfile, then a new dirfile will be created using
-    the default filename format.
+    Parameters
+    ============
+    dfname: str
+        Path to a dirfile, or directory in which to create a new dirfile. If no dirfilename is given (or ""), or if dirfilename
+        is a valid path but not a valid dirfile, then a new dirfile will be created in this directory using the default filename
+        format given in general_config['default_datafilename_format'].
 
-    If a valid dirfile is given, a warning will be given and it will be passed through.
+        If dfname a valid dirfile path is given and exclusive = False, the dirfile will be opened and returned. If exclusive = True
+        (default) then an error is raised.
 
-    Valid kwargs:
-        - datatag; string to add to file path prepended by a leading underscore. Only applies to new filenames. Default is empty string.
+    dftype: str
+        Currently, one of ["stream", "sweep"]. Anything else raises an error.
+
+    tones: list
+        A list of field names that will be used as the dirfile fields.
+
+    df_creation_flags:
+        Bit-wise or'd args that are passed to gd.dirfile().
+
+    Valid kwargs
+    ============
+    filename_suffix: str (default: "")
+        string to add to the end of the file path, prepended by a leading underscore. This is added before checking whether
+        the resulting path exists.
+
+    exclusive: bool (default: True)
+        Switch to handle existing dirfiles. If True, an error is raised if the given path is an existing dirfile.
+        If False, this function opens and returns the dirfile object to continued writing/processing.
+
+    array_size: int (default: 101)
+        Used for sweep dirfiles only. Sets the array size for the sweep fields.
+
+    inc_derived_fields: bool (default: False)
+        Switch to include the derived fields relevant to the type of the dirfile requested.
+
+    Returns
+    ============
+    dirfile: pygetdata.dirfile
+        Initialised and opened pygetdata dirfile object of requested type.
+
+    TODO:
+     - handle empty string with filename_suffix
+
     """
-    # check that the input is a string
-    assert type(dirfilename) == str
+    # preliminary checks
+    assert type(dfname) == str
+    assert dftype in ["stream", "sweep"]
 
-    assert dirfile_type in ["stream", "sweep"]
-
-    # handle kwargs
-    filename_suffix = kwargs.pop("filename_suffix", "") # str to add to file path (only applies to new filenames)
+    # --- handle kwargs ---
+    filename_suffix = kwargs.pop("filename_suffix", "") # str to add to file path
     filename_suffix = "_"  + filename_suffix if filename_suffix else ""
 
-    array_size = kwargs.pop("array_size", 101) # default size used for sweep file creation
+    dfname = dfname.rstrip("/") + filename_suffix
+    
+    _logger.debug("dirfile path to write: {0}".format(dfname))
 
+    exclusive          = kwargs.pop("exclusive", True) # str to add to file path (only applies to new filenames)
+    array_size         = kwargs.pop("array_size", 101) # default size used for sweep file creation
     inc_derived_fields = kwargs.pop("inc_derived_fields", False) # option to include derived fields to dirfile
 
     if kwargs:
         raise NameError("Unknown kwarg(s) given {0}".format(kwargs.keys()))
+    # ------
 
     # parse user specified set of dirfile flags, else use defaults (note _gd.EXCL prevents accidental overwriting)
-    dirfileflagint = np.bitwise_or.reduce(dirfileflags) if dirfile_creation_flags \
+    dfflagint = np.bitwise_or.reduce(df_creation_flags) if df_creation_flags \
                                                         else _gd.CREAT|_gd.RDWR|_gd.UNENCODED|_gd.EXCL
     # check if the file path is a valid dirfile
-    if is_path_a_dirfile(dirfilename):
-        _logger.info( "It looks like {0} is a valid dirfile. Opening and returning dirfile.".format(dirfilename) )
-        return _gd.dirfile(dirfilename, _gd.RDWR|_gd.UNENCODED)
+    if is_path_a_dirfile(dfname):
+        _logger.debug("{0} is a valid dirifle".format(dfname))
+        if exclusive:
+            raise IOError, "{0} exists and exclusive = True. Use exclusive = False to return this dirfile".format(dfname)
+        else:
+            _logger.info( "It looks like {0} is a valid dirfile. Opening and returning dirfile.".format(dfname) )
+            return _gd.dirfile(dfname, _gd.RDWR|_gd.UNENCODED)
 
     # check if path exists - join new filename to existing path. Or if no path is given, create file in cwd
-    elif os.path.exists(dirfilename) or dirfilename == "":
-        dirfilename = os.path.join( dirfilename, time.strftime(general_config['default_datafilename_format']) + filename_suffix )
-
+    elif os.path.exists(dfname) or dfname == "":
+        dfname = os.path.join( dfname, time.strftime(general_config['default_datafilename_format']) + filename_suffix )
+        _logger.debug("path exists; assume this is a directory in which to create the new dirfile".format(dfname))
     # assume that the path given is the intended path of the new dirfile
     else:
         pass # not required, but better to be explicit than implicit :)
 
     # create the new dirfile
-    dirfile = _gd.dirfile(dirfilename, dirfileflagint)
+    dirfile = _gd.dirfile(dfname, dfflagint)
     _logger.info( "new dirfile created; {0}".format(dirfile.name) )
     # add main fields according to the type required
 
-    if dirfile_type == "stream":
+    if dftype == "stream":
         dirfile = generate_main_rawfields(dirfile, roachid, tones, fragnum = 0)#, field_suffix = field_suffix)
         if inc_derived_fields:
             # add derived fields
             pass
 
-    elif dirfile_type == "sweep":
+    elif dftype == "sweep":
         dirfile = generate_sweep_fields(dirfile, tones, array_size = array_size)#, field_suffix = field_suffix)
 
     return dirfile
@@ -301,9 +399,13 @@ def generate_sweep_fields(dirfile, tones, array_size = 501 ):#, field_suffix="")
     _logger.debug("size of carray for sweep data = {0}".format(array_size) )
 
     # Parameters
-    sweep_entry_freq       = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + "lo_freqs", 0, (_gd.FLOAT64,   array_size)) ]
-    sweep_entry_bb         = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + "bb_freqs", 0, (_gd.FLOAT64,   len(tones))) ]
-    sweep_entries_to_write = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + field_name, 0, (_gd.COMPLEX64, array_size)) for field_name in swp_fields ]
+    # sweep_entry_freq       = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + "lo_freqs", 0, (_gd.FLOAT64,   array_size)) ]
+    # sweep_entry_bb         = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + "bb_freqs", 0, (_gd.FLOAT64,   len(tones))) ]
+    # sweep_entries_to_write = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + field_name, 0, (_gd.COMPLEX64, array_size)) for field_name in swp_fields ]
+
+    sweep_entry_freq       = [ _gd.entry(_gd.CARRAY_ENTRY, "lo_freqs", 0, (_gd.FLOAT64,   array_size)) ]
+    sweep_entry_bb         = [ _gd.entry(_gd.CARRAY_ENTRY, "bb_freqs", 0, (_gd.FLOAT64,   len(tones))) ]
+    sweep_entries_to_write = [ _gd.entry(_gd.CARRAY_ENTRY, field_name, 0, (_gd.COMPLEX64, array_size)) for field_name in swp_fields ]
 
     _logger.debug("generating new sweep fields: {0}".format(sweep_entries_to_write) )
 
@@ -316,11 +418,18 @@ def generate_sweep_fields(dirfile, tones, array_size = 501 ):#, field_suffix="")
     # arrays for cal data
     # constants for centres and rotation for phase (just start with df)
 
-    cal_fragment = dirfile.include("calibration", flags = _gd.CREAT|_gd.EXCL)
+    caldata_frag  = dirfile.include("caldata",  namespace = 'caldata', flags = _gd.CREAT|_gd.EXCL)
+    calparam_frag = dirfile.include("calparam", namespace = 'calparam', flags = _gd.CREAT|_gd.EXCL)
+
+    caldata_ns  = dirfile.fragment(caldata_frag).namespace
+    calparam_ns = dirfile.fragment(calparam_frag).namespace
 
     # add calibration fields to the dirfile
-    cal_param_entries        = [ _gd.entry(_gd.CARRAY_ENTRY, "cal."     + field_name, cal_fragment, (_gd.FLOAT64, len(tones)) )  for field_name in cal_data_fields]
-    caldata_entries_to_write = [ _gd.entry(_gd.CARRAY_ENTRY, "caldata." + field_name, cal_fragment, (_gd.COMPLEX64, array_size)) for field_name in swp_fields ]
+    # i0s, q0s, didf0s ...etc for all the tones
+    cal_param_entries        = [ _gd.entry(_gd.CARRAY_ENTRY, ".".join((calparam_ns, field_name)), calparam_frag, (_gd.FLOAT64, len(tones)) )  for field_name in cal_data_fields]
+
+    # didf, dqdf, didq...etc for each tone - maybe not needed?
+    caldata_entries_to_write = [ _gd.entry(_gd.CARRAY_ENTRY, ".".join((caldata_ns, field_name)), caldata_frag, (_gd.COMPLEX64, array_size)) for field_name in swp_fields ]
 
     _logger.debug("generating new sweep cal fields: {0}".format(cal_param_entries + caldata_entries_to_write) )
 
@@ -354,15 +463,54 @@ def generate_sweep_fragment(dirfile, tones, array_size = 501, datatag=""):
 
     return dirfile
 
-def generate_main_derivedfields(dirfile):
+def generate_main_derivedfields(dirfile, field_names, caldata = None):
     pass
+
+    # requires calibration data - this can be written to the dirfile later
+    calfrag = dirfile.include("calibration", flags = _gd.CREAT|_gd.EXCL|_gd.RDWR)
+
+    nfields = len(field_names)
+
+    f0s_fields  = _gd.entry(_gd.CARRAY_ENTRY, "f0s", calfrag, (_gd.FLOAT64, nfields) )
+    didf_fields = _gd.entry(_gd.CARRAY_ENTRY, "didf_sumdidq2", calfrag, (_gd.FLOAT64, nfields) )
+    dqdf_fields = _gd.entry(_gd.CARRAY_ENTRY, "dqdf_sumdidq2", calfrag, (_gd.FLOAT64, nfields) )
+    i0didf_fields = _gd.entry(_gd.CARRAY_ENTRY, "i0_didf_sumdidq2", calfrag, (_gd.FLOAT64, nfields) )
+    q0dqdf_fields = _gd.entry(_gd.CARRAY_ENTRY, "q0_dqdf_sumdidq2", calfrag, (_gd.FLOAT64, nfields) )
+
+    calentries = [f0s_fields, didf_fields, dqdf_fields, i0didf_fields, q0dqdf_fields]
+    # create a fragment for the derived fields
+    derivedfrag = dirfile.include("derived", flags = _gd.CREAT|_gd.EXCL|_gd.RDWR )
+    # create the entries for the derived fields for a stream file
+
+    #Complex values - lincom = f1*m1 + b1 + f2*m2 + b2
+
+    #tonefields = datapacket_dict['tone_fields'].keys()
+
+    #fnames = map( lambda x: x.rsplit("_", 1)[0], ifields )
+
+    zentries, magzentries, angzentries, dff0entries = [],[],[],[]
+    for idx, field_name in enumerate( sorted( field_names ) ):
+        # complex combination of i and q
+        zentries.append( _gd.entry(_gd.LINCOM_ENTRY, field_name + "_z", derivedfrag, ( (field_name + "_I", field_name + "_Q" ), (1,1j), (0,0) ) ) )
+        # raw amplitude
+        magzentries.append ( _gd.entry(_gd.PHASE_ENTRY, field_name + '_magz', derivedfrag, ( (field_name + '_z.m'), 0) ) )
+        # raw phase
+        angzentries.append ( _gd.entry(_gd.PHASE_ENTRY, field_name + '_angz', derivedfrag, ( (field_name + '_z.a'), 0) ) )
+        # fraction frequency shift
+        dff0entries.append ( _gd.entry(_gd.LINCOM_ENTRY, field_name + '_dff0', derivedfrag, ( (field_name + "_I", field_name + "_Q" ), \
+                                                                                            ("didf_sumdidq2", "dqdf_sumdidq2"),\
+                                                                                            ("i0_didf_sumdidq2", "q0_dqdf_sumdidq2") ) ) )
+        derivedentries = zentries + magzentries + angzentries + dff0entries
+
+    # add all the entries to the dirfile
+    map(dirfile.add, calentries + derivedentries)
 
 def check_dirfile_is_empty(dirfile):
     """Returns True if dirfile is empty (len(INDEX) == 0), otherwise, False"""
     # get the size of the INDEX field
     return len( dirfile.getdata("INDEX") ) == 0
 
-def add_subdirfile_to_existing_dirfile(subdirfile, dirfile, namespace = "", overwrite=False):
+def add_subdirfile_to_existing_dirfile(subdirfile, dirfile, namespace = "", field_suffix = "", overwrite=False):
     """
     Function to add a subdirfile to an existing dirfile and include the subdirfile as a new fragment
     of the main dirfile - i.e. all of the fields of the subdirfile will be avaialble to the main dirfile.
@@ -373,25 +521,27 @@ def add_subdirfile_to_existing_dirfile(subdirfile, dirfile, namespace = "", over
     Mainly used to add multiple sweep dirfiles to a main dirfile.
 
     """
+    # ensure that the namespace is not empty to avoid duplicating field names
+    namespace = "subdir" if not namespace else namespace
     # check both files exist and are open (i.e. dirfile.name is a valid path)
     try:
         subdfname = subdirfile.name
         dfname    = dirfile.name
     except _gd.BadDirfileError:
-        print "Invlaid dirfile. Make sure the dirfile is open and exists. Nothing done. Returning. "
+        _logger.error( "Invlaid dirfile. Make sure the dirfile is open and exists. Nothing done. Returning. " )
         return
     except AttributeError:
-        print "inputs do not appear to be dirfiles"
+        _logger.error( "inputs do not appear to be dirfiles" )
 
     # check that the destination doesn't exist and ask the user for permission to overwrite -maybe this should be removed
     new_subdirfile_path = os.path.join(dirfile.name, os.path.basename(subdirfile.name))
     if os.path.exists(new_subdirfile_path):
         if overwrite:
             # delete old path and continue
-            print "warning: path to new subdir already exists. Overwriting"
+            _logger.warning( "path to new subdir already exists. Overwriting..." )
             shutil.rmtree(new_subdirfile_path)
         else:
-            print "Not overwriting. Returning."
+            _logger.warning(  "Not overwriting. Returning." )
             return
 
     # copy the subdirfile into the existing dirfile
@@ -400,13 +550,15 @@ def add_subdirfile_to_existing_dirfile(subdirfile, dirfile, namespace = "", over
         shutil.copytree(subdirfile.name, new_subdirfile_path)
 
     except OSError as err:
-        print "Copy unsuccesful - nothing done; error:", err
+        _logger.error( "Copy unsuccesful - nothing done; error: {0}".format( err ) )
         return
 
-    # add a the subdrifile as a new fragment
+    # add a the subdrifile as a new fragment (# NOTE: namespace should not be an empty string)
     ## TODO: this should probably be in a try - except statement
-    newfrag = dirfile.include(os.path.join(os.path.basename(subdirfile.name), "format"), namespace = namespace, flags = _gd.EXCL|_gd.RDWR)
-    # could change above to df.fragment(0).name
+    newfrag = dirfile.include(os.path.join(os.path.basename(subdirfile.name), "format"),\
+                                namespace = namespace,\
+                                suffix    = field_suffix,\
+                                flags     = _gd.EXCL|_gd.RDWR)
 
     # flush the changes and update the format file
     dirfile.flush()
@@ -422,7 +574,7 @@ def write_sweep_cal_params(dirfile, cal_params, cal_data_dict):
     # check that sweep cal_fragment is available
     is_frag_valid, calfrag = check_fragment_valid(dirfile, "calibration")
     if not is_frag_valid:
-        _logger.warning("there doesn't appear to be a claibration fragment. Calibration parameters not written.")
+        _logger.warning("there doesn't appear to be a calibration fragment. Calibration parameters not written.")
         return
 
     cal_param_fields = ["f0s", "i0", "q0", "didf0", "dqdf0", "didq2"]
@@ -573,7 +725,7 @@ def append_to_dirfile(dirfile, datapacket_dict): #, datatag=""):
 
         elif field_name in ['python_timestamp']:
             data = datapacket_dict[field_name][-1]
-            dirfile.putdata( 'python_timestamp', 
+            dirfile.putdata( 'python_timestamp',
                             np.ascontiguousarray( [data.pop(0) for i in range(len(data))] ).flatten(),
                             first_sample = currentsize )
 
@@ -582,7 +734,7 @@ def append_to_dirfile(dirfile, datapacket_dict): #, datatag=""):
 
     dirfile.flush()
 
-def generate_sweep_dirfile( roachid, dirfilename, lo_frequencies, bb_frequencies, complex_sweep_data_dict ):#, field_suffix = "" ):
+def generate_sweep_dirfile( roachid, dirfilename, tone_names, numpoints = 501 ):
     """
     Generate a sweep dirfile from arrays of F, I, Q. In addition, add constants from
     di/df, dq/df vs freq, di/df ^2, dq/df ^2, centred + rotated IQ circle + anything else you can get from the sweep!
@@ -590,19 +742,34 @@ def generate_sweep_dirfile( roachid, dirfilename, lo_frequencies, bb_frequencies
     input is an array of lo frequencies and a dictionary of complex I + 1j*Q for each tone vs lo freq.
 
     """
-    tone_names       = complex_sweep_data_dict.keys()#len(complex_sweep_data_dict)
-    num_sweep_points = len(lo_frequencies)
+    #tone_names       = complex_sweep_data_dict.keys()#len(complex_sweep_data_dict)
     _logger.debug( "tone names used for sweep fields: {0}".format( tone_names ) )
-    _logger.debug( "number of sweep points {0}".format( num_sweep_points ) )
+    _logger.debug( "number of sweep points {0}".format( numpoints ) )
 
     # create new dirfile for derived sweep
-    sweep_dirfile = create_pcp_dirfile(roachid, dirfilename, dirfile_type = "sweep", tones = tone_names, array_size = num_sweep_points, filename_suffix = "sweep")
+    sweep_dirfile = create_pcp_dirfile(roachid, dirfilename,
+                                        dftype          = "sweep",
+                                        tones           = tone_names,
+                                        array_size      = numpoints,
+                                        filename_suffix = "sweep",
+                                        exclusive       = True ) #<-- makes sure that the sweep files are not overwritten/ appended to
+    return sweep_dirfile
 
-    sweep_dirfile.put_carray("sweep." + "bb_freqs", bb_frequencies)
-    sweep_dirfile.put_carray("sweep." + "lo_freqs", lo_frequencies)
+def write_sweepdata_to_sweepdirfile(sweep_dirfile, bbfreqs, lofreqs, complex_sweep_data_dict):
+    """Add sweep data to a pcp sweep dirfile.
+    Requires:
+
+        bbfreqs - array of baseband frequencies
+        lofreqs - array of lo frequencies
+        complex_sweep_data_dict - dictionary of tonename: complex data
+
+    """
+
+    sweep_dirfile.put_carray("bb_freqs", bbfreqs)
+    sweep_dirfile.put_carray("lo_freqs", lofreqs)
 
     for field_name, sweep_data in complex_sweep_data_dict.items():
-        sweep_dirfile.put_carray("sweep." + field_name, sweep_data)
+        sweep_dirfile.put_carray(field_name, sweep_data)
 
     sweep_dirfile.flush()
     return sweep_dirfile

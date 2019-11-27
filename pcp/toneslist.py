@@ -83,7 +83,7 @@ def write_tonelist_file(tonearray, outputfile):
 		datatowrite = _np.array([ ['K{0:04d}'.format(v) for v in _np.arange(len(tonearray))], \
 						tonearray, _np.zeros_like(tonearray) ]).T
 		datatowrite = _pd.DataFrame(data = datatowrite)
-		
+
 	elif isinstance(tonearray, Toneslist):
 		datatowrite = tonearray.data
 
@@ -263,9 +263,12 @@ class Toneslist(object):
 
 		self._counts = None
 
+
 		# containers for tone data
 		self.data 		 = None # full tonelist data, not intended to be modified
 		self.blind_freqs = None # container for blind tones (if present)
+
+		self.tonenames = None
 
 		self.lo_freq     = None #
 		self.rf_freqs    = None
@@ -428,6 +431,7 @@ class Toneslist(object):
 			self.data = data
 			return
 
+		self.tonenames = self.data['name'].get_values()
 		# if successful, try to find the optimum LO frequency automatically
 		self.lo_freq = self.find_optimum_lo() # this will trigger the frequency lists to be updated
 
@@ -473,10 +477,11 @@ class Toneslist(object):
 	def place_blind_tones(self):
 		return
 
-	def get_sweep_lo_freqs(self, sweep_span, sweep_step):
+	def calc_sweep_lo_freqs(self, sweep_span, sweep_step):
 		"""
-		Function to get a set of LO frequencies from a given span and step size (in Hz).
-		This function will ensure that the number of points is odd to include the centre frequency
+		Function to get a set of LO frequencies from a given span and step size (in Hz). This function will ensure that
+	    the number of points is odd to include the centre frequency.
+
 		"""
 		if self.lo_freq is None:
 			_logger.warning( "no LO frequency set. Nothing done." )
@@ -486,12 +491,13 @@ class Toneslist(object):
 		assert sweep_span > 2 * sweep_step, "sweep span is less than the step resulting in a {0} point sweep".format(npoints)
 		# ensure that the number of sweep points is odd to capture the centre frequency
 		npoints = npoints + 1 if npoints % 2 == 0 else npoints
-        # create sweep_lo_freqs in toneslist
+	    # create sweep_lo_freqs in toneslist
 		self.sweep_lo_freqs = _np.linspace(self.lo_freq - sweep_span/2., \
 											self.lo_freq + sweep_span/2., \
 												npoints, dtype = _np.float64 )
 
 		_logger.debug( "set sweep LO frequencies - {0}".format( self.sweep_lo_freqs ) )
+
 
 	def plot_tonedata(self, units = "mhz"):
 		"""Plotting routine to check the loaded tonelist.  """

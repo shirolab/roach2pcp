@@ -2,19 +2,41 @@ import numpy as _np, time as _time, shutil as _shutil
 
 from .lib import lib_dirfiles as _lib_dirfiles
 from .kid import resonator_routines as _resonator_routines
-from .configuration import general_config
+from .configuration import general_config, roach_config
 
 import logging as _logging
 _logger = _logging.getLogger(__name__)
 
+# pcp Sweep object
+
+# loads data from pcp sweep file
+# calculate all the parameters
+# write sweep cal parameters to the sweep dirfile
 
 class pcpSweep(object):
 
-    def __init__(self, dirfile = None):
+    def __init__(self, roachid, dirfile = None):
         """
-        A pcpSweep object. Used to contain and manipulate the current sweep data.
+        A pcpSweepdata object. Used to contain and manipulate the current sweep data.
 
         """
+        # set up class attributes
+
+        self._bb_freqs = None
+        self.lo_freqs  = None
+
+        self._lo_freq  = None
+        self.rf_freqs  = None
+
+        self.data_fields = None
+        self.data        = None
+
+        self.calparam_fields = None
+        self.calparams       = None
+
+        self.caldata_fields = None
+        self.caldata        = None
+
         # read in dirfile if given
         if dirfile:
             self.load_sweep_dirfile(dirfile)
@@ -36,7 +58,6 @@ class pcpSweep(object):
         self.dirfile = dirfile
         self.get_data()
 
-
     def get_data(self):
         """
         Function to return the data from the sweep dirfile.
@@ -46,8 +67,8 @@ class pcpSweep(object):
 
         sweep_data_fields = filter(lambda x: x.startswith("sweep."), self.dirfile.entry_list())
 
-        self._bb_freqs = self.dirfile.get_carray( sweep_data_fields.pop(sweep_data_fields.index('sweep.bb_freqs')))
-        self.lo_freqs  = self.dirfile.get_carray( sweep_data_fields.pop(sweep_data_fields.index('sweep.lo_freqs')))
+        self._bb_freqs = self.dirfile.get_carray( sweep_data_fields.pop(sweep_data_fields.index('sweep.bb_freqs') ))
+        self.lo_freqs  = self.dirfile.get_carray( sweep_data_fields.pop(sweep_data_fields.index('sweep.lo_freqs') ))
 
         self._lo_freq  = self.lo_freqs[(self.lo_freqs.shape[0]-1)/2]
         self.rf_freqs  = _np.repeat(self._bb_freqs[:, _np.newaxis], self.lo_freqs.shape[0], axis=1) + self.lo_freqs
@@ -80,7 +101,6 @@ class pcpSweep(object):
                                                                                 self.data.real, \
                                                                                 self.data.imag, \
                                                                                 tone_freqs = self._bb_freqs + self._lo_freq )
-
     def set_filter_params(self):
         pass
 
@@ -93,7 +113,7 @@ class pcpSweep(object):
 
         if not overwrite:
             # copy the calibration fragment file and append a unique datetime stamp
-            _shutil.copy(           self.dirfile.fragment(cal_frag_idx).name, \
+            _shutil.copy( self.dirfile.fragment(cal_frag_idx).name, \
                         "_".join( (self.dirfile.fragment(cal_frag_idx).name, _time.strftime(general_config["default_datafilename_format"]))) \
                         )
 

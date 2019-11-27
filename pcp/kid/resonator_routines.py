@@ -24,7 +24,7 @@ def calc_sweep_cal_params(sweep_f, sweep_i, sweep_q, tone_freqs = None , **kwarg
     df   = _np.gradient( sweep_f, axis=1 )
     didf = _np.gradient( sweep_i, axis=1 ) / df
     dqdf = _np.gradient( sweep_q, axis=1 ) / df
-    didq = _np.sqrt( didf**2 + dqdf**2 )
+    didq2 = didf**2 + dqdf**2
 
     if tone_freqs is not None:
 
@@ -42,7 +42,17 @@ def calc_sweep_cal_params(sweep_f, sweep_i, sweep_q, tone_freqs = None , **kwarg
 
     idxs = ( _np.arange(len(idxs)), idxs )
 
-    return (sweep_f[idxs], sweep_i[idxs], sweep_q[idxs], didf[idxs], dqdf[idxs]), (didf + 1j*dqdf)
+    #return (sweep_f[idxs], sweep_i[idxs], sweep_q[idxs], didf[idxs], dqdf[idxs]), (didf + 1j*dqdf)
+
+    return {"f0s": sweep_f[idxs], \
+            "i0s": sweep_i[idxs], \
+            "q0s": sweep_q[idxs], \
+            "didf": didf[idxs], \
+            "dqdf": dqdf[idxs], \
+            "didf_sumdidq2": didf[idxs] / didq2[idxs],\
+            "dqdf_sumdidq2": dqdf[idxs] / didq2[idxs],\
+            "i0_didf_sumdidq2": sweep_i[idxs] * didf[idxs] / didq2[idxs] ,\
+            "q0_dqdf_sumdidq2": sweep_q[idxs] * dqdf[idxs] / didq2[idxs] },  (didf + 1j*dqdf)
 
 
 # def find_f0_from_sweep(freq, i, q, method="maxspeed", **kwargs):

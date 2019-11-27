@@ -36,4 +36,4 @@ class dummyAttenSource(object):
     @attenuation.setter
     def attenuation(self, frequency):
         self._attenuation = attenuation
-        _time.sleep(0.001) # emulate time to switch attenuation
+        _time.sleep(1e-6) # emulate time to switch attenuation

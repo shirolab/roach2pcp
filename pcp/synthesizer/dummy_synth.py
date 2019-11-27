@@ -35,7 +35,6 @@ class dummySynthSource(object):
         self.reference = "int" # ext, int
         self.islocked  = False
 
-
     @property
     def frequency(self):
         """Get or set the frequency of the synthesizer. Units should all be in Hz."""
@@ -43,7 +42,7 @@ class dummySynthSource(object):
     @frequency.setter
     def frequency(self, frequency):
         self._frequency = frequency
-        _time.sleep(0.001) # emulate time to switch frequency
+        _time.sleep(1e-6) # emulate time to switch frequency
 
     @property
     def output_power(self):

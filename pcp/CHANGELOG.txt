@@ -3,6 +3,78 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
+2019-11-26 [PB]
+
+- need to fix/clean up create pcp dirfile...
+
+- can't currently change configuration easily
+  - caused by relative imports and not being able to update in real time - can this be fixed?
+
+- currently the source file resets when pcp exits - do we want to keep previous data sets?
+
+- clean up mc.sweep_lo function
+  - split into multiple functions that can be tested individually
+  - call functions by overall sweep_lo functionality
+
+- implement df conversion on the fly
+  - add derived fields correctly
+  - add function to re-calculate and re-write cal data (saving old data as a backup)
+    - this is now in the sweep object
+
+- add a tonenames vs frequency mapping in all dirfiles
+
+- save file with amps, phases, freqs in file
+  - add toneslist.load_previously_written_tones() function that can used to recreate a previous state
+
+- Bug Fixes
+
+  - it appeared that when streaming is paused, any data left in the queue and not a multiple of 'buffer_len_to_write' is
+not written to disk. Fixed this by adding a 'last_iteration' flag that should save remaining data in the buffer when exiting
+the writing while loop. Tested on mac with dummyroach. 
+
+
+
+
+2019-10-13 [PB]
+- Implementation of derived fields for easy plotting of df, amp, phase...etc.
+  - after a sweep file is created, the sweep object has all the calibration data for all the tones
+  - when creating a stream dirfile, create these derived fields using the last sweep available (or make option)
+  - if no sweep exists, ensure that nans are written cleanly
+
+- Currently, stream file creates dirfile and generates main fields - add option to include derived fields (default to true)
+
+- Added functions to lib_dirfiles to write the derived raw fields
+  - the df derived files require
+- Also created a workaround function to modify the format file to correctly index arrays in the definition of derived fields
+
+- when dirfile is created, all fields are created
+- in pcp, if a sweep object is available when the file is created, then populate the
+
+TODO
+  - how to handle blind tones? probably just write the garbage?
+  - make sure that sweep object has the correct fields defined
+  - add this data to the stream dirfile if in use
+  - fix bug with metadata fields when adding sweep to stream dirfiles
+
+  - fix lib.lib_dirfiles list_fragments_in_dirfile function to account for multiple format entries
+  - find a way to get namespace from fragments
+
+  - figure out how to integrate blind tones correctly (i.e. in toneslist )
+
+  - fix the create_pcp_dirfile function to deal with the following:
+    - a directory in which to place a new dirfile
+    - an existing dirfile
+    - a path that is an existing dirfile, but has a filename_suffx
+
+
+
+2019-10-11 [PB]
+- Bug fix: python_timestamp wasn't being written to the file correctly with new datapacket_dict structure and sweep failed
+  - fixed and tested with dummy roach
+
+- TODO
+  - noted that there's a possibility that unfilled buffer is not written to disk. Need to check this asap.
+
 2019-10-06 [PB]
 - Bug fix: excess packet loss observed when using > 300 tones. Narrowed down to pcp.lib.lib_datapackets.parse_datapacket_dict
 function that took a long time when using a larger number of tones.

@@ -1,28 +1,24 @@
 #
-
-from ..configuration import hardware_config, roach_config
-#from pcp.configuration import hardware_config, roach_config
-
-from ..synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT
-print "synth dict : ", _SYNTH_HW_DICT
-
-import threading as _threading
-#import pyudev as _udev
-import time as _time
-
-from ..configuration import color_msg as cm
-
-#from pcp.synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT
-
-#from ..synthesizer import synth_class_dict
-
-from ..attenuator import ATTEN_HW_DICT as _ATTEN_HW_DICT
-print "atten dict : ", _ATTEN_HW_DICT
+#stdlib imports
+import logging as _logging, time as _time, threading as _threading
+_logger = _logging.getLogger(__name__)
 
 from collections import namedtuple as _namedtuple
 _synthObj = _namedtuple("synthObj", ["config", "synthobj"])
 _attenObj = _namedtuple("attenObj", ["config", "attenobj"])
 
+# relative pcp imports
+from ..configuration import hardware_config, roach_config, color_msg as cm
+#from pcp.configuration import hardware_config, roach_config
+
+from ..synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT
+_logger.debug("synth dict : {0}".format( _SYNTH_HW_DICT ) )
+
+from ..attenuator import ATTEN_HW_DICT as _ATTEN_HW_DICT
+_logger.debug("atten dict : {0}".format( _ATTEN_HW_DICT ) )
+
+#from pcp.synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT
+#from ..synthesizer import synth_class_dict
 
 class usb_detector():
     ''' Monitor udev for detection of usb '''
@@ -76,7 +72,7 @@ def initialise_connected_synths():
 
     # should only be left with active - check that its not empty, and is the number
     # defined in roach_config
-
+    _logger.debug("synth_config: {0}".format( synth_config ) )
     # get the unique synthids defined in the roach_config for both lo and clocks (clocks can be None, and will be discarded)
     synthids = set([roach[key] for roach in roach_params.values() \
                                 for key in roach.keys() if key.startswith("synthid") if roach[key] is not None])
@@ -89,12 +85,14 @@ def initialise_connected_synths():
     if len(synth_check) > 0:
         raise RuntimeError,\
         "synthids = {synthids} are not present/active in the configuration files. Please check that each roach has an active synth \
-entry in the configuration files and try again.".format(synthids=list(synth_check))
+        entry in the configuration files and try again.".format(synthids=list(synth_check))
         return
 
     #print synth_config
 
     #identify physical synth devices, not repeating entries for multi-port devices
+    _logger.debug("identifying physical synthesier devices..." )
+
     psynth_dict = {}
     for synthid, synthcfg in synth_config.items():
         vendor = str(synthcfg['vendor']).lower()
@@ -107,7 +105,8 @@ entry in the configuration files and try again.".format(synthids=list(synth_chec
         psynth_dict[physical_id] = {'vendor':vendor, 'model':model, 'serial':serial}
         psynth_dict[physical_id]['class_key'] = vendor + '_' + model
         synth_config[synthid]['physical_id'] = physical_id
-    #print psynth_dict
+
+    _logger.debug("instantiating synth classes..." )
 
     #instantiate the synth base classes for each physical device
     psynth_device_instances = {}
@@ -128,6 +127,8 @@ entry in the configuration files and try again.".format(synthids=list(synth_chec
     #print '\n\n _SYNTH_HW_DICT',_SYNTH_HW_DICT
     #print '\n\n _synth_object_dict',synth_object_dict
 
+    _logger.debug("creating synth objects..." )
+
     for synthid, synthcfg in synth_config.items():
 
         #get the right labels
@@ -136,9 +137,11 @@ entry in the configuration files and try again.".format(synthids=list(synth_chec
         #print ('\n',synthid,synthcfg,synth_dict_key)
 
         #add the synth device object to a dict
+        _logger.debug("adding device object {0}".format(synthid) )
         synth_device_object_dict[synthid] = _synthObj(config = synthcfg, synthobj = psynth_device_instances[physical_id])
 
         #add the synth source object to a dict
+        _logger.debug("adding source object {0}".format(synthid) )
         synth_source_object_dict[synthid] = _synthObj(config = synthcfg, synthobj = psynth_device_instances[physical_id].getSourceObj(channel=synthcfg['channel']))
 
         #NOTE: the synth object is currently a device-like object, but could be source-like to match the valon/windfreak drivers.
@@ -208,11 +211,11 @@ entry in the configuration files and try again.".format(attenids=list(atten_chec
 
     #instantiate the synth base classes for each physical device
     patten_device_instances = {}
-    
+
     for patten in patten_dict:
         atten_dict_key = patten_dict[patten]['class_key']
         atten_dict_serial = patten_dict[patten]['serial']
-        
+
         #dummy attenuators
         if atten_dict_serial.lower() == 'none':
             atten_dict_class = _ATTEN_HW_DICT[atten_dict_key]

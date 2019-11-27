@@ -57,6 +57,7 @@ import os, sys, time, signal, select, threading, ctypes
 from collections import deque
 import numpy as np
 
+# configure a deque shared memory object that can be used to
 import multiprocessing as mp; from multiprocessing.managers import SyncManager as _syncmanager
 _syncmanager.register('deque', deque, exposed = [d for d in dir(deque) if not d.startswith("__") or d == "__len__"] )
 
@@ -431,15 +432,13 @@ class dataLogger(object):
 
             prevcnt = 0
             # MAIN DATA WRITING LOOP #
-            while self.is_writing.value:
+            last_iteration = False
+            while self.is_writing.value or last_iteration:
 
                 _logger.debug( "in writing loop; {0},{1}".format (len(self._writer_queue), sizetowrite) )
 
                 # WRITE TO DISK WHEN BUFFER_LEN IS REACHED
-
-                if (len(self._writer_queue) >= sizetowrite) or not self.is_writing.value: # not self is_writing catches last loop iteration
-
-                    #print "len queue inside: ",len(self._writer_queue)
+                if (len(self._writer_queue) >= sizetowrite) or last_iteration:
 
                     datatowrite = [self._writer_queue.pop() for i in range(len(self._writer_queue))] # get all data currently in queue
                     _logger.debug("length of datatowrite {0}".format(len(datatowrite)))
@@ -451,14 +450,16 @@ class dataLogger(object):
                         prevcnt = newcnt
 
                     retcode = self._parse_packet_and_append_to_dirfile(datatowrite) # parse the packet using the datapacket_dict and append ot the dirfile
-
-                    #del datatowrite
                     datatowrite = []
-
+                    last_iteration = False
                 else:
-                    time.sleep(sizetowrite/488*0.5)
+                    time.sleep(sizetowrite/488.*0.5) # <-- tidy this up? 
+                    # check what is writing is still true, otherwise check flag to save data on the last iteration
+                    if self.is_writing.value == False:
+                        last_iteration = True
 
             if datatowrite:
+                print "{0} packets didn't get saved!!".format( len(datatowrite) )
                 _logger.warning( "{0} packets didn't get saved!!".format( len(datatowrite) ) ) # just in case some data is left in the buffer
                 datatowrite = []
             time.sleep(0.1)
