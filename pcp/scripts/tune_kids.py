@@ -21,4 +21,4 @@ def verify_configuration():
     pass
 
 def main():
-    _logger.info( "this is the function that is run" )
+    _logger.info( "This is the function that is run" )

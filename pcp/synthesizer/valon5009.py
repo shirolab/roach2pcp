@@ -64,7 +64,7 @@ class ValonDevice(object):
 	def set_local_baud_auto(self):
 		for baud in self.bauds_available:
 			print 'trying %d baud...'%baud, ;sys.stdout.flush()
-			self.conn.setBaudrate(baud)
+			self.conn.baudrate = baud
 			try:
 				self.get_status()
 				print 'found connection at %d baud.'%baud
@@ -82,8 +82,8 @@ class ValonDevice(object):
 			self.clearSerialBuffer()
 			self.conn.write('baud %d \r'%self.baud_requested)
 			dump = self.conn.readlines()
-			self.conn.setBaudrate(self.baud_requested)
-			print 'Now using %d baud'%self.conn.getBaudrate()
+			self.conn.baudrate = self.baud_requested
+			print 'Now using %d baud'%self.conn.baudrate
 			self.clearSerialBuffer()
 
 		self.activeSource       = None

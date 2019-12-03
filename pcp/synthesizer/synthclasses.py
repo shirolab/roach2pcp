@@ -104,6 +104,34 @@ class pcp_dummySynthSource(_dummy_synth.dummySynthSource):
     def print_status(self):
         _pprint.pprint(vars(self), width=1)
 
+# ===========================================================================================
+# === r+s (sgs100a) ===========================================================================
+# ===========================================================================================
+
+import rs_sgs100a as _rs_sgs100a # hide the base class from the user by prepending "_"
+
+class pcp_rssgsDevice(_rs_sgs100a.sgsSynthDevice):
+    # pass vendor and model nums as class attributes for checking
+    VENDOR = _rs_sgs100a.VENDOR
+    MODELNUMS = _rs_sgs100a.MODELNUMS
+
+    def __init__(self):
+        # instantiate class to get all of the factory provided methods
+        super(pcp_rssgsDevice, self).__init__()
+    def getSourceObj(self,channel):
+        return pcp_rssgsSource(self,channel)
+
+class pcp_rssgsSource(_rs_sgs100a.sgsSynthSource):
+
+    def __init__(self,device,source):
+        # instantiate class to get all of the factory provided methods
+
+        # as the methods are defined correctly in the drivers (as we wrote them!), nothing else is needed
+        super(pcp_rssgsSource, self).__init__(device,source)
+
+    # add a print status method for convenience
+    def print_status(self):
+        _pprint.pprint(vars(self), width=1)
 
 # ===========================================================================================
 # === APSIN (20G) ===========================================================================
