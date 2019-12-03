@@ -11,9 +11,9 @@ from ..configuration import color_msg as cm
 def main(roach, nsamples, t):
     _logger.info( "starting streaming for: " + str(t) )
 
-    for i in range(nsamples):
-        print cm.OKBLUE + "Start streaming for: " + cm.BOLD + str(t) + "s" + cm.ENDC
-        roach.start_stream()
-        time.sleep(t)
-        roach.stop_stream()
-        print cm.WARNING + "Stop streaming for: " + cm.BOLD + str(t) + "s" + cm.ENDC
+    # for i in range(nsamples):
+    #     print cm.OKBLUE + "Start streaming for: " + cm.BOLD + str(t) + "s" + cm.ENDC
+    #     roach.start_stream()
+    #     time.sleep(t)
+    #     roach.stop_stream()
+    #     print cm.WARNING + "Stop streaming for: " + cm.BOLD + str(t) + "s" + cm.ENDC
