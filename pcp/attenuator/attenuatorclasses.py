@@ -71,7 +71,7 @@ class pcp_dummyAttenSource(_dummy_atten.dummyAttenSource):
     @attenuation.setter
     def attenuation(self, attenuation):
         self._attenuation = attenuation
-        _time.sleep(0.001) # emulate time to switch attenuation
+        _time.sleep(1e-6) # emulate time to switch attenuation
         print ("attenuation set to {a}".format(a=attenuation))
 
     # add a print status method for convenience
@@ -85,7 +85,7 @@ class pcp_dummyAttenSource(_dummy_atten.dummyAttenSource):
 
 import rudat6000usb as _rudat6000usb
 
-#perform initial scan to find usb device handles for connected rudats 
+#perform initial scan to find usb device handles for connected rudats
 _rudats_connected = _rudat6000usb.get_attenuators()
 
 class pcp_rudat6000Device(_rudat6000usb.rudat6000Device):
@@ -123,4 +123,3 @@ class pcp_rudat6000Source(_rudat6000usb.rudat6000Source):
     # add a print status method for convenience
     def print_status(self):
         _pprint.pprint(vars(self), width=1)
-

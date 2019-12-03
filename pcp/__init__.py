@@ -15,12 +15,10 @@ pcp.<SUBMODULE>.help() to get detailed help for a given <SUBMODULE>.
 
 # stdlib imports
 import sys as _sys, pkgutil as _pkgutil, time as _time, logging as _logging, logging.config as _logconfig
-
 import multiprocessing_logging as _multiprocessing_logging
 #import sub-libraries required for logger (these packages are needed first)
 import configuration, lib, logfile
 
-#from log import ssLog
 # setup the logging configuration according to the configuration file
 _logconfig.dictConfig(configuration.logging_config)
 

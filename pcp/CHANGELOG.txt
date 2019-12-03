@@ -3,6 +3,124 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
+2019-11-26 [PB] - major additions
+
+- cleaned up mc.sweep_lo function
+  - split into multiple functions that can be tested individually
+
+- implement df conversion on the fly
+  - derived fields are now added to the stream dirfiles upon creation
+    - currently only amp, phi, and df are added. Plan will be to add phicr, dfphi (using interp table) in the near future
+  - need to write functions to add/update the sweep cal data when starting a stream
+
+  - cleaned up lib_dirfiles and the order of functions
+
+  - added find_new_freqs to sweep_lo() function - if false, this function calculates the calc parameters
+
+  - plotting sweep functionality
+    - added the pcpInteractivePlot class to the visualization.py
+    - very basic for now; plots latest sweep data for each tone, can scroll quickly with arrow keys
+    - need to add functionality
+
+  - add function to re-calculate and re-write cal data (saving old data as a backup)
+    - this is now in the sweep object
+
+- added a tonenames vs frequency mapping in all raw dirfiles
+  - write tonenames, bb_freqs and lofreq to the format file of all stream files
+    - this data is written in the mc.set_active_dirfile() method
+  - the sweep files have this saved too
+
+- simplified and cleaned up create_pcp_dirfile to only allow list of names to be given
+
+- added option to copy sweep file as a symlink (now the default behavior)
+  - this is favourable as the user can change the sweep and it will apply the changes to all dirfiles that reference it
+  - zipping the dirfile will make a copy of the sweep file during compression (use zip -r pathtozip dirfilepath )
+  - checked that the dirfile can be added appropriately and read in python
+
+TODO
+
+- save file with amps, phases, freqs in file
+  - where to save these files? in data/.tonehistory - hidden as the user should never usually access this file directly
+
+  - add toneslist.load_previously_written_tones() function that can used to recreate a previous state
+  - use pyyaml for easy reading into a python dictionary
+  - file format YYYYMMDD_HHMMSS.tone file (yaml) format
+    - need function to read and write toneslist
+    - function to list all entries - probably better in the long run to have each as a separate file
+      - easy list dir
+- implement an interpolation table to have dff0 calculated from the phase relationship
+
+
+- fix invalid dirfile error when trying to close an invalid dirfile in set_active_dirfile
+- handle tuning correctly
+   - save existing sweep for analysis and checking?
+
+- how to visualise sweeps correctly
+  - need to be able to store at least two sweeps for comparison - modify pcp.sweep object to store data
+  - implement the ability to plot multiple sweeps (at least 2 to verify tuning) within pcpInteractivePlot
+
+
+- can't currently change configuration easily
+  - caused by relative imports and not being able to update in real time - can this be fixed?
+
+- toneslist - check for duplicate names?
+
+--- Bug Fixes ---
+
+- added a check to see if packets are streaming in writer_daemon.start_writing() function
+
+  - it appeared that when streaming is paused, any data left in the queue and not a multiple of 'buffer_len_to_write' is
+not written to disk. Fixed this by adding a 'last_iteration' flag that should save remaining data in the buffer when exiting
+the writing while loop. Tested on mac with dummyroach.
+
+ - fixed derived sweep files to have the same datetime stamp as the raw sweep file
+
+ - handle effect of ctrl+c in sweep not getting to the end of the sweep where lo_freqs != toneslist.sweep_lo_freqs
+  - fixed by noting how far through the loop and tracking those indexes through to the sweep dirfile
+  % when writing sweep, lofreqs has a number of zeros at the end - is that intentional?
+
+- sourcefile handling: now the sourcefile retains past entries and is not overwritten upon new instantiation of
+muxchannel/restarting of pcp
+  - TODO - have the ability to change the timespan programmatically?
+    - set the timespan as an attribute to the muxChannel
+    - requires the lib_dirfiles.append_dirfile_to_sourcefile to read the directory - not too bad
+
+
+2019-10-13 [PB]
+- Implementation of derived fields for easy plotting of df, amp, phase...etc.
+  - after a sweep file is created, the sweep object has all the calibration data for all the tones
+  - when creating a stream dirfile, create these derived fields using the last sweep available (or make option)
+  - if no sweep exists, ensure that nans are written cleanly
+
+- Currently, stream file creates dirfile and generates main fields - add option to include derived fields (default to true)
+
+- Added functions to lib_dirfiles to write the derived raw fields
+  - the df derived files require
+- Also created a workaround function to modify the format file to correctly index arrays in the definition of derived fields
+
+- when dirfile is created, all fields are created
+- in pcp, if a sweep object is available when the file is created, then populate the
+
+TODO
+  - how to handle blind tones? probably just write the garbage?
+  - make sure that sweep object has the correct fields defined
+  - add this data to the stream dirfile if in use
+  - fix bug with metadata fields when adding sweep to stream dirfiles
+
+  - fix lib.lib_dirfiles list_fragments_in_dirfile function to account for multiple format entries
+  - find a way to get namespace from fragments
+
+  - figure out how to integrate blind tones correctly (i.e. in toneslist )
+
+  - fix the create_pcp_dirfile function to deal with the following:
+    - a directory in which to place a new dirfile
+    - an existing dirfile
+    - a path that is an existing dirfile, but has a filename_suffx
+
+2019-10-11 [PB]
+- Bug fix: python_timestamp wasn't being written to the file correctly with new datapacket_dict structure and sweep failed
+  - fixed and tested with dummy roach
+
 2019-10-06 [PB]
 - Bug fix: excess packet loss observed when using > 300 tones. Narrowed down to pcp.lib.lib_datapackets.parse_datapacket_dict
 function that took a long time when using a larger number of tones.

@@ -25,6 +25,8 @@ import cmath as _cmath
 import pygetdata as _gd
 
 import matplotlib.pyplot as plt
+from matplotlib.widgets import MultiCursor
+
 plt.ion()
 
 # This should be in another file/script
@@ -193,7 +195,7 @@ def get_stream_data(diryfile):
         field_lo = "sweep.lo_freqs"
         field_bb = "sweep.bb_freqs"
         sweep_fields = [field for field in time_dirfile.field_list() if field.startswith("sweep.") and field != field_lo and field !=field_bb]
-        
+
         sweep_lo = time_dirfile.get_carray(field_lo)
         bb_freqs = time_dirfile.get_carray(field_bb)
 
@@ -615,6 +617,91 @@ class pcp_plot(object):
 
         #fig = dict(data=self.data, layout=self.layout)
         plot(fig, filename=filename)
+
+
+class pcpInteractivePlot(object):
+    """Simple interactive plotting interface based on matplotlib for convenient visualisation
+    of the sweep data. """
+    # TODO
+    #   - make this compatible with the pcp.sweep object
+    #   - plot everything else...
+    # - this class should be used by pcp.pcpSweep to plot all sweeps
+    # want the ability to plot multiple sweeps on the same axis, and loop through in the same way
+
+    def __init__(self, fdata, iqdata, caldata, calparams):
+        # make sure shape of fdata and iqdata are >1
+
+        self.freqs    = _np.atleast_2d( fdata )
+        self.iqdata   = _np.atleast_2d( iqdata )
+        self.caldata  = _np.atleast_2d( caldata )
+        self.calparam = _np.atleast_1d( calparams )
+
+        self.ntones = len(self.freqs)
+
+        self.idx = 0
+        self._linedict = {}
+
+        self._configure_axes()
+        self._configure_plots()
+
+    def _configure_axes(self):
+
+        fig = plt.figure(figsize=(13.5,  7))
+        axiq  = fig.add_subplot(122)
+        axmag = fig.add_subplot(321)
+        axphi = fig.add_subplot(323, sharex = axmag)
+        axcal = fig.add_subplot(325, sharex = axmag)
+
+        axiq.set_xlabel("i (adc)"); axiq.set_ylabel("q (adc)")
+        axmag.set_ylabel("mag(s21) (db)")
+        axphi.set_ylabel("ang(s21) (rad)")
+        axcal.set_xlabel("freq (MHz)"); axcal.set_ylabel("speed")
+
+        fig.canvas.mpl_connect('key_press_event', self._on_key_press)
+
+        # set figure and axes to class attributes
+        self.fig = fig
+        self.axiq = axiq; self.axmag = axmag; self.axphi = axphi; self.axcal = axcal
+
+    def _configure_plots(self):
+
+        self._linedict['iqmain'],  = self.axiq.plot(self.iqdata[ self.idx ].real, self.iqdata[ self.idx].imag, 'o')
+        self._linedict['magmain'], = self.axmag.plot(self.freqs[ self.idx ]/1.e6, 20*_np.log10( _np.abs(self.iqdata[ self.idx ]) ) )
+        self._linedict['phimain'], = self.axphi.plot(self.freqs[ self.idx]/1.e6, _np.angle(self.iqdata[ self.idx ] ) )
+        self._linedict['speedre'], = self.axcal.plot(self.freqs[ self.idx]/1.e6, self.caldata[ self.idx ].real ) # didf
+        self._linedict['speedim'], = self.axcal.plot(self.freqs[ self.idx]/1.e6, self.caldata[ self.idx ].imag ) # dqdf
+        self._linedict['speedab'], = self.axcal.plot(self.freqs[ self.idx]/1.e6, abs(self.caldata[ self.idx ]) ) # sqrt(didf^2 + dqdf^2)
+        self.refresh_plot()
+
+    def refresh_plot(self):
+
+        self._linedict['iqmain'].set_data(self.iqdata[ self.idx ].real, self.iqdata[ self.idx].imag)
+        self._linedict['magmain'].set_data(self.freqs[ self.idx ]/1.e6, 20*_np.log10( _np.abs(self.iqdata[ self.idx ]) ) )
+        self._linedict['phimain'].set_data(self.freqs[ self.idx ]/1.e6, _np.angle(self.iqdata[ self.idx ] ) )
+        self._linedict['speedre'].set_data(self.freqs[ self.idx]/1.e6, self.caldata[ self.idx ].real )
+        self._linedict['speedim'].set_data(self.freqs[ self.idx]/1.e6, self.caldata[ self.idx ].imag )
+        self._linedict['speedab'].set_data(self.freqs[ self.idx]/1.e6, abs(self.caldata[ self.idx ]) )
+
+        self.axiq.relim(); self.axiq.autoscale()
+        self.axmag.relim(); self.axmag.autoscale()
+        self.axphi.relim(); self.axphi.autoscale()
+        self.axcal.relim(); self.axcal.autoscale()
+
+        self.fig.suptitle('res {0}'.format( _np.roll( _np.arange(self.ntones), -self.idx)[0] ), fontsize=16)
+
+        plt.draw()
+        self.fig.show()
+
+    def _on_key_press(self, event):
+
+        if event.key == 'right':
+            self.idx = (self.idx + 1) % self.ntones
+            self.refresh_plot()
+
+        if event.key == 'left':
+            self.idx = (self.idx - 1) % self.ntones
+            self.refresh_plot()
+
 
 
 ## VERSION 1. FUNCIONADO BIEN!
