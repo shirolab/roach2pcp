@@ -453,7 +453,7 @@ class dataLogger(object):
                     datatowrite = []
                     last_iteration = False
                 else:
-                    time.sleep(sizetowrite/488.*0.5) # <-- tidy this up? 
+                    time.sleep(sizetowrite/488.*0.5) # <-- tidy this up?
                     # check what is writing is still true, otherwise check flag to save data on the last iteration
                     if self.is_writing.value == False:
                         last_iteration = True
@@ -626,6 +626,8 @@ class dataLogger(object):
         if not self._check_dirfile_and_datapacket_dict_match():
             _logger.error( "dirfile fields and datapacket dicts don't match!" )
             return
+
+        assert self.check_packets_received(), "packets don't appear to be streaming. Check roaches and try again."
 
         command_to_send = ("START_WRITE", 0)
         self._add_to_queue_and_wait( command_to_send ) # need to be careful that we don't have race conditions?

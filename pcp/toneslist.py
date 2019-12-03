@@ -19,7 +19,7 @@ Date: 19.10.2018
 
 ### === Importation === ###
 
-import os as _os, csv as _csv, logging as _logging
+import os as _os, csv as _csv, datetime as _dt, logging as _logging, yaml as _yaml
 import numpy as _np, pandas as _pd, matplotlib.pyplot as _plt
 
 _logger = _logging.getLogger(__name__)
@@ -88,67 +88,6 @@ def write_tonelist_file(tonearray, outputfile):
 		datatowrite = tonearray.data
 
 	datatowrite.to_csv(outputfile, sep='\t', index=False)
-# def gen_tone_derived_fields(tones, namespace="", field_suffix=""):
-
-	# namespace = namespace + "." if namespace is not "" else ""
-	#
-    # dirfile.add(_gd.entry(_gd.LINCOM_ENTRY, '_cal_i_sub_i0_%04d'%chan, calfrag, (("I%04d"%chan,),(1,),(-1*i_tone,))))
-	#
-    # e = _gd.entry(_gd.LINCOM_ENTRY, 'K000_df', calfrag, ( ("K000_I","K000_Q"),('di','dq'), (-1*'i0',) ) )
-
-
-    # calfrag = dirfile.include("calibration", flags = _gd.EXCL|_gd.RDWR )
-	#
-    # for chan in channels:
-    #     dirfile.add( _gd.entry( _gd.CONST_ENTRY,'_cal_tone_freq_%04d'%chan,calfrag,(_gd.FLOAT64,) ) )
-    #     dirfile.put_constant('_cal_tone_freq_%04d'%chan, f_tone[chan])
-	#
-    #     #i-i0 q-q0
-    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY, '_cal_i_sub_i0_%04d'%chan, calfrag, (("I%04d"%chan,),(1,),(-1*i_tone,))))
-    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY, '_cal_q_sub_q0_%04d'%chan, calfrag, (("Q%04d"%chan,),(1,),(-1*q_tone,))))
-	#
-    #     #Complex values
-    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'_cal_complex_%04d'%chan,calfrag, (("I%04d"%chan,"Q%04d"%chan),(1,1j),(0,0))))
-	#
-    #     #Amplitude
-    #     dirfile.add(_gd.entry(_gd.PHASE_ENTRY,'amplitude_%04d'%chan,calfrag, (('_cal_complex_%04d.m'%chan),0)))
-	#
-    #     #Phase
-    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'phase_raw_%04d'%chan,calfrag, (('_cal_complex_%04d.a'%chan,),(1,1j),(0,))))
-	#
-    #     #Complex_centered:
-    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'_cal_centred_%04d'%chan,calfrag,
-    #     (("_cal_complex_%04d"%chan,),(1,),(-c[0]-1j*c[1],))))
-	#
-    #     #Complex_rotated
-    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'_cal_rotated_%04d'%chan,calfrag,
-    #     (("_cal_centred_%04d"%chan,),(np.exp(-1j*phi_tone),),(0,))))
-	#
-    #     #Phase
-    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'phase_rotated_%04d'%chan,calfrag,
-    #     (('_cal_rotated_%04d.a'%chan,),(1,),(0,))))
-	#
-    #     #df = ((i[0]-i)(di/df) + (q[0]-q)(dq/df) ) / ((di/df)**2 + (dq/df)**2)
-    #     dirfile.add(_gd.entry(_gd.CONST_ENTRY,'_cal_didf_mult_%04d'%chan,calfrag,(_gd.FLOAT64,)))
-    #     dirfile.add(_gd.entry(_gd.CONST_ENTRY,'_cal_dqdf_mult_%04d'%chan,calfrag,(_gd.FLOAT64,)))
-    #     dirfile.put_constant('_cal_didf_mult_%04d'%chan,didf_tone/(didf_tone**2+dqdf_tone**2))
-    #     dirfile.put_constant('_cal_dqdf_mult_%04d'%chan,dqdf_tone/(didf_tone**2+dqdf_tone**2))
-    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'_cal_i0_sub_i_%04d'%chan,calfrag,
-    #     (("I%04d"%chan,),(-1,),(i_tone,))))
-    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'_cal_q0_sub_q_%04d'%chan,calfrag,
-    #     (("Q%04d"%chan,),(-1,),(q_tone,))))
-    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY, 'delta_f_%04d'%chan, calfrag,
-    #     (("_cal_i0_sub_i_%04d"%chan,"_cal_q0_sub_q_%04d"%chan),
-    #     ("_cal_didf_mult_%04d"%chan,"_cal_dqdf_mult_%04d"%chan),
-    #     (0,0))))
-	#
-    #     #x = df/f0
-    #     dirfile.add(_gd.entry(_gd.LINCOM_ENTRY,'x_%04d'%chan,calfrag,
-    #     (('delta_f_%04d'%chan,),(1./f_tone[chan],),(0,))))
-	#
-	#
-
-
 
 ### === Toneslist class === ###
 
@@ -175,7 +114,12 @@ class Toneslist(object):
 	# -- sweep functionality --
 	#
 
-	def __init__(self, roachid, loader_function = _pd.read_csv, auto_load = True, synth_res = 1., **loaderkwargs):
+	def __init__(self, roachid,
+						tonehistdir = None,\
+						loader_function = _pd.read_csv,\
+						auto_load = True,\
+						synth_res = 1.,\
+						**loaderkwargs):
 		"""
 		Tonelist object for storing and manipulating a set of tones for a given a Roach.
 
@@ -256,13 +200,17 @@ class Toneslist(object):
 		self.synth_resolution = synth_res # resolution of the synthesizer in Hz
 		# load the tonelist given in
 		self.tonelistfile = _os.path.join(TONELISTDIR, self.ROACH_CFG["tonelist_file"])
+		# if given, get a handle to the tonehistdir
 
+		self.tonehistdir  = tonehistdir if tonehistdir is not None else None
+		self.tonehistory = {}
+
+		self._load_tonehistdir()
 		# check that loader function looks like a function
 		assert( callable(loader_function) ) # this should probably go further down
 		self.loader_function = loader_function
 
 		self._counts = None
-
 
 		# containers for tone data
 		self.data 		 = None # full tonelist data, not intended to be modified
@@ -288,6 +236,63 @@ class Toneslist(object):
 					use self.load_tonelist( tonefilename, **loaderkwargs) to load tone list and find optimum lo freq
 					use self.lo_freq = ... to change the required lo frequency. This automatically modifies the bb_freqs
 					""" )
+
+	def _load_tonehistdir(self):
+		"""Function to load and return the tonehistory"""
+		if self.tonehistdir:
+			for tonefile in [f for f in _os.listdir(self.tonehistdir) if not f.startswith(".")]:
+				name, ext = _os.path.splitext(tonefile)
+				self.tonehistory[name] = _os.path.join(self.tonehistdir, tonefile)
+		else:
+			_logger.warning("no tonehistory directory given. limited functionality")
+
+	def load_tonehistfile(self, datetag, dont_ask = False):
+		"""Load a file from """
+		with open(self.tonehistory[datetag]) as fin:
+			tonedict = _yaml.safe_load(fin)
+			amps = _np.array(tonedict['amps'])
+			phases = _np.array(tonedict['phases'])
+			bb_freqs = _np.array(tonedict['freqs'])
+
+		# check to see if current tonelist matches new tones by comparing number of tones and fractional shift in bb_freqs
+		if len(self.tonenames) != len(amps) :
+			warn = "Length of new tones does not appear to match the currently loaded toneslist -- "
+			ask = True
+
+		elif any( _np.abs( (bb_freqs - self.bb_freqs)/self.bb_freqs * 100 ) > 30.):
+			warn = "Absolute positions of frequencies appear to be significantly different -- "
+			ask = True
+
+		if ask==True and dont_ask==False:
+		    response = raw_input( warn + " Proceed? [y/n] ")
+		    if response == "n":
+		        return
+
+		self.amps = amps, self.phases = phases, self.bb_freqs = bb_freqs
+
+	def write_tonehistfile(self):
+		""" Write the current tone parameters to a timestamped .tone file in the tonehistdir for the given
+		roachid. """
+
+		assert all(((self.amps is not None),\
+					(self.bb_freqs is not None),\
+					(self.phases is not None) )), "amps,phases,freqs don't appear to be valid. Nothing done."
+
+		fmt = "%Y%m%d-%H%M%S"
+		timenow = _dt.datetime.now()
+		datetag = _dt.datetime.strftime(timenow, fmt) + ".tone"
+
+		data = {'date'  : _dt.datetime.strftime(timenow, '%Y%m%d'),\
+				'time'  : _dt.datetime.strftime(timenow, '%H%m%S'),\
+				'freqs' : self.bb_freqs.tolist(),\
+				'amps'  : self.amps.tolist(),\
+				'phases': self.phases.tolist() }
+
+		outfname = _os.path.join( self.tonehistdir, datetag )
+		with open(outfname, 'w') as outfile:
+			_yaml.dump(data, outfile, default_flow_style=False)
+
+		self._load_tonehistdir() # reload the tonehistory directory to include the new file
 
 	@property
 	def lo_freq(self):
@@ -498,7 +503,6 @@ class Toneslist(object):
 
 		_logger.debug( "set sweep LO frequencies - {0}".format( self.sweep_lo_freqs ) )
 
-
 	def plot_tonedata(self, units = "mhz"):
 		"""Plotting routine to check the loaded tonelist.  """
 
@@ -518,6 +522,8 @@ class Toneslist(object):
 			ax[1].plot(self._lo_freqs/multiplier, self._counts, marker = 'o', ls = '')
 		return fig, ax
 
+	def read_tonehistdir(self):
+		pass
 
 
 

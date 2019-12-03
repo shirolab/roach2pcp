@@ -71,7 +71,7 @@ class muxChannel(object):
         self.writer_daemon   = self._initialise_daemon_writer()
 
         # configure the tonelist - add functionality to modify datapacket_dict when the toneslist changes
-        self.toneslist       = toneslist.Toneslist(roachid, loader_function = _pd.read_csv)
+        self.toneslist = toneslist.Toneslist(roachid, loader_function = _pd.read_csv)
         self.writer_daemon.initialise_datapacket_dict( self.toneslist )
         self.toneslist.load_tonelist = self._decorate_tonelist_loader( self.toneslist.load_tonelist )
 
@@ -94,14 +94,7 @@ class muxChannel(object):
         self.ROACH_CFG = roach_config[self.roachid]
         self.sample_rate = self.ROACH_CFG["dac_bandwidth"] / ( 2**self.ROACH_CFG["roach_accum_len"] )
 
-        # generate directory path for data saving
-        self.DIRFILE_SAVEDIR  = os.path.join(ROOTDIR, filesys_config['savedatadir'], self.roachid)
-        # create if doesn't exist already
-        os.makedirs(self.DIRFILE_SAVEDIR) if not os.path.exists(self.DIRFILE_SAVEDIR) else None
-
-        # create kst sourcefile in directory if it already doesn't exist
-        self._srcfile = open( os.path.join(self.DIRFILE_SAVEDIR, 'sf.txt'), 'w+')
-
+        self._initalise_folders() # initialise/create the file structure for data saving + the sourcefile
         self.initialise_hardware()
 
 ################################################################################
@@ -113,6 +106,20 @@ class muxChannel(object):
             #self._refresh_datapacket_dict()
             self.writer_daemon.initialise_datapacket_dict( self.toneslist )
         return load_and_update_datapacket_dict
+
+    def _initalise_folders(self):
+        """Function to initialise the file structure for data saving for the mux channel"""
+        # generate directory path for data saving and tonehistory
+        self.DIRFILE_SAVEDIR  = os.path.join(ROOTDIR, filesys_config['savedatadir'], self.roachid)
+        self.TONEHISTDIR      = os.path.join(self.DIRFILE_SAVEDIR, ".tonehistory")
+
+        # create if doesn't exist already
+        os.makedirs(self.DIRFILE_SAVEDIR) if not os.path.exists(self.DIRFILE_SAVEDIR) else None
+        os.makedirs(self.TONEHISTDIR)     if not os.path.exists(self.TONEHISTDIR)     else None
+
+        # create kst sourcefile in directory if it already doesn't exist
+        self._srcfile = open( os.path.join(self.DIRFILE_SAVEDIR, 'sf.txt'), 'r+')
+        self._timespan = general_config["srcfile_timespan"]
 
     def _initialise_daemon_writer(self):
         writer_daemon = datalog_mp.dataLogger( self.roachid )
@@ -270,7 +277,7 @@ class muxChannel(object):
             _logger.info( "filename given: {0}".format(dirfile_name) )
             dirfile_name = _lib_dirfiles.create_pcp_dirfile( self.roachid, \
                                                             dfname          = dirfile_name,    \
-                                                            tones           = self.toneslist, \
+                                                            tonenames       = self.toneslist.tonenames, \
                                                             filename_suffix = filename_suffix,
                                                             **kwargs )
             # close previous dirfile
@@ -289,10 +296,15 @@ class muxChannel(object):
         self.current_dirfile = dirfile_name
         time.sleep(0.1)
 
+        # add tone information to the dirfile
+        self.current_dirfile.put_carray(   "bbfreqs", self.toneslist.bb_freqs.get_values())
+        self.current_dirfile.put_constant( "lofreq",  self.toneslist.lo_freq )
+        self.current_dirfile.put_sarray(   "tonenames", list(self.toneslist.tonenames) )
+        self.current_dirfile.flush()
         # add the file to the source file
         _lib_dirfiles.append_dirfile_to_sourcefile(self._srcfile,
                                     self.current_dirfile.name,
-                                    timespan = general_config["srcfile_timespan"] )
+                                    timespan = self._timespan )
 
     def read_existing_sweep_file(self, path_to_sweep):
         # check if filename appears to be a valid dirfile
@@ -380,7 +392,7 @@ class muxChannel(object):
         if self.loswitch == True:
             self.synth_lo.frequency = self.toneslist.lo_freq
 
-        # save lostep_times to current timestream dirfile
+        # save lostep_times to current timestream dirfile (why are these not arrays?)
         self.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lo_freqs"    , 0, (_gd.FLOAT64, 1) ) )
         self.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lostep_times", 0, (_gd.FLOAT64, 1) ) )
 
@@ -392,7 +404,7 @@ class muxChannel(object):
         self.current_dirfile.close()
         self.current_dirfile = _gd.dirfile(self.writer_daemon.current_filename, _gd.RDWR)
 
-        #delay appears to be required to finish write/open operations before continuing 
+        #delay appears to be required to finish write/open operations before continuing
         time.sleep(0.25)
         # analyse the raw sweep dirfile and write to disk
         self.reduce_and_write_sweep_data(self.current_dirfile)
@@ -427,7 +439,6 @@ class muxChannel(object):
 
         # perform a quick check that packets are being streamed to the roach
         assert self.synth_lo is not None, "synthesiser doesn't appear to be initialised. "
-        assert self.writer_daemon.check_packets_received(), "packets don't appear to be streaming. Check roaches and try again."
 
         # create new dirfile and set it as the active file. Note that data writing is off by default.
         self.set_active_dirfile( filename_suffix = "sweep_raw" + filename_suffix )
@@ -521,14 +532,9 @@ class muxChannel(object):
                                                                     self.toneslist.bb_freqs.get_values(), \
                                                                     lofreqs,\
                                                                     sweep_data_dict) )
-
         # add metadata
         _lib_dirfiles.add_metadata_to_dirfile(self.sweep.dirfile, {"raw_sweep_filename": self.current_dirfile.name})
 
-        # -- add calibration parameters for sweep
-
-        self.sweep.calc_sweep_cal_params()
-        self.sweep.write_sweep_cal_params(overwrite=True)
 
     # def test_loop(self):
     #     step_times = []
@@ -544,7 +550,6 @@ class muxChannel(object):
     #     except KeyboardInterrupt:
     #         print "out of loop"
     #     #self.writer_daemon.pause_writing()
-
 
     def tune_resonators(self, method = "maxspeed"):
         """
@@ -572,8 +577,6 @@ class muxChannel(object):
         # close dirfile to prevent further writing
         #self.current_dirfile.close()
 
-
-
     #@profile
     def start_stream(self, **stream_kwargs):
         """
@@ -585,6 +588,8 @@ class muxChannel(object):
             stream_time - numeric value for length of time to stream data for, default None - streams forever
 
         """
+        #dirfilename - give path to a dirfile to use and append to an existing file
+
         filename_suffix = stream_kwargs.pop("filename_suffix", "")
         stream_time     = stream_kwargs.pop("stream_time", None)
         save_data       = stream_kwargs.pop("save_data", True) # currently not used
@@ -604,9 +609,11 @@ class muxChannel(object):
         # create a new dirfile for the observation
         self.set_active_dirfile( dirfile_name = dirfile_name, filename_suffix = filename_suffix )
 
-        # add sweepdirfile as a new fragment to the new dirfile
         if isinstance( self.sweep.dirfile , _gd.dirfile ):
+            # add sweepdirfile as a new fragment to the new dirfile
             _lib_dirfiles.add_subdirfile_to_existing_dirfile(self.sweep.dirfile, self.current_dirfile, namespace = "sweep")
+            # update stream calibration parameters from sweep
+            self.sweep.write_stream_cal( self.current_dirfile )
 
         # alias to current dirfile for convenience
         self.current_dirfile = self.writer_daemon.current_dirfile
