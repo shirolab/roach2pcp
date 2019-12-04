@@ -10,7 +10,7 @@ _logger = _logging.getLogger(__name__)
 #TODO. It has to be in other place. Script directory. Move to this directory and only use it here
 from ..configuration import color_msg as cm
 from ..configuration import hardware_config as hc
-from ..synthesizer import windfreaksynth_v2 as w2
+from ..drivers.synthesizer import windfreaksynth_v2 as w2
 
 from .. import ROACH_LIST, mux_channel
 

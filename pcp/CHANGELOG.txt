@@ -3,51 +3,20 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
-2019-11-26 [PB] - major additions
+--------------------------------------------------------------------------------
+2019-12-04 [PB] - major additions continued
+- brought in scripts from superspec computer - came up with initialise_ancillary_hardware()
 
-- cleaned up mc.sweep_lo function
-  - split into multiple functions that can be tested individually
+- moved tonehistdir to data/tuning
+  *** requires addition to filesys_config - see example ***
 
-- implement df conversion on the fly
-  - derived fields are now added to the stream dirfiles upon creation
-    - currently only amp, phi, and df are added. Plan will be to add phicr, dfphi (using interp table) in the near future
-  - need to write functions to add/update the sweep cal data when starting a stream
-
-  - cleaned up lib_dirfiles and the order of functions
-
-  - added find_new_freqs to sweep_lo() function - if false, this function calculates the calc parameters
-
-  - plotting sweep functionality
-    - added the pcpInteractivePlot class to the visualization.py
-    - very basic for now; plots latest sweep data for each tone, can scroll quickly with arrow keys
-    - need to add functionality
-
-  - add function to re-calculate and re-write cal data (saving old data as a backup)
-    - this is now in the sweep object
-
-- added a tonenames vs frequency mapping in all raw dirfiles
-  - write tonenames, bb_freqs and lofreq to the format file of all stream files
-    - this data is written in the mc.set_active_dirfile() method
-  - the sweep files have this saved too
-
-- simplified and cleaned up create_pcp_dirfile to only allow list of names to be given
-
-- added option to copy sweep file as a symlink (now the default behavior)
-  - this is favourable as the user can change the sweep and it will apply the changes to all dirfiles that reference it
-  - zipping the dirfile will make a copy of the sweep file during compression (use zip -r pathtozip dirfilepath )
-  - checked that the dirfile can be added appropriately and read in python
 
 TODO
+  - fix issues with dirfile stream writing - can't find any? have to debug on sspec machine
+  - handle errors with hardware better - allow pcp to run for debugging purposes
+  - reload scripts needs 2 reloads - can we make this a function?
 
-- save file with amps, phases, freqs in file
-  - where to save these files? in data/.tonehistory - hidden as the user should never usually access this file directly
 
-  - add toneslist.load_previously_written_tones() function that can used to recreate a previous state
-  - use pyyaml for easy reading into a python dictionary
-  - file format YYYYMMDD_HHMMSS.tone file (yaml) format
-    - need function to read and write toneslist
-    - function to list all entries - probably better in the long run to have each as a separate file
-      - easy list dir
 - implement an interpolation table to have dff0 calculated from the phase relationship
 
 
@@ -65,6 +34,52 @@ TODO
 
 - toneslist - check for duplicate names?
 
+- TODO - have the ability to change the timespan programmatically?
+  - set the timespan as an attribute to the muxChannel
+  - requires the lib_dirfiles.append_dirfile_to_sourcefile to read the directory - not too bad
+
+--------------------------------------------------------------------------------
+2019-11-26 [PB] - major additions
+
+- cleaned up mc.sweep_lo function
+  - split into multiple functions that can be tested individually
+
+- implement df conversion on the fly
+  - derived fields are now added to the stream dirfiles upon creation
+    - currently only amp, phi, and df are added. Plan will be to add phicr, dfphi (using interp table) in the near future
+  - need to write functions to add/update the sweep cal data when starting a stream
+
+  - cleaned up lib_dirfiles and the order of functions
+
+  - added find_new_freqs to sweep_lo() function - if false, this function calculates the calc parameters
+
+- plotting sweep functionality
+    - added the pcpInteractivePlot class to the visualization.py
+    - very basic for now; plots latest sweep data for each tone, can scroll quickly with arrow keys
+    - need to add functionality
+
+- add function to re-calculate and re-write cal data (saving old data as a backup)
+    - this is now in the sweep object
+
+- added a tonenames vs frequency mapping in all raw dirfiles
+  - write tonenames, bb_freqs and lofreq to the format file of all stream files
+    - this data is written in the mc.set_active_dirfile() method
+  - the sweep files have this saved too
+
+- simplified and cleaned up create_pcp_dirfile to only allow list of names to be given
+
+- added option to copy sweep file as a symlink (now the default behavior)
+  - this is favourable as the user can change the sweep and it will apply the changes to all dirfiles that reference it
+  - zipping the dirfile will make a copy of the sweep file during compression (use zip -r pathtozip dirfilepath )
+  - checked that the dirfile can be added appropriately and read in python
+
+- save file with amps, phases, freqs in tonehistory file
+  - where to save these files? in data/tonehistory
+  - add toneslist.load_tonehistfile() function that can used to recreate a previous state
+  - use pyyaml for simple reading into a python dictionary
+  - file format YYYYMMDD_HHMMSS.tone file (yaml) format
+  - added functions to read and write toneshistory file
+
 --- Bug Fixes ---
 
 - added a check to see if packets are streaming in writer_daemon.start_writing() function
@@ -81,11 +96,8 @@ the writing while loop. Tested on mac with dummyroach.
 
 - sourcefile handling: now the sourcefile retains past entries and is not overwritten upon new instantiation of
 muxchannel/restarting of pcp
-  - TODO - have the ability to change the timespan programmatically?
-    - set the timespan as an attribute to the muxChannel
-    - requires the lib_dirfiles.append_dirfile_to_sourcefile to read the directory - not too bad
 
-
+--------------------------------------------------------------------------------
 2019-10-13 [PB]
 - Implementation of derived fields for easy plotting of df, amp, phase...etc.
   - after a sweep file is created, the sweep object has all the calibration data for all the tones

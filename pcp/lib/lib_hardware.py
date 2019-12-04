@@ -11,10 +11,10 @@ _attenObj = _namedtuple("attenObj", ["config", "attenobj"])
 from ..configuration import hardware_config, roach_config, color_msg as cm
 #from pcp.configuration import hardware_config, roach_config
 
-from ..synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT
+from ..drivers.synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT
 _logger.debug("synth dict : {0}".format( _SYNTH_HW_DICT ) )
 
-from ..attenuator import ATTEN_HW_DICT as _ATTEN_HW_DICT
+from ..drivers.attenuator import ATTEN_HW_DICT as _ATTEN_HW_DICT
 _logger.debug("atten dict : {0}".format( _ATTEN_HW_DICT ) )
 
 #from pcp.synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT

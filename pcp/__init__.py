@@ -14,7 +14,7 @@ pcp.<SUBMODULE>.help() to get detailed help for a given <SUBMODULE>.
 )
 
 # stdlib imports
-import sys as _sys, pkgutil as _pkgutil, time as _time, logging as _logging, logging.config as _logconfig
+import logging as _logging, logging.config as _logconfig
 import multiprocessing_logging as _multiprocessing_logging
 #import sub-libraries required for logger (these packages are needed first)
 import configuration, lib, logfile
@@ -35,10 +35,8 @@ SYNTH_LIST = configuration.hardware_config['synth_config'].keys()
 ATTEN_LIST = configuration.hardware_config['atten_config'].keys()
 
 # import all other sub-libraries
-import kid, synthesizer, unittests, mux_channel, datalog_mp, toneslist, scripts, attenuator
-
-#_logger = _logging.getLogger(__name__)
-#_logger.info("Logging configuration completed - current loglevel = {0}".format(_logging.getLevelName(_logger.root.handlers[0].level)))
+import kid, unittests, mux_channel, datalog_mp, toneslist, scripts
+from drivers import synthesizer, attenuator
 
 # import aliases for convenience functions to top level
 from lib.lib_misc import help_screen as help

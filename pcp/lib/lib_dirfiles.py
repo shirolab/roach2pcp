@@ -412,8 +412,6 @@ def generate_main_derivedfields(dirfile, field_names):
     calfrag = dirfile.include("calibration", namespace = calns, flags = _gd.CREAT|_gd.EXCL|_gd.RDWR)
     nfields = len(field_names)
 
-
-
     cal_entries = [_gd.entry(_gd.CARRAY_ENTRY, calfield, calfrag, (_gd.FLOAT64, nfields) ) for calfield in DERIVED_CALPARAM_FIELDS]
     # create a fragment for the derived fields
     derivedfrag = dirfile.include("derived", flags = _gd.CREAT|_gd.EXCL|_gd.RDWR )

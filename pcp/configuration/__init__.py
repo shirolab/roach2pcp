@@ -22,6 +22,8 @@ SAVEDATADIR = filesys_config['savedatadir'] if _os.path.isabs(filesys_config['sa
                                             else _os.path.join(ROOTDIR, filesys_config['savedatadir'])
 TONELISTDIR = filesys_config['tonelistdir'] if _os.path.isabs(filesys_config['tonelistdir']) \
                                             else _os.path.join(ROOTDIR, filesys_config['tonelistdir'])
+TONEHISTDIR = filesys_config['tonehistdir'] if _os.path.isabs(filesys_config['tonehistdir']) \
+                                            else _os.path.join(ROOTDIR, filesys_config['tonehistdir'])
 PIDFILEDIR  = filesys_config['pidfiledir'] if _os.path.isabs(filesys_config['pidfiledir']) \
                                             else _os.path.join(ROOTDIR, filesys_config['pidfiledir'])
 LIVEFILEDIR = filesys_config['livefiledir'] if _os.path.isabs(filesys_config['livefiledir']) \
@@ -35,6 +37,7 @@ if not _os.path.exists(PIDFILEDIR) : _os.makedirs(PIDFILEDIR)
 if not _os.path.exists(LOGFILEDIR) : _os.makedirs(LOGFILEDIR)
 if not _os.path.exists(SAVEDATADIR): _os.makedirs(SAVEDATADIR)
 if not _os.path.exists(TONELISTDIR): _os.makedirs(TONELISTDIR)
+if not _os.path.exists(TONEHISTDIR): _os.makedirs(TONEHISTDIR)
 if not _os.path.exists(LIVEFILEDIR): _os.makedirs(LIVEFILEDIR)
 
 # create a dictionary that contains the firmware regsiters for each roachid

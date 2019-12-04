@@ -1,20 +1,5 @@
 """
-Description:
-Toneslist library (library) provides a set of functions to generate the resonators tone list:
-	- Fullband VNA sweep and associated toneslist is provided by a separate module,
-	- Toneslist generation from sweep data, with respect to the number of ROACHs and the size of the array.
-		This provides both the list of tones in the baseband [BB] frequency domain (f_LO - 256MHz; f_LO + 256MHz) and the radiofrequency [RF] one.
-
-Notes:
-Later on, the following features will be implemented:
-- Adjust or provide optimal power for the specifyied set of tones,
-- Improve checking for missing tones and generate a warning subsequently,
-- Provide a dirfile compatible version.
-- Discuss about the LO correction regarding the tests functions (if a resonator is removed from the list, do we want to recalculate the LO?)
-
-Authors: Dr Pete Barry, Dr Samuel Rowe, Mr Marcial Tapia, Mr Thomas Gascard, Dr Kirit Karkare, Dr Salvador Ventura.
-Version: 0.1
-Date: 19.10.2018
+toneslist class for handling everything to do with tones
 """
 
 ### === Importation === ###
@@ -24,10 +9,7 @@ import numpy as _np, pandas as _pd, matplotlib.pyplot as _plt
 
 _logger = _logging.getLogger(__name__)
 
-from .configuration import ROOTDIR, TONELISTDIR, filesys_config, roach_config
-# Read in relevant config files
-#from ..configuration import toneslist_config
-#
+from .configuration import ROOTDIR, TONELISTDIR, TONEHISTDIR, filesys_config, roach_config
 
 def load_pcp_tonelist(tonelist_file):
 	"""
@@ -115,7 +97,6 @@ class Toneslist(object):
 	#
 
 	def __init__(self, roachid,
-						tonehistdir = None,\
 						loader_function = _pd.read_csv,\
 						auto_load = True,\
 						synth_res = 1.,\
@@ -201,11 +182,10 @@ class Toneslist(object):
 		# load the tonelist given in
 		self.tonelistfile = _os.path.join(TONELISTDIR, self.ROACH_CFG["tonelist_file"])
 		# if given, get a handle to the tonehistdir
-
-		self.tonehistdir  = tonehistdir if tonehistdir is not None else None
+		self.tonehistdir = _os.path.join(TONEHISTDIR, self.roachid)
 		self.tonehistory = {}
-
 		self._load_tonehistdir()
+
 		# check that loader function looks like a function
 		assert( callable(loader_function) ) # this should probably go further down
 		self.loader_function = loader_function
@@ -238,7 +218,7 @@ class Toneslist(object):
 					""" )
 
 	def _load_tonehistdir(self):
-		"""Function to load and return the tonehistory"""
+		""" Function to load and return the tonehistory """
 		if self.tonehistdir:
 			for tonefile in [f for f in _os.listdir(self.tonehistdir) if not f.startswith(".")]:
 				name, ext = _os.path.splitext(tonefile)
@@ -246,9 +226,14 @@ class Toneslist(object):
 		else:
 			_logger.warning("no tonehistory directory given. limited functionality")
 
-	def load_tonehistfile(self, datetag, dont_ask = False):
-		"""Load a file from """
-		with open(self.tonehistory[datetag]) as fin:
+	def load_tonehistfile(self, datetime_tag, dont_ask = False):
+		"""Load a file from the tonehistory directory. """
+
+		# make sure datetime_tag exists
+		assert datetime_tag in self.tonehistory.keys(), "given datatime tag is not in the history. available keys are: {0}".format(self.tonehistory.keys())
+
+		# open and read the file
+		with open(self.tonehistory[datetime_tag]) as fin:
 			tonedict = _yaml.safe_load(fin)
 			amps = _np.array(tonedict['amps'])
 			phases = _np.array(tonedict['phases'])
@@ -268,7 +253,8 @@ class Toneslist(object):
 		    if response == "n":
 		        return
 
-		self.amps = amps, self.phases = phases, self.bb_freqs = bb_freqs
+		self.amps = amps; self.phases = phases; self.bb_freqs = bb_freqs
+		_logger.info("new tones loaded from {0}".format( _os.path.basename( self.tonehistory[datetime_tag])) )
 
 	def write_tonehistfile(self):
 		""" Write the current tone parameters to a timestamped .tone file in the tonehistdir for the given
@@ -512,7 +498,7 @@ class Toneslist(object):
 
 		numplots = 2 if self._counts is not None else 1  # if find_optimum_lo has been run, self._counts != None
 
-		fig,ax = _plt.subplots(numplots,1, figsize = [6.5, 3], sharex=True, gridspec_kw = {'height_ratios':[3, 1]} )
+		fig, ax = _plt.subplots(numplots,1, figsize = [6.5, 3], sharex=True, gridspec_kw = {'height_ratios':[3, 1]} )
 		ax = _np.atleast_1d(ax)
 
 		plots = [ ax[0].axvline(l) for l in self.data['freq']/multiplier ]
@@ -520,11 +506,10 @@ class Toneslist(object):
 		ax[0].axvspan(self.lo_freq/multiplier - self._bandwidth/2./multiplier, self.lo_freq/multiplier + self._bandwidth/2/multiplier, color = 'b', alpha=0.25)
 		if len(ax) > 1:
 			ax[1].plot(self._lo_freqs/multiplier, self._counts, marker = 'o', ls = '')
+
+		fig.tight_layout()
+		fig.show()
 		return fig, ax
-
-	def read_tonehistdir(self):
-		pass
-
 
 
 	# def compile_toneslist(self):

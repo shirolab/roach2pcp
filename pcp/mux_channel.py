@@ -40,7 +40,7 @@ from . import ROACH_LIST
 from .configuration import ROOTDIR, filesys_config, roach_config, network_config, hardware_config, general_config
 
 # import the synth dictionary from
-from .synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT # note that we might need to be careful of import order here
+from .drivers.synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT # note that we might need to be careful of import order here
 
 from . import toneslist, datalog_mp, sweep
 from .lib import lib_dirfiles as _lib_dirfiles, lib_fpga as _lib_fpga
@@ -111,7 +111,7 @@ class muxChannel(object):
         """Function to initialise the file structure for data saving for the mux channel"""
         # generate directory path for data saving and tonehistory
         self.DIRFILE_SAVEDIR  = os.path.join(ROOTDIR, filesys_config['savedatadir'], self.roachid)
-        self.TONEHISTDIR      = os.path.join(self.DIRFILE_SAVEDIR, ".tonehistory")
+        self.TONEHISTDIR      = os.path.join(ROOTDIR, filesys_config['tonehistdir'], self.roachid)
 
         # create if doesn't exist already
         os.makedirs(self.DIRFILE_SAVEDIR) if not os.path.exists(self.DIRFILE_SAVEDIR) else None
@@ -255,6 +255,8 @@ class muxChannel(object):
 
         # write newly written tones to hidden variable for future checks
         self._last_written_bb_freqs = self.toneslist.bb_freqs
+        # add to tone history
+        self.toneslist.write_tonehistfile()
 
     def set_active_dirfile(self, dirfile_name = "", filename_suffix = "", inc_derived_fields = False, **kwargs ):
         # if an empty string is given (default), then we pass the DIRFILE_SAVEDIR as the filename to lib_dirfile.create_dirfile,
