@@ -68,7 +68,6 @@ def get_firmware_register_dict(firmware_registers, firmware_filename):
 
     return firmware_dict
 
-#NOTE [20180728] that this has now been superseeded by a reload function within the main directory (left for now jic, will remove later)
 def reload_configfiles():
    """Function to reload all configuration files. The easiest way to this is to
    reload the module."""

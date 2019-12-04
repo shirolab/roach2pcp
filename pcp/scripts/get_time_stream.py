@@ -9,7 +9,7 @@ from tqdm import tqdm as _tqdm
 from ..configuration import color_msg as cm
 
 def main(roach, nsamples, t):
-    _logger.info( "starting streaming for: " + str(t) )
+    _logger.info( "Starting streaming for: " + str(t) )
 
     # for i in range(nsamples):
     #     print cm.OKBLUE + "Start streaming for: " + cm.BOLD + str(t) + "s" + cm.ENDC

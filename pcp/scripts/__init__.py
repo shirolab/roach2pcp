@@ -6,10 +6,24 @@
 # and attached to the original module name. A handle to the original module is stored and hidden for debugging purposes.
 
 # dynamically import the main() function from each file contained in this directory and
-import pkgutil as _pkgutil
+import sys as _sys, time as _time, pkgutil as _pkgutil, logging as _logging
 
-for _importer, _modname, _ispkg in _pkgutil.iter_modules(__path__):
+_logger = _logging.getLogger(__name__)
 
+_allmods = list( _pkgutil.iter_modules(__path__) )
+
+for _importer, _modname, _ispkg in _allmods:
     # imports the script as hidden variable (for debugging), and imports script.main() for convenience
     exec("import {name} as _{name};\
-        from .{name} import main as {name}".format( name=_modname ) )
+        from .{name} import main as {name}".format( name = _modname ) )
+
+def reload_scripts():
+    # reload all files in this directory
+    for _, _modname, _ in _allmods:
+        _fullname = ".".join( (__name__,_modname) )
+        reload( _sys.modules[_fullname] )
+        _logger.info( "Module {0} reloaded".format(_fullname) )
+   # reload this module
+    reload(_sys.modules[__name__])
+    _logger.info( "Module {0} reloaded".format(__name__) )
+    _time.sleep(0.1)

@@ -10,6 +10,7 @@ Put most recent commits at the top please!
 - moved tonehistdir to data/tuning
   *** requires addition to filesys_config - see example ***
 
+- added reload_scripts function to pcp.script for simple reloading of all scripts once changed 
 
 TODO
   - fix issues with dirfile stream writing - can't find any? have to debug on sspec machine
@@ -18,7 +19,9 @@ TODO
 
 
 - implement an interpolation table to have dff0 calculated from the phase relationship
-
+  - need phase center and rotated -> need array of centers and rotation angles (from fits)
+  - require an interpolation table for each tone with phi vs freq as a separate file
+  -
 
 - fix invalid dirfile error when trying to close an invalid dirfile in set_active_dirfile
 - handle tuning correctly
@@ -27,7 +30,6 @@ TODO
 - how to visualise sweeps correctly
   - need to be able to store at least two sweeps for comparison - modify pcp.sweep object to store data
   - implement the ability to plot multiple sweeps (at least 2 to verify tuning) within pcpInteractivePlot
-
 
 - can't currently change configuration easily
   - caused by relative imports and not being able to update in real time - can this be fixed?
