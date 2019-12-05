@@ -10,7 +10,7 @@ import threading as _threading
 #import pyudev as _udev
 import time as _time
 
-from ..configuration import color_msg as cm
+from .. import color_logs as CL
 
 #from pcp.synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT
 
@@ -43,9 +43,9 @@ class usb_detector():
         for device in iter(self.monitor.poll, None):
             # Check how emit signal
             if device.action == 'add':
-                print cm.OKGREEN + "Device connected" + cm.ENDC
+                print "%sDevice connected"%(CL.OKGREEN)
             else:
-                print cm.WARNING + "Device removed" + cm.ENDC
+                print "%sDevice removed"%(CL.WARNING)
 
 def initialise_connected_synths():
     """

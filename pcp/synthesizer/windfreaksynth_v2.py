@@ -62,8 +62,9 @@ class SynthHDDevice(object):
         return None
 
     def _findSerialPort_byKnownPort(self):
+        ACM_PORTS = read_acm_ports()
         for port in ACM_PORTS:
-            temp_conn = serial.Serial(None, timeout=0.01)
+            temp_conn = serial.Serial(None, timeout=0.1)
             temp_conn.port = port
             try:
                 temp_conn.open()
@@ -71,7 +72,10 @@ class SynthHDDevice(object):
                 print "Port " + port  + " already open"
 
             # Clear the buffer
-            temp_conn.readlines()
+            try:
+                temp_conn.readlines()
+            except:
+                pass
             # Get the Serial Number
             temp_conn.write('-')
             time.sleep(0.01)
@@ -175,9 +179,7 @@ class SynthHDDevice(object):
     def getSerialNumber(self):
         return self.sendCommand('-')
 
-    def getPhaseLockStatus(self):
-        #(lock=1 / unlock=0)
-        return int(self.sendCommand('p'))
+    
 
     def getTemperature(self):
         return float(self.sendCommand('z'))
@@ -536,3 +538,9 @@ class SynthHDSource(object):
         assert value in [0,1]
         self._checkSource()
         return int(self.SynthHDDevice.sendCommand('/%d'%value))
+    
+    def getPhaseLockStatus(self):
+        #(lock=1 / unlock=0)
+        self._checkSource()
+        value = self.SynthHDDevice.sendCommand('p')
+        return int(value)

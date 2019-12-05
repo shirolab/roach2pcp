@@ -60,7 +60,7 @@ import socket, SocketServer
 from .lib.daemontemplate import daemonTemplate, daemonControl
 
 # Load configuration files
-from .configuration import filesys_config, logging_config, color_msg
+from .configuration import filesys_config, logging_config
 
 # Create logger
 _logger = logging.getLogger(__name__)

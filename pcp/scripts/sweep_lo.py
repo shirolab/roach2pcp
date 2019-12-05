@@ -7,7 +7,7 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 
-from ..configuration import color_msg as cm
+from .. import color_logs as CL
 
 def main(roach, nsamples, t, points=10, step=1e3):
 
@@ -29,12 +29,12 @@ def main(roach, nsamples, t, points=10, step=1e3):
 
         tones = lo + roach.toneslist.bb_freqs
         for tone in tones:
-            plt.axvline(tone, color=colors[c]) 
-        
+            plt.axvline(tone, color=colors[c])
+
         roach.synth_lo.frequency = lo
 
         for i in range(nsamples):
-            print cm.OKBLUE + "LO frequency: " + str(lo) + cm.ENDC
+            print "%sLO frequency: %s"%(CL.OKBLUE, str(lo))
 
             print "Starting streaming for: " + str(t)
             roach.start_stream()

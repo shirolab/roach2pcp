@@ -548,9 +548,12 @@ def append_to_dirfile(dirfile, datapacket_dict): #, datatag=""):
     #dirfile.putdata('raw_packet', datapacket_dict['raw_packet'][-1]  )
 
     for field_name in field_list:
-        dirfile.putdata(field_name, get_data_from_datapacket_dict(datapacket_dict, field_name), first_sample = currentsize ) #+ 1)
+        #dirfile.putdata(field_name, get_data_from_datapacket_dict(datapacket_dict, field_name), first_sample = currentsize ) #+ 1)
+        
+        data_to_write = get_data_from_datapacket_dict(datapacket_dict, field_name)
+        dirfile.putdata(field_name, data_to_write, first_sample = currentsize )
 
-    ####dirfile.flush()
+    #dirfile.flush()
 
 def generate_sweep_dirfile( roachid, dirfilename, lo_frequencies, bb_frequencies, complex_sweep_data_dict ):#, field_suffix = "" ):
     """

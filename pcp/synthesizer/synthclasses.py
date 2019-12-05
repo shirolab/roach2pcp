@@ -165,7 +165,7 @@ class pcp_apsinSource(_apsin.apsinSynthSource):
 # === WINDFREAK =============================================================================
 # ===========================================================================================
 
-import windfreaksynth_v2 as _windfreaksynth # hide the base class from the user by prepending "_"
+import windfreaksynth_v3 as _windfreaksynth # hide the base class from the user by prepending "_"
 
 class pcp_windfreaksynthDevice(_windfreaksynth.SynthHDDevice):
     # pass vendor and model nums as class attributes for checking when creating SYNTH_HW_DICT

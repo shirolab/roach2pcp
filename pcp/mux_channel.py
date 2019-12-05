@@ -25,7 +25,9 @@ import atexit
 from functools import wraps as _wraps
 from tqdm import tqdm as _tqdm
 import pygetdata as _gd
+import matplotlib.pyplot as plt
 
+from . import color_logs as cl
 _logger = _logging.getLogger(__name__)
 
 try:
@@ -44,8 +46,6 @@ from .synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT # note that we might ne
 from . import toneslist, datalog_mp, sweep
 from .lib import lib_dirfiles as _lib_dirfiles, lib_fpga as _lib_fpga
 
-from .configuration import color_msg as cm
-
 #from .lib.lib_hardware import usb_detector
 
 from .lib.lib_hardware import initialise_connected_synths as _initialise_connected_synths
@@ -55,6 +55,13 @@ from .lib.lib_hardware import initialise_connected_attens as _initialise_connect
 ATTENS_IN_USE = _initialise_connected_attens()
 
 import kid.resonator_routines as _resonator_routines
+import toneslist_tools
+
+#import  pcp.scripts
+
+import fitting
+import power_tuning
+
 
 class muxChannel(object):
     def __init__(self, roachid):
@@ -95,7 +102,7 @@ class muxChannel(object):
 
         # get configuration for specific roach
         self.ROACH_CFG = roach_config[self.roachid]
-        self.sample_rate = self.ROACH_CFG["dac_bandwidth"] / ( 2**self.ROACH_CFG["roach_accum_len"] )
+        self.sample_rate = (self.ROACH_CFG["dac_bandwidth"] / 1) / ( 2**self.ROACH_CFG["roach_accum_len"] )
 
         # generate directory path for data saving
         self.DIRFILE_SAVEDIR  = os.path.join(ROOTDIR, filesys_config['savedatadir'], self.roachid)
@@ -130,23 +137,25 @@ class muxChannel(object):
 
     def _check_connections(self):
         # Check Connection status
+        print self.ROACH_CFG['synthid_clk']
         for synth in SYNTHS_IN_USE:
             dev = SYNTHS_IN_USE[synth].synthobj
+            print dev
             # Try to get the frequency
             try:
                 get_freq = dev.frequency
-                print "[ " + cm.OKGREEN + "ok" + cm.ENDC +" ] {synth} Connected :)".format(synth = synth)
+                print "[ %sok%s ] {synth} Connected :)".format(synth = synth) %(cl.OKGREEN, cl.ENDC)
             except:
-                print "[ " + cm.FAIL + "fail" + cm.ENDC +" ] {synth} Not connected :)".format(synth = synth)
+		print "[ %sfail%s ] {synth} Not connected :)".format(synth = synth) %(cl.FAIL, cl.ENDC)
 
         for atten in ATTENS_IN_USE:
             dev = ATTENS_IN_USE[atten].attenobj
             # Try to get the frequency
             try:
                 get_atten = dev.attenuation
-                print "[ " + cm.OKGREEN + "ok" + cm.ENDC +" ] {atten} Connected :)".format(atten = atten)
+                print "[ %sok%s ] {atten} Connected :)".format(atten = atten) %(cl.OKGREEN, cl.ENDC)
             except:
-                print "[ " + cm.FAIL + "fail" + cm.ENDC +" ] {atten} Not connected :)".format(atten = atten)
+		print "[ %sfail%s ] {atten} Not connected :)".format(atten = atten) %(cl.FAIL, cl.ENDC)
 
     def initialise_hardware(self):
         # initialise the synthesisers
@@ -312,6 +321,10 @@ class muxChannel(object):
             same as startidx, but for the other end (None reads all samples up to lo_switch)
         save_data : bool
             Flag to turn off data writing. Mainly for testing purposes. Default is, of course, True.
+            
+         do_fit : bool
+             Default = True
+             Choose whether to perform least squares fitting of resonator parameters.
 
         # TODO:
             - implement a method to determine if packets are being captured correctly? this is done!
@@ -319,7 +332,7 @@ class muxChannel(object):
         """
         stop_event = _multiprocessing.Event() if not isinstance( stop_event, _multiprocessing.synchronize.Event ) else stop_event
 
-        valid_kwargs = ["sweep_span", "sweep_step", "sweep_avgs", "startidx", "stopidx", "save_data"]
+        valid_kwargs = ["sweep_span", "sweep_step", "sweep_avgs", "startidx", "stopidx", "save_data", "do_fit"]
 
         # parse the keyword arguments
 
@@ -328,6 +341,7 @@ class muxChannel(object):
         sweep_span = np.float32( sweep_kwargs.pop("sweep_span", self.ROACH_CFG["sweep_span"]) )
         sweep_step = np.float32( sweep_kwargs.pop("sweep_step", self.ROACH_CFG["sweep_step"]) )
         sweep_avgs = np.int32  ( sweep_kwargs.pop("sweep_avgs", self.ROACH_CFG["sweep_avgs"]) )
+        self.sweepstep_overshoot = np.float  ( sweep_kwargs.pop("sweepstep_overshoot", 1.1) )
 
         self.toneslist.get_sweep_lo_freqs(sweep_span, sweep_step)
 
@@ -357,7 +371,7 @@ class muxChannel(object):
         # set up sweep timing parameters
         step_times = []
         # # get time for avg factor
-        sleeptime = np.round( sweep_avgs / self.sample_rate * 1.1, decimals = 3 )
+        sleeptime = np.round( sweep_avgs / self.sample_rate * self.sweepstep_overshoot, decimals = 3 )
         _logger.debug( "sleep time for sweep is {0}".format(sleeptime) )
 
         # alias to current dirfile for convenience
@@ -371,11 +385,14 @@ class muxChannel(object):
         t0 = time.time()
         while not self.writer_daemon.is_writing:
             time.sleep(0.01)
+            #plt.pause(0.01)
             if time.time() >= t0 + timeout : # wait for 2 seconds
                 _logger.error( "timeout waiting for writer daemon to start writing. check to see if something went wrong." )
                 return
             else:
                 continue
+        
+        #time.sleep(2)
 
         #loop over LO frequencies, while saving time at lo_step
         try:
@@ -392,21 +409,30 @@ class muxChannel(object):
                     t0 = time.time()
                     while self.synth_lo.frequency <= lo_freq and time.time() <= t0 + sleeptime :
                         time.sleep(sleeptime / 10.)
-
+                        #plt.pause(sleeptime / 10.)
                 step_times.append( time.time() )
 
                 if stop_event.is_set():
                     break
-                #pbar.set_description(cm.BOLD + "LO: %i" % lo_freq + cm.ENDC)
+                #pbar.set_description("%sLO: %i %s" % (cl.BOLD, lo_freq, cl.ENDC) )
                 time.sleep(sleeptime)
-
+                #plt.pause(sleeptime)
+                
+            print 'Done stepping'
             #pbar.close()
-            #print cm.OKGREEN + "Sweep done!" + cm.ENDC
+            #print "%sSweep done!"%(cl.OKGREEN)
         except KeyboardInterrupt:
             pass
 
-        self.writer_daemon.pause_writing()
+        ##time.sleep(20)
+        #t0=time.time()
+        #while time.time()-t0<20:
+            #pass
 
+        self.writer_daemon.pause_writing()
+        time.sleep(5)
+        #plt.pause(5)
+        
         # Back to the central frequency
         if self.loswitch == True:
             self.synth_lo.frequency = self.toneslist.lo_freq
@@ -437,7 +463,7 @@ class muxChannel(object):
         startidx = np.int32(startidx)
         stopidx  = np.int32(stopidx) if stopidx is not None else stopidx
 
-        for field in _tqdm(self.current_dirfile.field_list( _gd.RAW_ENTRY ), desc=cm.BOLD+"Writing data"+cm.ENDC, ncols=75):
+        for field in _tqdm(self.current_dirfile.field_list( _gd.RAW_ENTRY ), desc="%sWriting data%s"%(cl.BOLD, cl.ENDC), ncols=75):
 
             if ("_I" in field) or ("_Q" in field): #field.startswith("K"):
 
@@ -463,11 +489,12 @@ class muxChannel(object):
                     continue
 
         # create new sweep dirfile and keep hold of it
-        self.sweep.load_sweep_dirfile( _lib_dirfiles.generate_sweep_dirfile(self.roachid, \
-                                                                            self.DIRFILE_SAVEDIR,
-                                                                            self.toneslist.sweep_lo_freqs, \
-                                                                            self.toneslist.bb_freqs.get_values(),\
-                                                                            sweep_data_dict) )
+        self.sweep.load_sweep_dirfile( 
+            _lib_dirfiles.generate_sweep_dirfile(self.roachid, \
+                                                    self.DIRFILE_SAVEDIR,
+                                                    self.toneslist.sweep_lo_freqs, \
+                                                    self.toneslist.bb_freqs.get_values(),\
+                                                    sweep_data_dict) )
         # # add metadata
         _lib_dirfiles.add_metadata_to_dirfile(self.sweep.dirfile, {"raw_sweep_filename": self.current_dirfile.name})
 
@@ -475,6 +502,8 @@ class muxChannel(object):
 
         self.sweep.calc_sweep_cal_params()
         self.sweep.write_sweep_cal_params(overwrite=True) # overwrite
+        
+         
 
     # def test_loop(self):
     #     step_times = []
@@ -531,12 +560,15 @@ class muxChannel(object):
             stream_time - numeric value for length of time to stream data for, default None - streams forever
 
         """
+        print cl.FAIL,'entered start_stream:',time.time(),cl.ENDC
         filename_suffix = stream_kwargs.pop("filename_suffix", "")
         stream_time     = stream_kwargs.pop("stream_time", None)
         save_data       = stream_kwargs.pop("save_data", True) # currently not used
         dont_ask        = stream_kwargs.pop("dont_ask", False)
 
         dirfile_name = stream_kwargs.pop("dirfilename", "") # allow the user to pass in and append to an existing dirfile
+        print cl.FAIL,' parsed kwargs:',time.time(),cl.ENDC
+        
 
         # check that sweep exists - warn if not and give option to proceed
         if self.current_sweep_dirfile is None:
@@ -550,37 +582,200 @@ class muxChannel(object):
         #     else:
         #         response='y'
         # else:
+        print cl.FAIL,'checked sweep exists:',time.time(),cl.ENDC
+
+
+
 
         # create a new dirfile for the observation
         self.set_active_dirfile( dirfile_name = dirfile_name, filename_suffix = filename_suffix )
+        print cl.FAIL,'set active dirfile:',time.time(),cl.ENDC
 
         # add sweepdirfile as a new fragment to the new dirfile
-
         if isinstance( self.current_sweep_dirfile , _gd.dirfile ):
             _lib_dirfiles.add_subdirfile_to_existing_dirfile(self.current_sweep_dirfile, self.current_dirfile)
+        print cl.FAIL,'added sweepdirfile as a new fragment:',time.time(),cl.ENDC
+
 
         # alias to current dirfile for convenience
         self.current_dirfile = self.writer_daemon.current_dirfile
+        print cl.FAIL,'added alias to current dirfile for convenience:',time.time(),cl.ENDC
 
         print "starting to write data"
         self.writer_daemon.start_writing()
+        print cl.FAIL,'writer daemon started writing:',time.time(),cl.ENDC
 
         # wait until writing starts
         while not self.writer_daemon.is_writing:
             print "waiting for writer to start"
             time.sleep(0.1)
             continue
+        print cl.FAIL,'waited for writer daemon.is_writing:',time.time(),cl.ENDC
 
-        # run for designated period of time if set, otherwise finish
+        ## run for designated period of time if set, otherwise finish
+        #if stream_time is not None:
+            #stream_time = float(stream_time)
+            #tstart = time.time()
+            #while time.time() < tstart + stream_time:
+                ##time.sleep(stream_time/10.)
+                #time.sleep(0.1)
+                #continue
+            #print cl.FAIL,'countdown finished:',time.time(),cl.ENDC
+            
+            #self.stop_stream()
+            #print cl.FAIL,'stopped stream:',time.time(),cl.ENDC
+            
+        # run for designated number of samples if set, otherwise finish
         if stream_time is not None:
             stream_time = float(stream_time)
+            samples = 488.28125*stream_time
             tstart = time.time()
-            while time.time() < tstart + stream_time:
-                time.sleep(stream_time/10.)
-                continue
+            while True:
+                f = self.current_dirfile.nframes
+                print cl.FAIL,'dirfile frames = ',f,time.time(),cl.ENDC
+                if f>samples:
+                    break
+                else:
+                    self.current_dirfile.sync()
+                    time.sleep(1)
+                    #plt.pause(1)
 
+            
+            print cl.FAIL,'countdown finished:',time.time(),cl.ENDC
+            
             self.stop_stream()
-
+            print cl.FAIL,'stopped stream:',time.time(),cl.ENDC            
+            
+            
+    def change_attenuation(self,change):
+        in_now = self.input_atten.att
+        out_now = self.output_atten.att 
+        self.input_atten.att = in_now + change
+        self.output_atten.att = out_now - change
+        
+        inatts = np.loadtxt('/home/muscat/live_attens_in.txt')
+        inatts[self.chidx] = self.input_atten.att
+        np.savetxt('/home/muscat/live_attens_in.txt',inatts,fmt='%.2f')
+        
+        outatts = np.loadtxt('/home/muscat/live_attens_out.txt')
+        outatts[self.chidx] = self.output_atten.att
+        np.savetxt('/home/muscat/live_attens_out.txt',outatts,fmt='%.2f')
+        
+        
+        
+    def muscat_channel_init(self,stop_event=None):
+        stop_event = _multiprocessing.Event() if not isinstance( stop_event, _multiprocessing.synchronize.Event ) else stop_event
+        
+        name = ['phantom','clones','sith','hope','empire','jedi']
+        chidx = name.index(self.roachid)
+        lo_freqs = np.loadtxt('/home/muscat/toneslists/20191105-150mk/lo_freqs.txt')
+        inatts = np.loadtxt('/home/muscat/live_attens_in.txt')
+        outatts = np.loadtxt('/home/muscat/live_attens_out.txt')
+        
+        self.lo = lo_freqs[chidx]
+        #pcp.scripts.set_muscat_init_synth(self)
+        self.initialise_hardware()   
+        if stop_event.is_set(): return
+        self.roach_iface.initialise_fpga(force_reupload=1)     
+        if stop_event.is_set(): return
+    
+        self.input_atten.att=inatts[chidx]                                                
+        self.output_atten.att=outatts[chidx]                                              
+        self.synth_lo.frequency=self.lo 
+    
+    
+        #self.freqs,self.amps,self.phases = toneslist_tools.read_muscat_freqsfile('/home/muscat/toneslists/20191105-150mk/Tonelist_muscat_ch%d_20191105.freqsfile'%(chidx+1))
+        self.freqs,self.amps,self.phases = toneslist_tools.read_muscat_freqsfile('/home/muscat/live_toneslist_ch%d.freqsfile'%(chidx+1))
+        
+        select = (self.freqs>self.lo-240e6) & (self.freqs<self.lo+240e6)
+        self.freqs  = self.freqs[select]; self.amps=self.amps[select]; self.phases=self.phases[select]
+        
+        toneslist_tools.write_muscat_freqsfile('/home/muscat/live_toneslist_ch%d.freqsfile'%(chidx+1),self.freqs,self.amps,self.phases)
+        toneslist_tools.write_muscat_toneslist('/home/muscat/live_toneslist_ch%d.toneslist'%(chidx+1),self.freqs,amps=self.amps,phases=self.phases)
+        
+        
+        self.toneslist.tonelistfile = '/home/muscat/toneslists/20191105-150mk/Tonelist_muscat_ch%d_20191105.toneslist'%(chidx+1)
+        self.toneslist.tonelistfile = '/home/muscat/live_toneslist_ch%d.toneslist'%(chidx+1)
+        self.toneslist._bandwidth=512e6
+        self.toneslist.load_tonelist()
+        self.toneslist.bandwidth = 512e6
+        self.toneslist.phases=self.phases
+        self.toneslist.amp=self.amps
+        self.toneslist.lo_freq = self.lo
+        self.toneslist._update_frequencies()
+        if stop_event.is_set(): return
+        self.roach_iface.write_freqs_to_qdr(self.toneslist.bb_freqs,
+                                            1.0*self.amps,self.phases,
+                                          autoFullScale=False,
+                                          dac_iq_phase=np.radians(0)*np.ones(len(self.freqs)),
+                                          dac_iq_gain=np.ones(len(self.freqs))+1j*np.ones(len(self.freqs)),
+                                          dds_iq_gain=(1+1j)*np.ones(len(self.freqs)),
+                                          dds_iq_phase=np.radians(0)*np.ones(len(self.freqs)),
+                                          dds_iq_offset = 0*np.ones(len(self.freqs)),
+                                          dac_dither=False,dds_dither=False)
+        fft_shift = 2**7
+        _lib_fpga.write_to_fpga_register(self.roach_iface.fpga, 
+                                                { "fft_shift_reg": fft_shift - 1} , 
+                                                self.roach_iface.firmware_reg_list,sleep_time = 0.)        
+            
+    def rescale_dac(self,headroom_db=0.25):
+        power_tuning.rescale_dac(self,headroom_db)
+    
+        
+    def adc_levels(self,n=10):
+        
+        adcmax =  np.amax(np.amax(np.absolute([self.roach_iface.read_ADC() for j in range(n)]),axis=2),axis=0)
+        print 'ADCmax: Ch%d: (I,Q) = '%(self.chidx+1),adcmax
+        return adcmax
+    
+    def rescale_output_attens(self,adcmax = 0.7071, n_adc_reads=10):
+        adcnow = self.adc_levels(n_adc_reads)
+        da = 20*np.log10(adcnow/adcmax)
+        da = round(da*4)/4.
+        att = self.output_atten.att
+        self.output_atten.att = att + da
+        newadc = self.adc_levels(n_adc_reads)
+        print 'Ch%d: New output atten = %.2f, ADC (I,Q)= %s'%(self.chidx+1,newadc),
+    
+    
+    def retune_from_fit(self):
+        new_freqs = np.zeros(len(self.sweep.rf_freqs))
+        for k in range(len(new_freqs)):
+            ff=self.sweep.rf_freqs[k]
+            ss=self.sweep.fit_s21[k]
+            
+            idx = np.nanargmax(np.abs(np.gradient(ss,ff)))
+            new_freqs[k] = self.sweep.rf_freqs[k][idx]
+        
+        self.freqs = new_freqs
+        
+        toneslist_tools.write_muscat_freqsfile('/home/muscat/live_toneslist_ch%d.freqsfile'%(self.chidx+1),self.freqs,self.amps,self.phases)
+        toneslist_tools.write_muscat_toneslist('/home/muscat/live_toneslist_ch%d.toneslist'%(self.chidx+1),self.freqs,amps=self.amps,phases=self.phases)
+        
+        
+        self.toneslist.tonelistfile = '/home/muscat/live_toneslist_ch%d.toneslist'%(self.chidx+1)
+        self.toneslist._bandwidth=512e6
+        self.toneslist.load_tonelist()
+        self.toneslist.bandwidth = 512e6
+        self.toneslist.phases=self.phases
+        self.toneslist.amp=self.amps
+        self.toneslist.lo_freq = self.lo
+        self.toneslist._update_frequencies()
+        self.roach_iface.write_freqs_to_qdr(self.toneslist.bb_freqs,
+                                            1.0*self.amps,self.phases,
+                                          autoFullScale=False,
+                                          dac_iq_phase=np.radians(0)*np.ones(len(self.freqs)),
+                                          dac_iq_gain=np.ones(len(self.freqs))+1j*np.ones(len(self.freqs)),
+                                          dds_iq_gain=(1+1j)*np.ones(len(self.freqs)),
+                                          dds_iq_phase=np.radians(0)*np.ones(len(self.freqs)),
+                                          dds_iq_offset = 0*np.ones(len(self.freqs)),
+                                          dac_dither=False,dds_dither=False)
+        fft_shift = 2**7
+        _lib_fpga.write_to_fpga_register(self.roach_iface.fpga, 
+                                                { "fft_shift_reg": fft_shift - 1} , 
+                                                self.roach_iface.firmware_reg_list,sleep_time = 0.)  
+    
+    
     def stop_stream(self, **streamkwargs):
         """
 
@@ -618,6 +813,7 @@ class muxChannelList(object):
         assert isinstance(channel_list, (list, tuple)) and len(channel_list) > 0 , "input {0} not recognised".format( type(channel_list) )
 
         self.ROACH_LIST = channel_list
+        self.cols = ['b','g','r','c','y','m'][:len(channel_list)]
 
         # determine if the elements of the list are instantiated muxChannel objects
         if all( [isinstance(el, muxChannel) for el in channel_list]):
@@ -625,13 +821,158 @@ class muxChannelList(object):
 
         elif set(channel_list).issubset(ROACH_LIST):
             # create the muxchannels
-            for roachid in channel_list:
+            for chidx,roachid in enumerate(channel_list):
                 _logger.debug("initialising muxChannel({roachid}) ".format( roachid=roachid ) )
-                setattr( self, roachid, muxChannel(roachid) )
+                ch=muxChannel(roachid)
+                ch.chidx=chidx
+                ch.col = self.cols[chidx]
+                setattr( self, roachid, ch )
+        
+        
+        
+        self.muscat_lo_freqs = np.loadtxt('/home/muscat/toneslists/20191105-150mk/lo_freqs.txt')        
+                
 
     def _verify_channel_list_valid(self, channel_list):
         assert set(channel_list).issubset(self.ROACH_LIST), "channels given are not valid {0}".format(set(channel_list).difference(self.ROACH_LIST))
         return True
+
+    
+    def muscat_init(self,channels_to_init, **muscat_init_kwargs):
+        channel_obj_list = [getattr(self, instance) for instance in np.atleast_1d(channels_to_init)]
+        
+        mp_pool = _multiprocessing_pool.ThreadPool( processes = len(channels_to_init) )
+        #mp_pool = _multiprocessing.Pool( processes = len(channels_to_init) )
+        
+        stop_init = _multiprocessing.Event()
+        muscat_init_kwargs.update( {"stop_event": stop_init} )
+        try:
+            res = [mp_pool.apply_async(obj.muscat_channel_init, (), muscat_init_kwargs)  for obj in channel_obj_list ]
+
+            # wait for processing to finish 
+            while not all([r.ready() for r in res]):
+                #time.sleep(0.5)
+                plt.pause(0.5)
+
+
+        except KeyboardInterrupt:
+            stop_init.set()
+            _logger.info( "init interuptted" )
+
+        # close and join the ThreadPool
+        mp_pool.close()
+        mp_pool.join()
+
+        # reset the stop Event
+        stop_init.clear()
+
+        ret=[r.get() for r in res]
+        print ret
+        assert not all(ret),"something \"bad\" has happened."# all results should be None, unless something bad happened
+
+
+    def rescale_dacs(self,channels,headroom_db=0.5):
+        channel_obj_list = [getattr(self, instance) for instance in np.atleast_1d(channels)]
+        
+        mp_pool = _multiprocessing_pool.ThreadPool( processes = len(channels) )
+        #mp_pool = _multiprocessing.Pool( processes = len(channels_to_init) )
+        
+        res = [mp_pool.apply_async(obj.rescale_dac, (headroom_db,), )  for obj in channel_obj_list ]
+
+        # wait for processing to finish 
+        while not all([r.ready() for r in res]):
+            #time.sleep(0.5)
+            plt.pause(0.5)
+
+        # close and join the ThreadPool
+        mp_pool.close()
+        mp_pool.join()
+
+        ret=[r.get() for r in res]
+        print ret
+        assert not all(ret),"something \"bad\" has happened."# all results should be None, unless something bad happened
+        
+        inatt = [ch.input_atten.att for ch in channel_obj_list]
+        outatt = [ch.output_atten.att for ch in channel_obj_list]
+        np.savetxt('/home/muscat/live_attens_in.txt',inatt,fmt='%.2f')
+        np.savetxt('/home/muscat/live_attens_out.txt',outatt,fmt='%.2f')
+
+
+    def rescale_output_attens(self,channels, adcmax = 0.7071, n_adc_reads=10):
+        channel_obj_list = [getattr(self, instance) for instance in np.atleast_1d(channels)]
+        
+        mp_pool = _multiprocessing_pool.ThreadPool( processes = len(channels) )
+        #mp_pool = _multiprocessing.Pool( processes = len(channels_to_init) )
+        
+        res = [mp_pool.apply_async(obj.rescale_output_attens, (adcmax,n_adc_reads), )  for obj in channel_obj_list ]
+
+        # wait for processing to finish 
+        while not all([r.ready() for r in res]):
+            #time.sleep(0.5)
+            plt.pause(0.5)
+
+        # close and join the ThreadPool
+        mp_pool.close()
+        mp_pool.join()
+
+        ret=[r.get() for r in res]
+        #print ret
+        #assert not all(ret),"something \"bad\" has happened."# all results should be None, unless something bad happened
+        
+        inatt = [ch.input_atten.att for ch in channel_obj_list]
+        outatt = [ch.output_atten.att for ch in channel_obj_list]
+        np.savetxt('/home/muscat/live_attens_in.txt',inatt,fmt='%.2f')
+        np.savetxt('/home/muscat/live_attens_out.txt',outatt,fmt='%.2f')
+        
+        return ret
+
+
+        
+    def retune(self,channels):
+        
+        channel_obj_list = [getattr(self, instance) for instance in np.atleast_1d(channels)]
+        
+        mp_pool = _multiprocessing_pool.ThreadPool( processes = len(channels) )
+        #mp_pool = _multiprocessing.Pool( processes = len(channels_to_init) )
+        
+        res = [mp_pool.apply_async(obj.retune_from_fit, (), )  for obj in channel_obj_list ]
+
+        # wait for processing to finish 
+        while not all([r.ready() for r in res]):
+            #time.sleep(0.5)
+            plt.pause(0.5)
+
+        # close and join the ThreadPool
+        mp_pool.close()
+        mp_pool.join()
+
+        ret=[r.get() for r in res]
+        print ret
+        assert not all(ret),"something \"bad\" has happened."# all results should be None, unless something bad happened
+
+    def adc_levels(self,channels,n_adc_reads=10):
+        
+        channel_obj_list = [getattr(self, instance) for instance in np.atleast_1d(channels)]
+        
+        mp_pool = _multiprocessing_pool.ThreadPool( processes = len(channels) )
+        #mp_pool = _multiprocessing.Pool( processes = len(channels_to_init) )
+        
+        res = [mp_pool.apply_async(obj.adc_levels, (n_adc_reads,), )  for obj in channel_obj_list ]
+
+        # wait for processing to finish 
+        while not all([r.ready() for r in res]):
+            #time.sleep(0.5)
+            plt.pause(0.5)
+
+        # close and join the ThreadPool
+        mp_pool.close()
+        mp_pool.join()
+
+        ret=[r.get() for r in res]
+        return ret
+        
+        
+
 
     def set_attenuation(self, new_vals, channels_to_change, mode = "increment"):
         """
@@ -656,7 +997,8 @@ class muxChannelList(object):
             if mode == "absolute":
                 handle_to_atten.attenuation = att_val
             elif mode == "increment":
-                handle_to_atten.attenuation += att_val
+                att = handle_to_atten.attenuation
+                handle_to_atten.attenuation = att + att_val
             else:
                 _logger.warning("mode not recognised. Nothing done")
 
@@ -680,7 +1022,7 @@ class muxChannelList(object):
 
         # create multiprocesing.ThreadPool - threads required as synchronisation is based on reading of synth_lo objects
         mp_pool = _multiprocessing_pool.ThreadPool( processes = len(channels_to_sweep) )
-
+        
         stop_sweep = _multiprocessing.Event()
         sweep_kwargs.update( {"stop_event": stop_sweep} )
 
@@ -690,7 +1032,8 @@ class muxChannelList(object):
 
             # wait for sweeps to finish - allows
             while not all([r.ready() for r in res]):
-                time.sleep(0.5)
+                #time.sleep(0.5)
+                plt.pause(0.5)
 
         except KeyboardInterrupt:
             stop_sweep.set()
@@ -708,15 +1051,58 @@ class muxChannelList(object):
         # finally, switch lo back to on for all
         for ch in channel_obj_list:
             ch.loswitch = True
-
+        
+        fitting.muxchanlist_fit(self)
+        
         #return res
 
-    def start_stream_multi(self, channels_to_stream, *stream_args):
-        pass
-        # stream all
+    def start_stream_multi(self, channels, **stream_kwargs):
+        channel_obj_list = [getattr(self, instance) for instance in np.atleast_1d(channels)]
+        
+        mp_pool = _multiprocessing_pool.ThreadPool( processes = len(channels) )
+        #mp_pool = _multiprocessing.Pool( processes = len(channels_to_init) )
+        
+        res = [mp_pool.apply_async(obj.start_stream, (), stream_kwargs)  for obj in channel_obj_list ]
 
-    def stop_stream_multi(self, channels_to_stream, *stream_args):
-        pass
+        # wait for processing to finish 
+        while not all([r.ready() for r in res]):
+            #time.sleep(0.5)
+            plt.pause(0.5)
+
+        # close and join the ThreadPool
+        mp_pool.close()
+        mp_pool.join()
+
+        ret=[r.get() for r in res]
+        print ret
+        assert not all(ret),"something \"bad\" has happened."# all results should be None, unless something bad happened
+
+        return
+
+
+    def stop_stream_multi(self, channels, **stream_kwargs):
+        channel_obj_list = [getattr(self, instance) for instance in np.atleast_1d(channels)]
+        
+        mp_pool = _multiprocessing_pool.ThreadPool( processes = len(channels) )
+        #mp_pool = _multiprocessing.Pool( processes = len(channels_to_init) )
+        
+        res = [mp_pool.apply_async(obj.stop_stream, (), stream_kwargs)  for obj in channel_obj_list ]
+
+        # wait for processing to finish 
+        while not all([r.ready() for r in res]):
+            #time.sleep(0.5)
+            plt.pause(0.5)
+
+        # close and join the ThreadPool
+        mp_pool.close()
+        mp_pool.join()
+
+        ret=[r.get() for r in res]
+        print ret
+        assert not all(ret),"something \"bad\" has happened."# all results should be None, unless something bad happened
+
+
+
 
     def shutdown_all(self, which = None):
         for roachid in self.ROACH_LIST:
@@ -772,3 +1158,7 @@ def _worker(arg):
 
 
 # logging
+
+
+
+

@@ -64,6 +64,8 @@ _deque_manager = _syncmanager(); _deque_manager.start(signal.signal, (signal.SIG
 
 import setproctitle
 import logging as _logging
+import color_logs as CL
+
 _logger = _logging.getLogger(__name__)
 import pygetdata as _gd
 
@@ -308,7 +310,8 @@ class dataLogger(object):
                     packet = self._sockethandle.recv(9000)
                     count = np.frombuffer(packet[-9:-5],">u4")
                     if count - c > 1:
-                        print self.roachid," -> PACKET LOST, HELP", c, "  ", count - c - 1, "Packets lost"
+                        if c!=0:
+                            print CL.FAIL, self.roachid," -> PACKET LOST, HELP", c, "  ", count - c - 1, "Packets lost", CL.ENDC
 
                     c = count
                     # append (packet, time.time()) to queue which passes to packet to _writer_thread_function
@@ -354,7 +357,10 @@ class dataLogger(object):
 
         """
 
+        print CL.OKGREEN, 'entered _parse_packet_and_append_to_dirfile',time.time(),CL.ENDC
+        
         self._datapacket_dict = lib_datapackets.parse_datapacket_dict(datatowrite, self._datapacket_dict)
+        print CL.OKGREEN, 'parsed datapacket',time.time(),CL.ENDC
 
         #print '\n\n\n\n\n\n*****************'
         #print [len(i) for i in self._datapacket_dict.iteritems()]
@@ -365,6 +371,7 @@ class dataLogger(object):
 
         packet_counts = np.array(self._datapacket_dict['packet_count'][-1]).T.flatten()
         packet_check, = np.where( np.diff( packet_counts > 1 ))
+        print CL.OKGREEN, 'checked counts',time.time(),CL.ENDC
 
 
         if packet_check.size > 0:
@@ -372,7 +379,7 @@ class dataLogger(object):
 
         # append to data to dirfile
         lib_dirfiles.append_to_dirfile(self.current_dirfile, self._datapacket_dict)
-
+        print CL.OKGREEN, 'appended to dirfile',time.time(),CL.ENDC
         return 0
 
     #@profile
@@ -398,7 +405,7 @@ class dataLogger(object):
 
         # set niceness of this process
 
-        os.nice(15)
+        #os.nice(15)
 
         #assert isinstance(self._writer_queue, deque), "queue object doesn't appear to be correct"
         # check that a dirfile exists before starting wirter loop
@@ -434,12 +441,12 @@ class dataLogger(object):
             while self.is_writing.value:
 
                 _logger.debug( "in writing loop; {0},{1}".format (len(self._writer_queue), sizetowrite) )
-
                 # WRITE TO DISK WHEN BUFFER_LEN IS REACHED
 
                 if (len(self._writer_queue) >= sizetowrite) or not self.is_writing.value: # not self is_writing catches last loop iteration
 
-                    #print "len queue inside: ",len(self._writer_queue)
+                    print "len queue inside: ",len(self._writer_queue)
+                    print CL.OKGREEN, time.time(),CL.ENDC
 
                     datatowrite = [self._writer_queue.pop() for i in range(len(self._writer_queue))] # get all data currently in queue
                     _logger.debug("length of datatowrite {0}".format(len(datatowrite)))
@@ -447,18 +454,26 @@ class dataLogger(object):
                     for packet in datatowrite:
                         count = np.frombuffer(packet[0][-9:-5],">u4")
                         if count - c > 1:
-                            print self.roachid," -> Writer thread: ", c, "  ", count - c - 1, "Packets lost"
+                            if c!=0:
+                                print CL.FAIL, self.roachid," -> Writer thread: ", c, "  ", count - c - 1, "Packets lost", CL.ENDC
                         c = count
+                                        
+                    print CL.OKGREEN, 'checked loss',time.time(),CL.ENDC
 
                     retcode = self._parse_packet_and_append_to_dirfile(datatowrite) # parse the packet using the datapacket_dict and append ot the dirfile
+                    print CL.OKGREEN, 'appended to dirfile',time.time(),CL.ENDC
 
                     #del datatowrite
                     datatowrite = []
-
+                
 
                 else:
+                    #pass
                     time.sleep(sizetowrite/488*0.5)
-
+            
+            #if self.current_dirfile:
+                #self.current_dirfile.flush()
+            
             if datatowrite:
                 _logger.warning( "{0} packets didn't get saved!!".format( len(datatowrite) ) ) # just in case some data is left in the buffer
                 datatowrite = []

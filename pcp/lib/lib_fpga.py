@@ -2,7 +2,6 @@
 
 import time as _time, os as _os, logging as _logging, struct as _struct, socket as _socket # inet_aton as _inet_aton
 import threading as _threading, tqdm as _tqdm, functools as _functools, time as _time
-from ..configuration import color_msg as cm
 
 import numpy as _np
 
@@ -14,6 +13,7 @@ from ..configuration import firmware_registers as _firmware_registers,\
 
 from . import lib_qdr as _lib_qdr
 
+from .. import color_logs as CL
 _logger = _logging.getLogger(__name__)
 
 try:
@@ -29,7 +29,7 @@ def check_registers_are_valid(registers, firmware_reg_list):
     assert type(registers) in [str, list], "enter either a single string, or a list of strings to check. Given type = {0}".format(type(registers))
     registers = _np.atleast_1d(registers).astype(str)
 
-    # check that the register names match the ones defined in the firmware
+    # check that the register names match the onesdefined in the firmware
 
     # TODO check with fpga.listdev too
 
@@ -82,13 +82,15 @@ def get_fpga_instance(ipaddress):
         return
 
     try:
-        return _casperfpga.katcp_fpga.KatcpFpga( ipaddress, timeout = 10. )
+        return _casperfpga.katcp_fpga.KatcpFpga( ipaddress, timeout = 20. )
     except RuntimeError:
         # bad things have happened, and nothing else should proceed
         _logger.exception( "Error, fpga not connected." )
         return None
-    except:
+    except Exception as e:
         _logger.exception( 'Error connecting to \'{0}\'. Is it switched on? Check network settings!'.format(ipaddress) )
+        
+
         return None
 
 
@@ -198,7 +200,7 @@ class roachInterface(object):
 
         # write registers (dds_shift + accum_len)
         write_to_fpga_register(self.fpga, { 'accum_len_reg': 2**(self.roach_config['roach_accum_len'])-1, \
-                                            'dds_shift_reg': self.roach_config['dds_shift']  }, self.firmware_reg_list)
+            'dds_shift_reg': self.roach_config['dds_shift']  }, self.firmware_reg_list)
 
         # configure downlink
         self.configure_downlink_registers()
@@ -206,7 +208,7 @@ class roachInterface(object):
         # activate PPS
         self.active_pps()
 
-    @progress_wrapped(description=cm.BOLD+"Firmware"+cm.ENDC, estimated_time=2.83)
+    @progress_wrapped(description=CL.BOLD+"Firmware"+CL.ENDC, estimated_time=2.5)
     def upload_firmware_file(self, firmware_file = None, force_reupload=False):
         """
 
@@ -237,10 +239,10 @@ class roachInterface(object):
         while not ( self.fpga.is_connected() ):
             if (_time.time() - tnow) > 1:
                 pass
-            raise RuntimeError(cm.ERROR + "Connection timeout to roach." + cm.ENDC)
+            raise RuntimeError(CL.FAIL + "Connection timeout to roach." + CL.ENDC)
 
         _time.sleep(0.1)
-        print cm.OKGREEN + 'Connected to ' + cm.BOLD, self.fpga.host, cm.ENDC
+        print CL.OKGREEN + 'Connected to ' + CL.BOLD, self.fpga.host, CL.ENDC
 
         # check if a firmware is running, and if so, check if it is the same version as we're trying to upload
         if self.fpga.is_running() and not force_reupload:
@@ -262,11 +264,11 @@ class roachInterface(object):
                     self.fpg_uploaded = True
                     return False
 
-        print cm.OKBLUE + "uploading firmware file \'{0}\' to roach".format(firmware_file) + cm.ENDC
+        print CL.OKBLUE + "uploading firmware file \'{0}\' to roach".format(firmware_file), CL.ENDC
         success = self.fpga.upload_to_ram_and_program(firmware_file, timeout = 10.)
         _time.sleep(0.5)
         if success == None:
-            print cm.OKGREEN + 'Successfully uploaded:', firmware_file, cm.ENDC
+            print "%sSuccessfully uploaded: %s %s"%(CL.OKGREEN, str(firmware_file), CL.ENDC)
             self.firmware_file = firmware_file
             self.fpg_uploaded = True
             return True
@@ -276,11 +278,11 @@ class roachInterface(object):
             raise RuntimeError("Firmware upload failed.")
 
     # ---------------------------------------------------------------------------------------------------------
-    @progress_wrapped(description=cm.BOLD+"QDR Calibration"+cm.ENDC, estimated_time=5.7)
+    @progress_wrapped(description="%sQDR Calibration%s"%(CL.BOLD, CL.ENDC), estimated_time=5.7)
     def calibrate_qdr(self):
     # Calibrates the QDRs. Run after loading firmware
         write_to_fpga_register(self.fpga, { 'dac_reset_reg': 1 }, self.firmware_reg_list )
-        print cm.OKGREEN + 'DAC on' + cm.ENDC
+        print "%sDAC on%s"%(CL.OKGREEN, CL.ENDC)
 
         bFailHard = False
         calVerbosity = 1
@@ -288,7 +290,7 @@ class roachInterface(object):
         qdrMemName = self.firmware_reg_list['qdr0_reg']
         qdrNames   = [self.firmware_reg_list['qdr0_reg'], self.firmware_reg_list['qdr1_reg']] # <- not used?
 
-        print cm.OKBLUE + 'Fpga Clock Rate =' + cm.BOLD, self.fpga.estimate_fpga_clock(), cm.ENDC
+        print "%sFpga Clock Rate = %s %s"%(CL.OKBLUE, str(self.fpga.estimate_fpga_clock()), CL.ENDC)
         self.fpga.get_system_information()
         results = {}
         for qdr in self.fpga.qdrs:
@@ -298,9 +300,9 @@ class roachInterface(object):
         print 'qdr cal results:',results
         for qdr in self.fpga.qdrs:
             if not results[qdr.name]:
-                print cm.ERROR + '\n************ QDR Calibration FAILED ************' + cm.ENDC
+                print "%s\n************ QDR Calibration FAILED ************%s"%(CL.FAIL, CL.ENDC)
                 return -1
-        print cm.OKGREEN + 'QDR Calibrated' + cm.ENDC
+        print "%sQDR Calibrated%s"%(CL.OKGREEN, CL.ENDC)
         return 0
 
     def configure_downlink_registers(self):
@@ -331,12 +333,12 @@ class roachInterface(object):
         write_to_fpga_register(self.fpga, { 'udp_start_reg': 1 }, self.firmware_reg_list, sleep_time = 0.1 )
         write_to_fpga_register(self.fpga, { 'udp_start_reg': 0 }, self.firmware_reg_list, sleep_time = 0.1 )
 
-        print cm.OKGREEN + "Downlink registers configured" + cm.ENDC
+        print CL.OKGREEN + "Downlink registers configured" + CL.ENDC
 
         return
 
     def gen_waveform_from_freqs(self, freqs, amps = None, phases = None, which = "dac_lut", autoFullScale=True, 
-        dac_iq_gain=None, dac_iq_phase=None, dds_iq_gain=None, dds_iq_phase=None, dds_iq_offset=None):
+        dac_iq_gain=None, dac_iq_phase=None, dds_iq_gain=None, dds_iq_phase=None, dds_iq_offset=None,dac_dither=False,dds_dither=False):
         """
         Method to generate the I and Q waveforms that will be sent to the DAC and DDS look-up tables.
 
@@ -365,8 +367,6 @@ class roachInterface(object):
         _logger.debug("frequencies being generated: {0}".format(freqs) )
 
         freqs  = _np.array(freqs)
-        amps   = _np.array(amps)
-        phases = _np.array(phases) 
         freqs  = _np.round( freqs / self.DAC_FREQ_RES) * self.DAC_FREQ_RES
         amp_full_scale = (2**15 - 1)
 
@@ -376,7 +376,8 @@ class roachInterface(object):
         fft_len   = self.LUTBUF_LEN    if which == "dac_lut" else self.LUTBUF_LEN/self.FFT_LEN          if which == "dds_lut" else None
         samp_freq = self.DAC_SAMP_FREQ if which == "dac_lut" else self.FPGA_SAMP_FREQ/(self.FFT_LEN/2.) if which == "dds_lut" else None
 
-        fft_bin_index = _np.round((freqs / samp_freq) * fft_len).astype('int')
+	fft_bin_index = _np.round((freqs / samp_freq) * fft_len).astype('int')
+        fft_neg_bin_index = _np.round((-1*freqs / samp_freq) * fft_len).astype('int')
 
         #define any/all amplitude/phase/i/q corrections
         if which == "dds_lut":
@@ -390,7 +391,7 @@ class roachInterface(object):
                 dds_iq_phase = _np.zeros_like(freqs)
         else:
             amps   = _np.ones_like(freqs) if amps is None else amps           
-            phases = _np.random.uniform(0,2*np.pi,len(freqs)) if phases is None else phases
+            phases = _np.random.uniform(0,2*_np.pi,len(freqs)) if phases is None else phases
             if dac_iq_gain is None:
                 dac_iq_gain = _np.ones_like(freqs) + 1j*_np.ones_like(freqs)
             if dac_iq_phase is None:
@@ -410,10 +411,14 @@ class roachInterface(object):
         qspec = _np.fft.fft(qwave)
         if which=='dac_lut':
             ispec[fft_bin_index] *= dac_iq_gain.real
+            ispec[fft_neg_bin_index] *= dac_iq_gain.real
             qspec[fft_bin_index] *= dac_iq_gain.imag
+            qspec[fft_neg_bin_index] *= dac_iq_gain.imag
         if which=='dds_lut':
             ispec[fft_bin_index] *= dds_iq_gain.real
+            ispec[fft_neg_bin_index] *= dds_iq_gain.real
             qspec[fft_bin_index] *= dds_iq_gain.imag          
+            qspec[fft_neg_bin_index] *= dds_iq_gain.imag          
         iwave = _np.fft.ifft(ispec)
         qwave = _np.fft.ifft(qspec)
 
@@ -421,8 +426,10 @@ class roachInterface(object):
         qspec = _np.fft.fft(qwave)
         if which=='dac_lut':
             qspec[fft_bin_index] *= _np.exp(-1j*dac_iq_phase)
+            qspec[fft_neg_bin_index] *= _np.exp(-1j*dac_iq_phase*-1.)
         if which=='dds_lut':
             qspec[fft_bin_index] *= _np.exp(-1j*dds_iq_phase)
+            qspec[fft_neg_bin_index] *= _np.exp(-1j*dds_iq_phase*-1.)
         qwave = _np.fft.ifft(qspec)
         
         wave = iwave + 1j*qwave
@@ -447,26 +454,36 @@ class roachInterface(object):
             #Eliminates tone power variations when retuning with different freqs/amps/phases
             #Requires manually checking for DAC saturation and/or usage of full scale range
             if which=='dac_lut':
-                waveMax = 6e-5 #force this to fit 1000 tones in FS range
-                i,q = (wave.real/waveMax)*(amp_full_scale), (wave.imag/waveMax)*(amp_full_scale)  
-                if max(i.max(),q.max()) > amp_full_scale:
-                    print 'WARNING: DAC SATURATED: range = (%d,%d) but (imax,qmax) = (%.1f,%.1f)'%(-2**15,2**15-1,i.max(),q.max())
-                if min(i.min(),q.min()) < -1*amp_full_scale -1:
-                    print 'WARNING: DAC SATURATED: range = (%d,%d) but (imax,qmax) = (%.1f,%.1f)'%(-2**15,2**15-1,i.min(),q.min())
+                waveMax = 6e-5 #force this to fit 1000 tones in FS rangei
+                if dac_dither:
+                    i,q = (wave.real/waveMax)*(amp_full_scale-2), (wave.imag/waveMax)*(amp_full_scale-2)
+                    i+=_np.random.triangular(-1,0,1,size=len(i))
+                    q+=_np.random.triangular(-1,0,1,size=len(q))
+                else:
+                    i,q = (wave.real/waveMax)*(amp_full_scale), (wave.imag/waveMax)*(amp_full_scale)  
+                if max(int(i.max()),int(q.max())) > amp_full_scale:
+                    print CL.FAIL + 'WARNING: DAC SATURATED: range = (%d,%d) but (imax,qmax) = (%.1f,%.1f)'%(-2**15,2**15-1,i.max(),q.max()) + CL.ENDC
+                if min(int(i.min()),int(q.min())) < -1*amp_full_scale -1:
+                    print CL.FAIL + 'WARNING: DAC SATURATED: range = (%d,%d) but (imax,qmax) = (%.1f,%.1f)'%(-2**15,2**15-1,i.min(),q.min())+ CL.ENDC
 
             if which=='dds_lut':
-                waveMax = 9.5367431641e-7 #single tone in fs range 
-                i,q = (wave.real/waveMax)*(amp_full_scale), (wave.imag/waveMax)*(amp_full_scale)  # <-- I, Q
-                i+=dds_iq_offset
-                q+=dds_iq_offset
-                if max(i.max(),q.max()) > amp_full_scale:
-                    print 'WARNING: DDS SATURATED: range = (%d,%d) but (imax,qmax) = (%.1f,%.1f)'%(-2**15,2**15-1,i.max(),q.max())
-                if min(i.min(),q.min()) < -1*amp_full_scale -1:
-                    print 'WARNING: DDS SATURATED: range = (%d,%d) but (imax,qmax) = (%.1f,%.1f)'%(-2**15,2**15-1,i.min(),q.min())
+                waveMax = 0.000488281249891905 #single tone in fs range 
+                if dds_dither:
+                    i,q = (wave.real/waveMax)*(amp_full_scale-2), (wave.imag/waveMax)*(amp_full_scale-2)  # <-- I, Q
+                    i+=_np.random.triangular(-1,0,1,size=len(i))
+                    q+=_np.random.triangular(-1,0,1,size=len(q))
+                else:
+                    i,q = (wave.real/waveMax)*(amp_full_scale), (wave.imag/waveMax)*(amp_full_scale)  # <-- I, Q
+                i+=dds_iq_offset.real
+                q+=dds_iq_offset.imag                   
+                if max(int(i.max()),int(q.max())) > amp_full_scale:
+                    print CL.FAIL + 'WARNING: DDS SATURATED: range = (%d,%d) but (imax,qmax) = (%.1f,%.1f)'%(-2**15,2**15-1,i.max(),q.max())+ CL.ENDC
+                if min(int(i.min()),int(q.min())) < -1*amp_full_scale -1:
+                    print CL.FAIL + 'WARNING: DDS SATURATED: range = (%d,%d) but (imin,qmin) = (%.1f,%.1f)'%(-2**15,2**15-1,i.min(),q.min())+ CL.ENDC
 
             #print only once:
             if which=='dac_lut':
-                print 'Waveform rescaled by fixed amount: waveMax:',waveMax,'New Ipp:',_np.ptp(i),'New Qpp:',_np.ptp(q)
+                print 'Waveform rescaled: waveMax:',waveMax,'New Ipp:',_np.ptp(i),'New Qpp:',_np.ptp(q)
             return i,q
 
 
@@ -487,7 +504,7 @@ class roachInterface(object):
 
         return freq_residuals
 
-    def define_dds_lut(self, freqs,autoFullScale=True,dds_iq_gain=None, dds_iq_phase=None, dds_iq_offset=None):
+    def define_dds_lut(self, freqs,autoFullScale=True,dds_iq_gain=None, dds_iq_phase=None, dds_iq_offset=None,dds_dither=False):
         # SLOW - takes ~1 s to run with 101 tones
         # Builds the DDS look-up-table from I and Q given by freq_comb. freq_comb is called with the sample rate equal to the
         # sample rate for a single FFT bin.
@@ -496,23 +513,27 @@ class roachInterface(object):
         I_dds, Q_dds = _np.zeros( (2, self.LUTBUF_LEN) )
 
         for idx, freq in enumerate(freq_residuals):
+            dds_gain = None if dds_iq_gain is None else dds_iq_gain[idx]
+            dds_phase = None if dds_iq_phase is None else dds_iq_phase[idx]
+            dds_offset = None if dds_iq_offset is None else dds_iq_offset[idx]
+
             I, Q = self.gen_waveform_from_freqs(freq, amps=None, phases=None, which='dds_lut',autoFullScale=autoFullScale,
-            dds_iq_gain=dds_iq_gain, dds_iq_phase=dds_iq_phase, dds_iq_offset=dds_iq_offset)
+            dds_iq_gain=dds_gain, dds_iq_phase=dds_phase, dds_iq_offset=dds_offset,dds_dither=dds_dither)
             I_dds[idx::self.FFT_LEN] = I
             Q_dds[idx::self.FFT_LEN] = Q
         # store this somewhere useful?
 
         return I_dds, Q_dds
 
-    def pack_luts(self, freqs, amps, phases, autoFullScale=True, dac_iq_gain=None, dac_iq_phase=None, dds_iq_gain=None, dds_iq_phase=None, dds_iq_offset=None):
+    def pack_luts(self, freqs, amps, phases, autoFullScale=True, dac_iq_gain=None, dac_iq_phase=None, dds_iq_gain=None, dds_iq_phase=None, dds_iq_offset=None,dac_dither=False,dds_dither=False):
         # packs the I and Q look-up-tables into strings of 16-b integers, in preparation to write to the QDR.
         # Returns the string-packed look-up-tables
 
         I_dac, Q_dac = self.gen_waveform_from_freqs(freqs, amps, phases, which = "dac_lut",autoFullScale=autoFullScale,
-            dac_iq_gain=dac_iq_gain, dac_iq_phase=dac_iq_phase)
+            dac_iq_gain=dac_iq_gain, dac_iq_phase=dac_iq_phase,dac_dither=dac_dither)
 
         I_dds, Q_dds = self.define_dds_lut(freqs, autoFullScale=autoFullScale,
-            dds_iq_gain=dds_iq_gain, dds_iq_phase=dds_iq_phase, dds_iq_offset=dds_iq_offset)
+            dds_iq_gain=dds_iq_gain, dds_iq_phase=dds_iq_phase, dds_iq_offset=dds_iq_offset, dds_dither=dds_dither)
 
         self._I_dds = I_dds
         self._Q_dds = Q_dds
@@ -551,78 +572,6 @@ class roachInterface(object):
   #               Switch used to return a waveform for the DAC_LUT or DDS_LUT, respectively.
 
   #       Returns
-  #           I, Q:
-  #           Arrays of I and Q waveforms ready to be written to the DAC and DDS.
-  #       """
-  #       # Generates a frequency comb for the DAC or DDS look-up-tables. DAC_LUT = True for the DAC LUT. Returns I and Q
-  #       _logger.debug("frequencies being generated: {0}".format(freqs) )
-
-  #       freqs = _np.round( freqs / self.DAC_FREQ_RES) * self.DAC_FREQ_RES
-  #       amp_full_scale = (2**15 - 1)
-
-  #       assert which in ['dac_lut', 'dds_lut']
-
-  #       # For the DDS_LUT, there are two bins returned for every fpga clock, so the bin sample rate is 256 MHz / half the fft length
-  #       fft_len   = self.LUTBUF_LEN    if which == "dac_lut" else self.LUTBUF_LEN/self.FFT_LEN          if which == "dds_lut" else None
-  #       samp_freq = self.DAC_SAMP_FREQ if which == "dac_lut" else self.FPGA_SAMP_FREQ/(self.FFT_LEN/2.) if which == "dds_lut" else None
-
-  #       fft_bin_index = _np.round((freqs / samp_freq) * fft_len).astype('int')
-
-  #       if which == "dds_lut":
-  #           phases, amps = ( _np.zeros_like(fft_bin_index), _np.ones_like(fft_bin_index) )
-  #       else:
-  #           phases, amps = (_np.random.uniform(0., 2.*_np.pi, len(freqs)) if phases is None else phases,\
-  #                           _np.ones_like(freqs) if amps is None else amps)
-
-  #       _logger.debug( "amps and phases to write: {0}, {1}".format(amps, phases) )
-
-  #       spec = _np.zeros(fft_len, dtype='complex')
-  #       spec[fft_bin_index] = amps * _np.exp( 1j * phases )
-  #       wave = _np.fft.ifft(spec)
-  #       waveMax = _np.max(_np.abs(wave))
-
-  #   	return (wave.real/waveMax)*(amp_full_scale), (wave.imag/waveMax)*(amp_full_scale)  # <-- I, Q
-
-  #   def select_bins(self, freqs):
-  #       # Calculates the offset from each bin center, to be used as the DDS LUT frequencies, and writes bin numbers to RAM
-  #       fft_bin_index = _np.round( (freqs/2/self.FPGA_SAMP_FREQ) * self.FFT_LEN ).astype('int')
-  #       f_bin = fft_bin_index * self.DAC_SAMP_FREQ/self.FFT_LEN
-  #       fft_bin_index[ fft_bin_index < 0 ] += self.FFT_LEN
-  #       freq_residuals = freqs - f_bin
-  #       bin_freqs = _np.unique(f_bin)
-
-  #       # this is a bit slow...
-  #       for ch, idx in enumerate(fft_bin_index):
-  #           write_to_fpga_register(self.fpga, { 'bins_reg': idx, \
-  #                                               'load_bins_reg': 2*ch + 1}, self.firmware_reg_list, sleep_time = 0. )
-  #           write_to_fpga_register(self.fpga, {'load_bins_reg': 0 }, self.firmware_reg_list, sleep_time = 0. )
-
-  #                                               #enable write ram at address i
-
-  #       # --- From Sam R's Blastfirmware code, but doesn't appear to included in kidPy ---
-		# # # This is done to clear any unused channelizer RAM addresses
-		# # for n in range(1024 - len(bins)):
-		# # 	self.fpga.write_int('bins', 0)#have fft_bin waiting at ram gate
-		# #   self.fpga.write_int('load_bins', 2*ch + 1)#enable write ram at address i
-		# #   self.fpga.write_int('load_bins', 0)#disable write
-		# # 	ch += 1
-		# # 	n += 1
-
-  #       return freq_residuals
-
-  #   def define_dds_lut(self, freqs): # SLOW - takes ~1 s to run with 101 tones
-  #       # Builds the DDS look-up-table from I and Q given by freq_comb. freq_comb is called with the sample rate equal to the
-  #       # sample rate for a single FFT bin.
-  #       # There are two bins returned for every fpga clock, so the bin sample rate is 256 MHz / half the fft length
-  #       freq_residuals = self.select_bins(freqs)
-  #       I_dds, Q_dds = _np.zeros( (2, self.LUTBUF_LEN) )
-
-  #       for idx, freq in enumerate(freq_residuals):
-  #           I, Q = self.gen_waveform_from_freqs(freq, amps=None, phases=None, which='dds_lut')
-  #           I_dds[idx::self.FFT_LEN] = I
-  #           Q_dds[idx::self.FFT_LEN] = Q
-  #       # store this somewhere useful?
-
   #       return I_dds, Q_dds
 
   #   def pack_luts(self, freqs, amps, phases):
@@ -647,7 +596,7 @@ class roachInterface(object):
 
   #       return I_lut.astype('>i2').tostring(), Q_lut.astype('>i2').tostring() # I_lut_packed, Q_lut_packed
 
-    @progress_wrapped(description=cm.BOLD+"Writing tones"+cm.ENDC, estimated_time=15.75)
+    @progress_wrapped(description=CL.BOLD+"Writing tones"+CL.ENDC, estimated_time=14)
     def write_freqs_to_qdr(self, freqs, amps, phases, autoFullScale=True, dac_iq_gain=None, dac_iq_phase=None, dds_iq_gain=None, dds_iq_phase=None, dds_iq_offset=None, **kwargs):
         # Writes packed LUTs to QDR
 
@@ -671,7 +620,7 @@ class roachInterface(object):
 
         write_to_fpga_register(self.fpga, { "accum_reset_reg": 1, \
                                             "write_comb_len_reg": len(freqs) }, self.firmware_reg_list, sleep_time = 0. )
-        print cm.OKGREEN + 'Tones written.' + cm.ENDC
+        print CL.OKGREEN + 'Tones written.' + CL.ENDC
 
     def make_freq_comb(self, nfreq = 101):
 
@@ -704,27 +653,27 @@ class roachInterface(object):
 
     def read_QDR_katcp(self):
         # Reads out QDR buffers with KATCP, as 16-b signed integers.
-        self.QDR0 = np.fromstring(self.fpga.read('qdr0_memory', 8 * 2**20), dtype = '>i2')
-        self.QDR1 = np.fromstring(self.fpga.read('qdr1_memory', 8 * 2**20), dtype = '>i2')
+        self.QDR0 = _np.fromstring(self.fpga.read('qdr0_memory', 8 * 2**20), dtype = '>i2')
+        self.QDR1 = _np.fromstring(self.fpga.read('qdr1_memory', 8 * 2**20), dtype = '>i2')
         self.I_katcp = self.QDR0.reshape(len(self.QDR0)/4., 4.)
         self.Q_katcp = self.QDR1.reshape(len(self.QDR1)/4., 4.)
         #self.I_dac_katcp = np.hstack(zip(self.I_katcp[:,1],self.I_katcp[:,0]))
         #self.Q_dac_katcp = np.hstack(zip(self.Q_katcp[:,1],self.Q_katcp[:,0]))
         #self.I_dds_katcp = np.hstack(zip(self.I_katcp[:,3],self.I_katcp[:,2]))
         #self.Q_dds_katcp = np.hstack(zip(self.Q_katcp[:,3],self.Q_katcp[:,2]))
-        self.I_dac_katcp = np.dstack((self.I_katcp[:,1], self.I_katcp[:,0])).ravel()
-        self.Q_dac_katcp = np.dstack((self.Q_katcp[:,1], self.Q_katcp[:,0])).ravel()
-        self.I_dds_katcp = np.dstack((self.I_katcp[:,3], self.I_katcp[:,2])).ravel()
-        self.Q_dds_katcp = np.dstack((self.Q_katcp[:,3], self.Q_katcp[:,2])).ravel()
+        self.I_dac_katcp = _np.dstack((self.I_katcp[:,1], self.I_katcp[:,0])).ravel()
+        self.Q_dac_katcp = _np.dstack((self.Q_katcp[:,1], self.Q_katcp[:,0])).ravel()
+        self.I_dds_katcp = _np.dstack((self.I_katcp[:,3], self.I_katcp[:,2])).ravel()
+        self.Q_dds_katcp = _np.dstack((self.Q_katcp[:,3], self.Q_katcp[:,2])).ravel()
 
     #Active PPS
     def active_pps(self, active=True):
         if active:
             write_to_fpga_register(self.fpga,{'pps_start_reg':1}, self.firmware_reg_list)
-            print cm.OKGREEN + "PPS Registers Enabled" + cm.ENDC
+            print CL.OKGREEN + "PPS Registers Enabled" + CL.ENDC
         else:
             write_to_fpga_register(self.fpga,{'pps_start_reg':0}, self.firmware_reg_list)
-            print cm.OKGREEN + "PPS Registers Disabled" + cm.ENDC
+            print CL.WARNING + "PPS Registers Disabled" + CL.ENDC
 
     # KidPy functions
     # 1. Read ADC
@@ -883,8 +832,3 @@ class roachInterface(object):
     #     # write registers (dds_shift + accum_len)
     #     _lib_fpga.write_to_fpga_register(fpga, { 'accum_len_reg': self.ROACH_CFG['roach_accum_len'], \
     #                                             'dds_shift_reg': self.ROACH_CFG['dds_shift']  } )
-    #
-    #     # configure downlink
-    #     _lib_fpga.configure_downlink_registers(fpga, self.roachid)
-    #
-    #     return fpga

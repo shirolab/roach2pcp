@@ -11,21 +11,6 @@ import numpy as np
 _logger = _logging.getLogger(__name__)
 
 import net_ifaces as ni
-import color_msg as cm
-
-# this information should be somewhere else....
-MIN_BUFFER = 0
-MAX_BUFFER = 9000
-
-MIN_HEADER = 0
-MAX_HEADER = 42
-
-MIN_SYNTH_FREQ = 0         # 0 MHz
-MAX_SYNTH_FREQ = 12000     # 12 MHz
-MIN_STEP_SYNTH = 0.1    # This is for Windfreak
-
-MAX_NUM_FREQS = 1012
-MIN_NUM_FREQS = 1
 
 config_dir = _os.path.dirname(__file__) # returns this directory, regardless of the cwd
 
@@ -79,21 +64,19 @@ def save_current_config():
     """
 
 # Funtions to verify one by one the consistency of the configuration files
-
 def verify_general_config(general_config):
     """
     Check coherence in the parameters of "general_config.cfg"
     """
-    assert _os.path.exists(general_config["firmware_file"]), cm.FAIL + "Firmware file doesn't exist" + cm.ENDC
-
-    print cm.OKBLUE + "Format in general_config.cfg parameters are consistent." + cm.ENDC
+    assert _os.path.exists(general_config["firmware_file"]), _logger.warning("Firmware file doesn't exist")
+    _logger.info("Format in general_config.cfg parameters are consistent.")
 
 def verify_filesys_config(filesys_config):
     """
     Check the file paths exists
     """
-    assert _os.path.isdir(filesys_config["rootdir"]), cm.FAIL + filesys_config["rootdir"] + ". Root directory doesn't exists!" + cm.ENDC
-    print cm.OKBLUE + "Parameters in filesys_config.cfg are consistent." + cm.ENDC
+    assert _os.path.isdir(filesys_config["rootdir"]), _logger.warning(filesys_config["rootdir"] + ". Root directory doesn't exists!")
+    _logger.info("Parameters in filesys_config.cfg are consistent.")
 
 def verify_hardware_config(hardware_config):
     """
@@ -103,7 +86,7 @@ def verify_hardware_config(hardware_config):
     n_synths = _num_synths(hardware_config)
 
     for synth in n_synths:
-        assert "modelnum" in hardware_config["synth_config"][synth] and hardware_config["synth_config"][synth]["modelnum"] != None, cm.FAIL + synth +" needs a modelnum to work" + cm.ENDC
+        assert "modelnum" in hardware_config["synth_config"][synth] and hardware_config["synth_config"][synth]["modelnum"] != None, _logger.warning(synth +" needs a modelnum to work")
 
     # Attenuators
     in_Att = False
@@ -116,13 +99,13 @@ def verify_hardware_config(hardware_config):
             out_Att = True
 
     if len(n_synths) <= 0:
-        print cm.WARNING + "There is not synthesizers defined in the configuration file" + cm.ENDC
+        _logger.warning("There is not synthesizers defined in the configuration file")
     elif not in_Att:
-        print cm.WARNING + "Input attenuators is not defined" + cm.ENDC
+        _logger.warning("Input attenuators is not defined")
     elif not out_Att:
-        print cm.WARNING + "Output attenuators is not defined" + cm.ENDC
+        _logger.warning("Output attenuators is not defined")
     else:
-        print cm.OKBLUE + "Synthesizers and attenuators are defined in the configuration file" + cm.ENDC
+        _logger.info("Synthesizers and attenuators are defined in the configuration file")
 
 def verify_network_config(network_config):
 
@@ -132,83 +115,66 @@ def verify_network_config(network_config):
     Check if the network parameters are consistent
     """
     for n in n_roaches:
-        assert _is_valid_ip(network_config[n]["roach_ppc_ip"]), cm.FAIL + "IP address is not valid!" + cm.ENDC
-        print n + ":" + network_config[n]["roach_ppc_ip"] + cm.OKGREEN + " IP address valid" + cm.ENDC
+        assert _is_valid_ip(network_config[n]["roach_ppc_ip"]), _logger.warning("IP address is not valid!")
+        _logger.info(n + ":" + network_config[n]["roach_ppc_ip"] + " IP address valid")
 
         # Check parameters of UDP Source are valid
-        assert _is_valid_ip(network_config[n]["udp_source_ip"]), n + ":" + network_config[n]["udp_source_ip"] + cm.FAIL + " UDP Source IP format is not valid!" + cm.ENDC
-        print n + ":" + network_config[n]["udp_source_ip"] + cm.OKGREEN + " UDP Source IP format is valid" + cm.ENDC
+        assert _is_valid_ip(network_config[n]["udp_source_ip"]), _logger.warning(n + ":" + network_config[n]["udp_source_ip"] + " UDP Source IP format is not valid!")
+        _logger.info(n + ":" + network_config[n]["udp_source_ip"] + " UDP Source IP format is valid")
 
-        assert _is_valid_mac(network_config[n]["udp_source_mac"]), n + ":" + network_config[n]["udp_source_mac"] + cm.FAIL + " UDP Source MAC format is not valid!" + cm.ENDC
-        print n + ":" + network_config[n]["udp_source_mac"] + cm.OKGREEN + " UDP Source MAC format is valid" + cm.ENDC
+        assert _is_valid_mac(network_config[n]["udp_source_mac"]), _logger.warning(n + ":" + network_config[n]["udp_source_mac"] + " UDP Source MAC format is not valid!")
+        _logger.info(n + ":" + network_config[n]["udp_source_mac"] + " UDP Source MAC format is valid")
 
         if _is_valid_port(network_config[n]["udp_source_port"]) == "reserved":
-            print n + ":" + str(network_config[n]["udp_source_port"]) + cm.WARNING + " UDP Source port needs root permisions" + cm.ENDC
+            _logger.warning(n + ":" + str(network_config[n]["udp_source_port"]) + " UDP Source port needs root permisions")
         else:
-            assert _is_valid_port(network_config[n]["udp_source_port"]), n + ":" + network_config[n]["udp_source_port"] + cm.FAIL + " UDP Source port format is not valid!" + cm.ENDC
-            print n + ":" + str(network_config[n]["udp_source_port"]) + cm.OKGREEN + " UDP Source port format is valid" + cm.ENDC
+            assert _is_valid_port(network_config[n]["udp_source_port"]), _logger.warning(n + ":" + network_config[n]["udp_source_port"] + " UDP Source port format is not valid!")
+            _logger.info(n + ":" + str(network_config[n]["udp_source_port"]) + " UDP Source port format is valid")
 
         # Check parameters of UDP Dest are valid
-        assert _is_valid_ip(network_config[n]["udp_dest_ip"]), n + ":" + network_config[n]["udp_dest_ip"] + cm.FAIL + " UDP dest IP format is not valid!" + cm.ENDC
-        print n + ":" + network_config[n]["udp_dest_ip"] + cm.OKGREEN + " UDP dest IP format is valid" + cm.ENDC
+        assert _is_valid_ip(network_config[n]["udp_dest_ip"]), _logger.warning(n + ":" + network_config[n]["udp_dest_ip"] + " UDP dest IP format is not valid!")
+        _logger.info(n + ":" + network_config[n]["udp_dest_ip"] + " UDP dest IP format is valid")
 
-        assert _is_valid_mac(network_config[n]["udp_dest_mac"]), n + ":" + network_config[n]["udp_dest_mac"] + cm.FAIL + " UDP dest MAC format is not valid!" + cm.ENDC
-        print n + ":" + network_config[n]["udp_dest_mac"] + cm.OKGREEN + " UDP dest MAC format is valid" + cm.ENDC
+        assert _is_valid_mac(network_config[n]["udp_dest_mac"]), _logger.warning(n + ":" + network_config[n]["udp_dest_mac"] + " UDP dest MAC format is not valid!")
+        _logger.info(n + ":" + network_config[n]["udp_dest_mac"] + " UDP dest MAC format is valid")
 
         if _is_valid_port(network_config[n]["udp_dest_port"]) == "reserved":
-            print n + ":" + str(network_config[n]["udp_dest_port"]) + cm.WARNING + " UDP dest port needs root permisions" + cm.ENDC
+            _logger.warning(n + ":" + str(network_config[n]["udp_dest_port"]) + " UDP dest port needs root permisions")
         else:
-            assert _is_valid_port(network_config[n]["udp_dest_port"]), n + ":" + file[n]["udp_dest_port"] + cm.FAIL + " UDP dest port format is not valid!" + cm.ENDC
-            print n + ":" + str(network_config[n]["udp_dest_port"]) + cm.OKGREEN + " UDP dest port format is valid" + cm.ENDC
+            assert _is_valid_port(network_config[n]["udp_dest_port"]), _logger.warning(n + ":" + file[n]["udp_dest_port"] + " UDP dest port format is not valid!")
+            _logger.info(n + ":" + str(network_config[n]["udp_dest_port"]) + " UDP dest port format is valid")
 
         # Check buffer header size
-        assert network_config[n]["buf_size"] > 0 and network_config[n]["buf_size"] <= 9000, cm.FAIL + "The buffer size is out of range!" + cm.ENDC
-        assert network_config[n]["header_len"] > 0 and network_config[n]["header_len"] <= 42, cm.FAIL + "The header length is out of range!" + cm.ENDC
+        assert network_config[n]["buf_size"] > 0 and network_config[n]["buf_size"] <= 9000, _logger.warning("The buffer size is out of range!")
+        assert network_config[n]["header_len"] > 0 and network_config[n]["header_len"] <= 42, _logger.warning("The header length is out of range!")
 
-        print cm.OKBLUE + n + " buffer size and header length within range" + cm.ENDC
+        _logger.info(n + " buffer size and header length within range")
 
         # Check conflicts between source and dest network parameters
-        assert network_config[n]["roach_ppc_ip"] != network_config[n]["udp_dest_ip"], cm.FAIL + "IP conflict. Roach PPC and Dest have the same IP address" + cm.ENDC
-        assert network_config[n]["roach_ppc_ip"] != network_config[n]["udp_source_ip"], cm.FAIL + "IP conflict. Roach PPC and Source have the same IP address" + cm.ENDC
+        assert network_config[n]["roach_ppc_ip"] != network_config[n]["udp_dest_ip"], _logger.warning("IP conflict. Roach PPC and Dest have the same IP address")
+        assert network_config[n]["roach_ppc_ip"] != network_config[n]["udp_source_ip"], _logger.warning("IP conflict. Roach PPC and Source have the same IP address")
 
-        assert network_config[n]["udp_source_ip"] != network_config[n]["udp_dest_ip"], cm.FAIL + "UDP IP conflict. Source and Dest have the same IP address" + cm.ENDC
-        assert network_config[n]["udp_source_mac"] != network_config[n]["udp_dest_mac"], cm.FAIL + "UDP MAC conflict. Source and Dest have the same MAC address" + cm.ENDC
+        assert network_config[n]["udp_source_ip"] != network_config[n]["udp_dest_ip"], _logger.warning("UDP IP conflict. Source and Dest have the same IP address")
+        assert network_config[n]["udp_source_mac"] != network_config[n]["udp_dest_mac"], _logger.warning("UDP MAC conflict. Source and Dest have the same MAC address")
 
-        print cm.OKBLUE + n + " no conflicts founded between source and dest" + cm.ENDC
+        _logger.info(n + " no conflicts founded between source and dest")
 
-    print cm.OKBLUE + "Parameters in network_config.cfg are consistent." + cm.ENDC
+    _logger.info("Parameters in network_config.cfg are consistent.")
 
 def verify_roach_config(roach_config):
 
-    n_roaches = _num_roaches(roach_config["roach_params"])
+    n_roaches = _num_roaches(roach_config)
 
     for roach in n_roaches:
 
-        # This are unreal huge limits, it depends of the synthesizer used, but they are useful for KID applications
-        assert roach_config["roach_params"][roach]["center_freq"] > MIN_SYNTH_FREQ, cm.FAIL + "Center frequency should be higher than 0 Hz" + cm.ENDC
-        assert roach_config["roach_params"][roach]["center_freq"] <= MAX_SYNTH_FREQ, cm.FAIL + "Center frequency over range!" + cm.ENDC
-
-        assert (np.float(roach_config["roach_params"][roach]["lo_step"])/MIN_STEP_SYNTH)%1==0, cm.FAIL + 'Resolution is %.2f dB!'%MIN_STEP_SYNTH + cm.ENDC
-
-        assert roach_config["roach_params"][roach]["Nfreq"] <= MAX_NUM_FREQS, cm.FAIL + "Number of frequencies are over range!" + cm.ENDC
-        assert roach_config["roach_params"][roach]["Nfreq"] >= MIN_NUM_FREQS, cm.FAIL + "It should be at least one tone" + cm.ENDC
-
-        assert np.float(roach_config["roach_params"][roach]["max_pos_freq"]) - np.float(roach_config["roach_params"][roach]["min_pos_freq"]) > 0, cm.FAIL + "The positivie frequency range is wrong, minimum frequency is greater than maximum" + cm.ENDC
-        assert np.float(roach_config["roach_params"][roach]["min_neg_freq"]) - np.float(roach_config["roach_params"][roach]["max_neg_freq"]) < 0, cm.FAIL + "The negative frequency range is wrong, maximum frequency is lower than minimum" + cm.ENDC
-
-        assert np.float(roach_config["roach_params"][roach]["symm_offset"]) > 0, cm.FAIL + "Symm offset has to be positive!" + cm.ENDC
-
-        assert np.float(roach_config["roach_params"][roach]["test_freq"]) > MIN_SYNTH_FREQ*1.0e6, cm.FAIL + "Test frequency should be higher than 0 Hz" + cm.ENDC
-        assert np.float(roach_config["roach_params"][roach]["test_freq"]) <= MAX_SYNTH_FREQ*1.0e6, cm.FAIL + "Test frequency over range!" + cm.ENDC
-
         # Check buffer header size
-        assert roach_config["roach_params"][roach]["buf_size"] > MIN_BUFFER and roach_config["roach_params"][roach]["buf_size"] <= MAX_BUFFER, cm.FAIL + "The buffer size is out of range!" + cm.ENDC
-        assert roach_config["roach_params"][roach]["header_len"] > MIN_HEADER and roach_config["roach_params"][roach]["header_len"] <= MAX_HEADER, cm.FAIL + "The header length is out of range!" + cm.ENDC
+        assert roach_config["roach_params"][roach]["buf_size"] > 0 and roach_config["roach_params"][roach]["buf_size"] <= 9000, _logger.warning("The buffer size is out of range!")
+        assert roach_config["roach_params"][roach]["header_len"] > 0 and roach_config["roach_params"][roach]["header_len"] <= 42, _logger.warning("The header length is out of range!")
 
-        assert roach_config["roach_params"][roach]["maxchannels"] > 0, cm.FAIL + "It should be at least 1 channel" + cm.ENDC
-        assert roach_config["roach_params"][roach]["maxchannels"] <= 1012, cm.FAIL + "The maximum number of channels is 1012 (20 are reserved)" + cm.ENDC
+        assert roach_config["roach_params"][roach]["maxchannels"] > 0, _logger.warning("It should be at least 1 channel")
+        assert roach_config["roach_params"][roach]["maxchannels"] <= 1012, _logger.warning("The maximum number of channels is 1012 (20 are reserved)")
 
-    print cm.OKBLUE + "Parameters in roach_config.cfg are consistent." + cm.ENDC
+    _logger.info("Parameters in roach_config.cfg are consistent.")
 
 # functions to verify that the configuration files are consistent
 # - do they contain the same number of roaches in network, roach
@@ -238,7 +204,7 @@ def _cfgcheck_roachids(roach_config, network_config):
     Check roach ids are consistent between all files
     """
 
-    roach_id_roach = roach_config["roach_params"].keys()
+    roach_id_roach = roach_config.keys()
     roach_id_network = _num_roaches(network_config)
 
     if len(roach_id_roach) > len(roach_id_network):
@@ -252,43 +218,43 @@ def _cfgcheck_roachids(roach_config, network_config):
     for roach_id in id_vs_comp:
         if roach_id in id_to_comp:
             roach_match += 1
-            print cm.OKGREEN + roach_id + " matches in all files" + cm.ENDC
+            _logger.info(roach_id + " matches in all files")
         else:
-            print cm.WARNING + roach_id + " doesn't match in all the config files." + cm.ENDC
+            _logger.warning(roach_id + " doesn't match in all the config files.")
 
-    assert roach_match != 0, cm.FAIL + "None of the ROACH ID matches, verify that they are written correctly in the config files." + cm.ENDC
+    assert roach_match != 0, _logger.warning("None of the ROACH ID matches, verify that they are written correctly in the config files.")
 
 def _cfgcheck_synthids(roach_config, hardware_config):
     """
     Check synth ids are consistent and match
     """
-    n_roaches = roach_config["roach_params"].keys()
+    n_roaches = roach_config.keys()
     synth_id_hardware = _num_synths(hardware_config)
 
     _is_lo = False
     _is_clk = False
 
     for roach in n_roaches:
-        if roach_config["roach_params"][roach]["synthid_lo"] in synth_id_hardware:
+        if roach_config[roach]["synthid_lo"] in synth_id_hardware:
             _is_lo = True
-        if roach_config["roach_params"][roach]["synthid_clk"] in synth_id_hardware:
+        if roach_config[roach]["synthid_clk"] in synth_id_hardware:
             _is_clk = True
 
         if _is_lo and _is_clk:
-            if roach_config["roach_params"][roach]["synthid_lo"] == roach_config["roach_params"][roach]["synthid_clk"]:
-                synth = hardware_config["synth_config"][roach_config["roach_params"][roach]["synthid_lo"]]
+            if roach_config[roach]["synthid_lo"] == roach_config[roach]["synthid_clk"]:
+                synth = hardware_config["synth_config"][roach_config[roach]["synthid_lo"]]
                 if "channel" in synth:
                     if synth["channel"] < 2:
-                        print cm.WARNING + roach_config["roach_params"][roach]["synthid_lo"] + " has not enough channels for lo and clk signals" + cm.ENDC
+                        _logger.warning(roach_config[roach]["synthid_lo"] + " has not enough channels for lo and clk signals")
                     else:
-                       print cm.OKBLUE + "Synthesizers parameters are consistent" + cm.ENDC
+                        _logger.info("Synthesizers parameters are consistent")
             else:
-                print cm.OKBLUE + "Synthesizers parameters are consistent" + cm.ENDC
+                _logger.info("Synthesizers parameters are consistent")
 
         elif not _is_lo:
-            print cm.WARNING + "LO synthesizer not founded" + cm.ENDC
+            _logger.warning("LO synthesizer not founded")
         elif not _is_clk:
-            print cm.WARNING + "CLK synthesizer not founded" + cm.ENDC
+            _logger.warning("CLK synthesizer not founded")
 
         _is_clk = False
         _is_lo = False
@@ -300,22 +266,22 @@ def _cfgcheck_dupifaces(network_config):
     """
     Check ehternet interfaces are not duplicated
     """
+
     start_comp = 1
     for roach_1 in range(len(n_roaches)):
         for roach_2 in range(start_comp,len(n_roaches)):
-            assert network_config[n_roaches[roach_1]]["roach_ppc_ip"] != network_config[n_roaches[roach_2]]["roach_ppc_ip"],  cm.FAIL + "There is a roach IP conflict. There are two roaches with the same IP address: " + n_roaches[roach_1] + "," + n_roaches[roach_2] + cm.ENDC
+            assert network_config[n_roaches[roach_1]]["roach_ppc_ip"] != network_config[n_roaches[roach_2]]["roach_ppc_ip"],  _logger.warning("There is a roach IP conflict. There are two roaches with the same IP address: " + n_roaches[roach_1] + "," + n_roaches[roach_2])
 
-            assert network_config[n_roaches[roach_1]]["udp_source_ip"] != network_config[n_roaches[roach_2]]["udp_source_ip"],  cm.FAIL + "There is a UDP source IP conflict. There are two roaches with the same IP source address: " + n_roaches[roach_1] + "," + n_roaches[roach_2] + cm.ENDC
-            assert network_config[n_roaches[roach_1]]["udp_source_mac"] != network_config[n_roaches[roach_2]]["udp_source_mac"],  cm.FAIL + "There is a UDP source IP conflict. There are two roaches with the same MAC source address: " + n_roaches[roach_1] + "," + n_roaches[roach_2] + cm.ENDC
+            assert network_config[n_roaches[roach_1]]["udp_source_ip"] != network_config[n_roaches[roach_2]]["udp_source_ip"],  _logger.warning("There is a UDP source IP conflict. There are two roaches with the same IP source address: " + n_roaches[roach_1] + "," + n_roaches[roach_2])
+            assert network_config[n_roaches[roach_1]]["udp_source_mac"] != network_config[n_roaches[roach_2]]["udp_source_mac"],  _logger.warning("There is a UDP source MAC conflict. There are two roaches with the same MAC source address: " + n_roaches[roach_1] + "," + n_roaches[roach_2])
 
-            assert network_config[n_roaches[roach_1]]["udp_dest_ip"] != network_config[n_roaches[roach_2]]["udp_dest_ip"],  cm.FAIL + "There is a UDP dest IP conflict. There are two roaches with the same IP dest address: " + n_roaches[roach_1] + "," + n_roaches[roach_2] + cm.ENDC
-            assert network_config[n_roaches[roach_1]]["udp_dest_mac"] != network_config[n_roaches[roach_2]]["udp_dest_mac"],  cm.FAIL + "There is a UDP dest IP conflict. There are two roaches with the same MAC dest address: " + n_roaches[roach_1] + "," + n_roaches[roach_2] + cm.ENDC
-
-            assert network_config[n_roaches[roach_1]]["udp_dest_device"] != network_config[n_roaches[roach_2]]["udp_dest_device"],  cm.FAIL + "There is a UDP device conflict. There are two roaches with the same UDP device address: " + n_roaches[roach_1] + "," + n_roaches[roach_2] + cm.ENDC
+            #assert network_config[n_roaches[roach_1]]["udp_dest_ip"] != network_config[n_roaches[roach_2]]["udp_dest_ip"],  _logger.warning("There is a UDP dest IP conflict. There are two roaches with the same IP dest address: " + n_roaches[roach_1] + "," + n_roaches[roach_2])
+            #assert network_config[n_roaches[roach_1]]["udp_dest_mac"] != network_config[n_roaches[roach_2]]["udp_dest_mac"],  _logger.warning("There is a UDP dest MAC conflict. There are two roaches with the same MAC dest address: " + n_roaches[roach_1] + "," + n_roaches[roach_2])
+            #assert network_config[n_roaches[roach_1]]["udp_dest_device"] != network_config[n_roaches[roach_2]]["udp_dest_device"],  _logger.warning("There is a UDP device conflict. There are two roaches with the same UDP device address: " + n_roaches[roach_1] + "," + n_roaches[roach_2])
 
         start_comp += 1
 
-    print cm.OKBLUE + "ROACH network parameters. No conflicts founded" + cm.ENDC
+    _logger.info("ROACH network parameters. No conflicts founded")
 
 def _cfgcheck_ifacesexist(network_config):
     """
@@ -356,13 +322,14 @@ def _cfgcheck_ifacesexist(network_config):
 
         if device_flag:
             if ip_flag and mac_flag:
-                print cm.OKGREEN + roach + "-" + device + " is defined in network interface. IP and MAC address match" + cm.ENDC
+                _logger.info(roach + "-" + device + " is defined in network interface. IP and MAC address match")
             if not ip_flag:
-                print cm.WARNING + roach + "-" + device + ". The IP of the device doesn't match with the configuration file." + cm.ENDC
+                _logger.warning(roach + "-" + device + ". The IP of the device doesn't match with the configuration file.")
             if not mac_flag:
-                print cm.WARNING + roach + "-" + device + ". MAC address of the device doesn't match with the configuration file." + cm.ENDC
+                _logger.warning(roach + "-" + device + ". MAC address of the device doesn't match with the configuration file.")
         else:
-            raise Exception(cm.FAIL + roach + "-" + device + " is not defined in network interface." + cm.ENDC)
+            _logger.warning(roach + "-" + device + " is not defined in network interface.")
+            raise Exception(roach + "-" + device + " is not defined in network interface.")
 
 
 def _num_roaches(dict_file):

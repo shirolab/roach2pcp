@@ -5,14 +5,16 @@
 
 import time as _time
 import logging as _logging
+
+from .. import color_logs as CL
 _logger = _logging.getLogger(__name__)
 
 #TODO. It has to be in other place. Script directory. Move to this directory and only use it here
-from ..configuration import color_msg as cm
+
 from ..configuration import hardware_config as hc
 from ..synthesizer import windfreaksynth_v2 as w2
 
-from .. import ROACH_LIST, mux_channel
+from .. import ROACH_LIST
 
 def _set_MUSCAT_default_values(serial_number, ref=0, ref_freq=10e6, clk_freq=512e6, clk_pow=0, lo_pow=15.75):
     # Synthesizer device
@@ -34,16 +36,17 @@ def _set_MUSCAT_default_values(serial_number, ref=0, ref_freq=10e6, clk_freq=512
 
     _time.sleep(0.1)
     # Check PLL Status
-    if not syn_src_0.getPLLPowerOn():
+    if not syn_src_0.getPhaseLockStatus():
         syn_src_0.setPLLPowerOn(0)
         syn_src_0.setPLLPowerOn(1)
-
+    _time.sleep(0.1)
+    
     # Validate CLK
-    if syn_src_0.getPLLPowerOn():
-        print "[ " + cm.OKBLUE + "ok" + cm.ENDC +" ] CLK configured with the default MUSCAT parameters"
+    if syn_src_0.getPhaseLockStatus():
+        print "[ %sok%s ] CLK configured with the default MUSCAT parameters"%(CL.OKGREEN, CL.ENDC)
 	_logger.info('CLK configured with the default MUSCAT parameters')
     else:
-        print "[ " + cm.WARNING + "fail" + cm.ENDC +" ] Fail settig the MUSCAT CLK parameters"
+        print "[ %sfail%s ] Fail settig the MUSCAT CLK parameters"%(CL.FAIL, CL.ENDC)
 	_logger.info('Fail settig the MUSCAT CLK parameters')
 
     # ----- Channel 1. LO -----
@@ -57,16 +60,17 @@ def _set_MUSCAT_default_values(serial_number, ref=0, ref_freq=10e6, clk_freq=512
 
     _time.sleep(0.1)
     # Check PLL Status
-    if not syn_src_1.getPLLPowerOn():
+    if not syn_src_1.getPhaseLockStatus():
         syn_src_1.setPLLPowerOn(0)
         syn_src_1.setPLLPowerOn(1)
+    _time.sleep(0.1)
 
     # Validate CLK
-    if syn_src_1.getPLLPowerOn():
-        print "[ " + cm.OKBLUE + "ok" + cm.ENDC +" ] LO configured with the default MUSCAT parameters"
+    if syn_src_1.getPhaseLockStatus():
+        print "[ %sok%s ] LO configured with the default MUSCAT parameters"%(CL.OKGREEN, CL.ENDC)
         _logger.info('LO configured with the default MUSCAT parameters')
     else:
-        print "[ " + cm.WARNING + "fail" + cm.ENDC +" ] Fail settig the MUSCAT LO parameters"
+        print "[ %sfail%s ] Fail settig the MUSCAT LO parameters"%(CL.OKGREEN, CL.ENDC)
 	_logger.info('Fail settig the MUSCAT LO parameters')
 
 def main(muxchannel, ref=0, ref_freq=10e6, clk_freq=512e6, clk_pow=0, lo_pow=15.75):

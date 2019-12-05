@@ -7,6 +7,8 @@ from .configuration import general_config
 import logging as _logging
 _logger = _logging.getLogger(__name__)
 
+import fitting
+import sys
 
 class pcpSweep(object):
 
@@ -105,3 +107,8 @@ class pcpSweep(object):
 
     def plot_sweep(self):
         pass
+    
+    
+
+        
+    
