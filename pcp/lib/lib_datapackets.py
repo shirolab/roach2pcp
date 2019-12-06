@@ -211,13 +211,12 @@ def parse_datapacket_dict_old(packets, datapacket_dict):
 
 # get packet from saved example packet
 TESTPACKETFILE = os.path.abspath( os.path.join (os.path.dirname(__file__), os.pardir, "testing/20180324_testpacket") )
-#print TESTPACKETFILE
-assert os.path.exists(TESTPACKETFILE)
+assert os.path.exists(TESTPACKETFILE), "invalid destination of test packet"
 # read packet and store
 with open (TESTPACKETFILE) as fin:
     TESTPACKET = fin.read()
 
-def gen_fake_roach_packet(use_test_packet = False):
+def gen_fake_roach_packet(use_test_packet = False, add_noise = False):
     ROACHUDPADDR = "192.168.41.1" # this mimics the source address contained in the packet, used to filter received packets
 
     HDRLEN = 42
@@ -227,9 +226,13 @@ def gen_fake_roach_packet(use_test_packet = False):
 
     #print PACKETLEN
     if use_test_packet == True:
+        if add_noise:
+            # add noise to packet (also adds noise to other values too)
+            x = np.frombuffer( TESTPACKET, offset  = HDRLEN, count = -1, dtype = np.int32 )
 
-        return TESTPACKET
-        # add noise to packet?
+            return TESTPACKET[:HDRLEN] + ( x + x*np.random.rand(x.size)/10.).astype(np.int32).tostring()
+        else:
+            return TESTPACKET
 
     else:
         hdr = "".join(choice(string.lowercase) for i in range(HDRLEN)) # generate random header with length 42

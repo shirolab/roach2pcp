@@ -2,30 +2,78 @@
 This file will document and keep track of changes with each push to the master branch.
 
 Put most recent commits at the top please!
+--------------------------------------------------------------------------------
+2019-12-05 [PB] - looking at merging muscat changes
+  - lots of changes done by the muscat team - possibly too many to incorporate on a short timescale
+  - some important/useful features that could be incorporated
+    - iqcalibration
+    - off resonance mode (just move the LO?) - is that ever useful? why not just add blind tone? maybe quicker?
+
+
 
 --------------------------------------------------------------------------------
 2019-12-04 [PB] - major additions continued
-- brought in scripts from superspec computer - came up with initialise_ancillary_hardware()
 
-- moved tonehistdir to data/tuning
-  *** requires addition to filesys_config - see example ***
+- beginning to implement scripts from superspec computer
 
-- added reload_scripts function to pcp.script for simple reloading of all scripts once changed 
+- now have a amplitude correction ampcorr directory for each roach
+  - ampcorr = dictionary of numpy arrays to easily combine them with np.prod([a for a in ampcorr.values()], axis = 0)
+  - with given toneslist, connect to spec_analsyer and measure tone heights and save to file (this should be a standalone script)
+  - script now in pcp.scripts.measure_ampcorr()
+
+- added history to pcp.sweep, which will store previous sweep objects that can be used to handle tuning correctly
+
+- added noise to roach2udp_spoof file (for testing only)
+
+- tune_kids in mux_channel
+     - runs a sweep -> find f0s -> rewrite tones -> sweep again
+
+- change to sweep visualization code
+  - modified the pcpInteractivePlot to accept a list of pcp.sweep objects and overplot as required
+  - TODO: add legend to plots
+          - color plots for different sweeps
+
+- added explicit frequency -> tonename mapping to ensure correct ordering of sweep data
+  - this fixed an issue with the ordering from going from the sweepdirfile to pcp.sweep.data
+
+- add attenuations to metadata
 
 TODO
+- check order of data in sweeps
+  - there might be an issue with the ordering from going from the sweepdirfile to pcp.sweep.data
+  - the sweep data is good - the calcuation of the frequencies is off
+
+- write the centre lo freq to the sweep dirfile
+
+- need to write a tonename mapping to sweep file to extract the data correctly
+
+- how to handle blind tones ?
+  - can we add a "blind" flag somewhere?
+
+- higher level functionality requirements
+  - multiroach capabilities
+    - sweeping/tuning kids
+    - streaming
+
+   - initialize all hardware - roaches, synths attenuators
+   - finsh ampcorr - apply ampcorr to amps
+   - tune powers - in script
+     - sweep vs atten - fit all resonators and get att value for given "a" for all resonators -> tune_kids
+  - tune powers all - in script
+
+  - script to automate attenuation levels?
+      - use spectrum analyser?
+      - measure ADC input?
+
   - fix issues with dirfile stream writing - can't find any? have to debug on sspec machine
   - handle errors with hardware better - allow pcp to run for debugging purposes
-  - reload scripts needs 2 reloads - can we make this a function?
-
 
 - implement an interpolation table to have dff0 calculated from the phase relationship
   - need phase center and rotated -> need array of centers and rotation angles (from fits)
   - require an interpolation table for each tone with phi vs freq as a separate file
-  -
+  - this should be do-able - not high priority right now
 
 - fix invalid dirfile error when trying to close an invalid dirfile in set_active_dirfile
-- handle tuning correctly
-   - save existing sweep for analysis and checking?
 
 - how to visualise sweeps correctly
   - need to be able to store at least two sweeps for comparison - modify pcp.sweep object to store data
@@ -36,9 +84,17 @@ TODO
 
 - toneslist - check for duplicate names?
 
-- TODO - have the ability to change the timespan programmatically?
+- have the ability to change the timespan programmatically?
   - set the timespan as an attribute to the muxChannel
   - requires the lib_dirfiles.append_dirfile_to_sourcefile to read the directory - not too bad
+
+--------------------------------------------------------------------------------
+2019-12-03 [PB] - major additions continued
+
+- moved tonehistdir to data/tuning
+  *** requires addition to filesys_config - see example ***
+
+- added reload_scripts function to pcp.script for simple reloading of all scripts once changed
 
 --------------------------------------------------------------------------------
 2019-11-26 [PB] - major additions
@@ -71,7 +127,7 @@ TODO
 - simplified and cleaned up create_pcp_dirfile to only allow list of names to be given
 
 - added option to copy sweep file as a symlink (now the default behavior)
-  - this is favourable as the user can change the sweep and it will apply the changes to all dirfiles that reference it
+  - this is favorable as the user can change the sweep and it will apply the changes to all dirfiles that reference it
   - zipping the dirfile will make a copy of the sweep file during compression (use zip -r pathtozip dirfilepath )
   - checked that the dirfile can be added appropriately and read in python
 

@@ -4,12 +4,12 @@ toneslist class for handling everything to do with tones
 
 ### === Importation === ###
 
-import os as _os, csv as _csv, datetime as _dt, logging as _logging, yaml as _yaml
+import os as _os, csv as _csv, datetime as _dt, logging as _logging, time as _time, yaml as _yaml
 import numpy as _np, pandas as _pd, matplotlib.pyplot as _plt
 
 _logger = _logging.getLogger(__name__)
 
-from .configuration import ROOTDIR, TONELISTDIR, TONEHISTDIR, filesys_config, roach_config
+from .configuration import ROOTDIR, AMPCORRDIR, TONELISTDIR, TONEHISTDIR, filesys_config, roach_config
 
 def load_pcp_tonelist(tonelist_file):
 	"""
@@ -95,7 +95,7 @@ class Toneslist(object):
 
 	# -- sweep functionality --
 	#
-
+	_DTFMT = "%Y%m%d-%H%M%S"
 	def __init__(self, roachid,
 						loader_function = _pd.read_csv,\
 						auto_load = True,\
@@ -179,12 +179,21 @@ class Toneslist(object):
 		self._bandwidth = self.ROACH_CFG["max_pos_freq"] - self.ROACH_CFG["min_neg_freq"]
 
 		self.synth_resolution = synth_res # resolution of the synthesizer in Hz
+
 		# load the tonelist given in
 		self.tonelistfile = _os.path.join(TONELISTDIR, self.ROACH_CFG["tonelist_file"])
-		# if given, get a handle to the tonehistdir
+
+		# get a handle to the tonehistdir
 		self.tonehistdir = _os.path.join(TONEHISTDIR, self.roachid)
 		self.tonehistory = {}
 		self._load_tonehistdir()
+
+		# get a handle to the ampcorr directory
+		self.ampcorrdir = _os.path.join(AMPCORRDIR, self.roachid)
+		# dictionary to store amplitude corrections (total points to the class method to calculate the product)
+		self.ampcorr    = {"total": self._calcampcorr }
+		self.ampcorrfiles = {}
+		self._load_ampcorrdir()
 
 		# check that loader function looks like a function
 		assert( callable(loader_function) ) # this should probably go further down
@@ -235,8 +244,8 @@ class Toneslist(object):
 		# open and read the file
 		with open(self.tonehistory[datetime_tag]) as fin:
 			tonedict = _yaml.safe_load(fin)
-			amps = _np.array(tonedict['amps'])
-			phases = _np.array(tonedict['phases'])
+			amps     = _np.array(tonedict['amps'])
+			phases   = _np.array(tonedict['phases'])
 			bb_freqs = _np.array(tonedict['freqs'])
 
 		# check to see if current tonelist matches new tones by comparing number of tones and fractional shift in bb_freqs
@@ -264,9 +273,8 @@ class Toneslist(object):
 					(self.bb_freqs is not None),\
 					(self.phases is not None) )), "amps,phases,freqs don't appear to be valid. Nothing done."
 
-		fmt = "%Y%m%d-%H%M%S"
 		timenow = _dt.datetime.now()
-		datetag = _dt.datetime.strftime(timenow, fmt) + ".tone"
+		datetag = _dt.datetime.strftime(timenow, self._DTFMT) + ".tone"
 
 		data = {'date'  : _dt.datetime.strftime(timenow, '%Y%m%d'),\
 				'time'  : _dt.datetime.strftime(timenow, '%H%m%S'),\
@@ -314,9 +322,61 @@ class Toneslist(object):
 			# set only valid indices as bb_freqs
 			self._bb_freqs   = bb_freqs[valid_idxs]
 			self._valid_idxs = valid_idxs
+
 		else:
 			_logger.info ( "bb_freqs = {0}".format(bb_freqs) )
 			self._bb_freqs = bb_freqs
+
+	def _calcampcorr(self):
+		return  _np.prod([a for k, a in self.ampcorr.items() if k not in ['total']], axis = 0)
+
+	def _load_ampcorrdir(self):
+		""" Function to load and return the tonehistory """
+		if self.ampcorrdir:
+			for acfile in [f for f in _os.listdir(self.ampcorrdir) if not f.startswith(".")]:
+				name, ext = _os.path.splitext(acfile)
+				self.ampcorrfiles[name.split("_")[0]] = _os.path.join(self.ampcorrdir, acfile)
+		else:
+			_logger.warning("no ampcorr directory given. limited functionality")
+
+	def _read_ampcorrfile(self, datetag):
+		assert datetag in self.ampcorrfiles.keys(), "given datatime tag is not present. available keys are: {0}".format(self.ampcorrfiles.keys())
+		# open and read the file
+		with open(self.ampcorrfiles[datetag], 'r') as fin:
+			data = _yaml.safe_load(fin)
+
+		# turn all values into np.arrays
+		_ = [ data.update( {k: _np.array(v) }) for k,v in data.items()]
+
+		# update the ampcorr dict with the new values from the file
+		self.ampcorr.update( data )
+
+
+	def _write_ampcorrfile(self, ignore_dups = False):
+		"""Write the current ampcorr data to a numpy file. This is tied to the tonelist file..."""
+		# get the data
+
+		tonelistfname = _os.path.splitext (_os.path.basename(self.tonelistfile).lower())[0]
+
+		# check to see if toneslist file already exists in here and warn?
+		dups =  map( lambda x: tonelistfname in x, self.ampcorrfiles.values() )
+
+		if any( dups ) and not ignore_dups:
+			_logger.error ( "possible duplicate using same toneslist already exists. To continue, re-run with ignore_dups = True" )
+			_time.sleep(0.1)
+			return
+
+		# filename? date + toneslistname?
+		fname = _dt.datetime.strftime(_dt.datetime.now(), self._DTFMT) + "_" + tonelistfname + ".ac"
+
+		# file format? human readable?
+		data = dict( ( k, v.tolist() ) for (k, v) in self.ampcorr.items() if k not in ['total'] )
+
+		with open( _os.path.join(self.ampcorrdir, fname), 'w') as outfile:
+			_yaml.dump(data, outfile, default_flow_style=False)
+
+		#update the current directory to include the new file
+		self._load_ampcorrdir()
 
 	def _update_frequencies(self, reset_all = False):
 		"""
@@ -325,8 +385,8 @@ class Toneslist(object):
 
 		# fill in all the local variables for use later
 		if self._lo_freq is not None:
-			self.rf_freqs = self.data['freq'] #if not baseband else data['freq'] + self.lo_freq
-			self.bb_freqs = self.data['freq'] - self.lo_freq #if     baseband else data['freq'] - self.lo_freq
+			self.rf_freqs = _np.array( self.data['freq'] ) #if not baseband else data['freq'] + self.lo_freq
+			self.bb_freqs = _np.array( self.data['freq'] - self.lo_freq )#if     baseband else data['freq'] - self.lo_freq
 			if reset_all == True:
 				self.amps     = None
 				self.phases   = None
@@ -352,22 +412,22 @@ class Toneslist(object):
 
 		return map( lambda x: _os.path.join(TONELISTDIR, x), tonefilelist ) if full_path else tonefilelist
 
-	def set_phases(self, which = 'random'):
+	def set_phases(self, how = 'random'):
 		"""Function to calculate a set of set of phases to be used for the writing of the tones"""
 
-		valid_which =  ['random', 'opposite', 'none']
+		valid_how =  ['random', 'opposite', 'none']
 
-		assert which in valid_which, "given 'which' parameter not recognised -- currently implemented = {0}".format(valid_which)
+		assert how in valid_how, "given 'which' parameter not recognised -- currently implemented = {0}".format(valid_how)
 		assert self.bb_freqs is not None, "no tonelist loaded. load and try again"
 
-		if which == "random":
+		if how == "random":
 			_np.random.seed()
 			self.phases = _np.random.uniform(0., 2.*_np.pi, len(self.bb_freqs))
 
-		elif which == "none":
+		elif how == "none":
 			self.phases = _np.zeros_like(self.bb_freqs)
 
-		elif which == "opposite":
+		elif how == "opposite":
 			self.phases = _np.zeros_like(self.bb_freqs) # <-- need to implement opposite phase for improved sideband leakage
 
 	def load_tonelist(self, tonelistfile = "", **loaderkwargs):
@@ -422,9 +482,16 @@ class Toneslist(object):
 			self.data = data
 			return
 
+		# get an array of the tonenames for convenience
 		self.tonenames = self.data['name'].get_values()
+
 		# if successful, try to find the optimum LO frequency automatically
 		self.lo_freq = self.find_optimum_lo() # this will trigger the frequency lists to be updated
+
+		# update the amps and phases to default values
+		self.amps = _np.ones(self.tonenames.shape)
+		self.phases = self.set_phases(how = "random")
+		self.ampcorr.update({'default': _np.ones(self.tonenames.shape)})
 
 	def find_optimum_lo(self):
 		"""For a given set of tones, this function will find the optimum LO frequency to

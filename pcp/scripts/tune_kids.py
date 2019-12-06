@@ -20,5 +20,5 @@ def print_current_roaches(muxchannel):
 def verify_configuration():
     pass
 
-def main():
-    _logger.info( "This is the function that is run" )
+def main(test):
+    _logger.info( "This is the function that is run {0}".format(test) )

@@ -445,7 +445,7 @@ def generate_main_derivedfields(dirfile, field_names):
 
     return _gd.dirfile(dfname, _gd.EXCL|_gd.RDWR)
 
-def generate_sweep_fields(dirfile, tonenames, array_size = 501 ):#, field_suffix=""):
+def generate_sweep_fields(dirfile, tonenames, array_size = 501, fragnum = 0 ):#, field_suffix=""):
     """Generate fragment file for the derived sweep file """
 
     # add metadata fragment and add "type" field
@@ -460,13 +460,14 @@ def generate_sweep_fields(dirfile, tonenames, array_size = 501 ):#, field_suffix
     # sweep_entry_bb         = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + "bb_freqs", 0, (_gd.FLOAT64,   len(tones))) ]
     # sweep_entries_to_write = [ _gd.entry(_gd.CARRAY_ENTRY, "sweep." + field_name, 0, (_gd.COMPLEX64, array_size)) for field_name in swp_fields ]
 
-    sweep_entry_freq       = [ _gd.entry(_gd.CARRAY_ENTRY, "lo_freqs", 0, (_gd.FLOAT64,   array_size)) ]
-    sweep_entry_bb         = [ _gd.entry(_gd.CARRAY_ENTRY, "bb_freqs", 0, (_gd.FLOAT64,   len(tonenames))) ]
-    sweep_entries_to_write = [ _gd.entry(_gd.CARRAY_ENTRY, field_name, 0, (_gd.COMPLEX64, array_size)) for field_name in swp_fields ]
+    sweep_entry_freq       = [ _gd.entry(_gd.CARRAY_ENTRY, "lo_freqs",  fragnum, (_gd.FLOAT64,   array_size)) ]
+    sweep_entry_bb         = [ _gd.entry(_gd.CARRAY_ENTRY, "bb_freqs",  fragnum, (_gd.FLOAT64,   len(tonenames))) ]
+    sweep_entry_tonenames  = [ _gd.entry(_gd.SARRAY_ENTRY, "tonenames", fragnum, (len(tonenames),)) ]
+    sweep_entries_to_write = [ _gd.entry(_gd.CARRAY_ENTRY, field_name,  fragnum, (_gd.COMPLEX64, array_size)) for field_name in swp_fields ]
 
     _logger.debug("generating new sweep fields: {0}".format(sweep_entries_to_write) )
 
-    map(dirfile.add, sweep_entry_freq + sweep_entry_bb + sweep_entries_to_write)
+    map(dirfile.add, sweep_entry_freq + sweep_entry_bb + sweep_entry_tonenames + sweep_entries_to_write)
 
     # --- add calibration fragment ---
     # constants for F0s, i0, q0, didf0, dqdf0, didq0 -
@@ -691,7 +692,7 @@ def generate_sweep_dirfile( roachid, dirfilename, tonenames, numpoints = 501 ):
                                         exclusive       = True ) #<-- makes sure that the sweep files are not overwritten/ appended to
     return sweep_dirfile
 
-def write_sweepdata_to_sweepdirfile(sweep_dirfile, bbfreqs, lofreqs, complex_sweep_data_dict):
+def write_sweepdata_to_sweepdirfile(sweep_dirfile, bbfreqs, lofreqs, tonenames, complex_sweep_data_dict):
     """Add sweep data to a pcp sweep dirfile.
     Requires:
 
@@ -700,7 +701,7 @@ def write_sweepdata_to_sweepdirfile(sweep_dirfile, bbfreqs, lofreqs, complex_swe
         complex_sweep_data_dict - dictionary of tonename: complex data
 
     """
-
+    sweep_dirfile.put_sarray("tonenames", list(tonenames) )
     sweep_dirfile.put_carray("bb_freqs", bbfreqs)
     sweep_dirfile.put_carray("lo_freqs", lofreqs)
 

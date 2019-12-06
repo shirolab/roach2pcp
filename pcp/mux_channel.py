@@ -64,6 +64,9 @@ class muxChannel(object):
 
         self.roachid  = roachid
 
+        # initialise/create the file structure for data saving + the sourcefile
+        self._initalise_folders()
+
         #self.fpga            = _lib_fpga.get_fpga_instance(roachid)
         self.roach_iface     = _lib_fpga.roachInterface( roachid )
 
@@ -94,7 +97,6 @@ class muxChannel(object):
         self.ROACH_CFG = roach_config[self.roachid]
         self.sample_rate = self.ROACH_CFG["dac_bandwidth"] / ( 2**self.ROACH_CFG["roach_accum_len"] )
 
-        self._initalise_folders() # initialise/create the file structure for data saving + the sourcefile
         self.initialise_hardware()
 
 ################################################################################
@@ -112,10 +114,12 @@ class muxChannel(object):
         # generate directory path for data saving and tonehistory
         self.DIRFILE_SAVEDIR  = os.path.join(ROOTDIR, filesys_config['savedatadir'], self.roachid)
         self.TONEHISTDIR      = os.path.join(ROOTDIR, filesys_config['tonehistdir'], self.roachid)
+        self.AMPCORRDIR       = os.path.join(ROOTDIR, filesys_config['ampcorrdir'],  self.roachid)
 
         # create if doesn't exist already
         os.makedirs(self.DIRFILE_SAVEDIR) if not os.path.exists(self.DIRFILE_SAVEDIR) else None
         os.makedirs(self.TONEHISTDIR)     if not os.path.exists(self.TONEHISTDIR)     else None
+        os.makedirs(self.AMPCORRDIR)      if not os.path.exists(self.AMPCORRDIR)      else None
 
         # create kst sourcefile in directory if it already doesn't exist
         self._srcfile = open( os.path.join(self.DIRFILE_SAVEDIR, 'sf.txt'), 'r+')
@@ -299,7 +303,7 @@ class muxChannel(object):
         time.sleep(0.1)
 
         # add tone information to the dirfile
-        self.current_dirfile.put_carray(   "bbfreqs", self.toneslist.bb_freqs.get_values())
+        self.current_dirfile.put_carray(   "bbfreqs", self.toneslist.bb_freqs)
         self.current_dirfile.put_constant( "lofreq",  self.toneslist.lo_freq )
         self.current_dirfile.put_sarray(   "tonenames", list(self.toneslist.tonenames) )
         self.current_dirfile.flush()
@@ -407,7 +411,7 @@ class muxChannel(object):
         self.current_dirfile = _gd.dirfile(self.writer_daemon.current_filename, _gd.RDWR)
 
         #delay appears to be required to finish write/open operations before continuing
-        time.sleep(0.25)
+        time.sleep(0.5)
         # analyse the raw sweep dirfile and write to disk
         self.reduce_and_write_sweep_data(self.current_dirfile)
 
@@ -491,13 +495,12 @@ class muxChannel(object):
 
         # get the filename and extract the datetime string to match the raw sweep file
         dt = _dateutil.parser.parse(os.path.basename(rawsweep_dirfile.name), fuzzy=True)
-        swpdfname = os.path.join( os.path.dirname(rawsweep_dirfile.name),
-                                    dt.strftime(general_config["default_datafilename_format"]) )
+        swpdfname = os.path.join( os.path.dirname(rawsweep_dirfile.name), dt.strftime(general_config["default_datafilename_format"]) )
 
         # create new sweep dirfile and keep hold of it
         swpdf = _lib_dirfiles.generate_sweep_dirfile( self.roachid, swpdfname, self.toneslist.tonenames, numpoints = len(lotimes))
 
-        print lotimes, lofreqs
+        #print lotimes, lofreqs
         # read in IQ data and split up according to LO steps and store in a dictionary
         sweep_data_dict = {}
 
@@ -530,13 +533,15 @@ class muxChannel(object):
                     continue
 
         # save the data to the new sweep dirfile
-        self.sweep.load_sweep_dirfile( _lib_dirfiles.write_sweepdata_to_sweepdirfile(swpdf,
-                                                                    self.toneslist.bb_freqs.get_values(), \
-                                                                    lofreqs,\
-                                                                    sweep_data_dict) )
+        swpdf = _lib_dirfiles.write_sweepdata_to_sweepdirfile(swpdf, self.toneslist.bb_freqs, \
+                                                            lofreqs,
+                                                            self.toneslist.tonenames,\
+                                                            sweep_data_dict)
         # add metadata
-        _lib_dirfiles.add_metadata_to_dirfile(self.sweep.dirfile, {"raw_sweep_filename": self.current_dirfile.name})
-
+        _lib_dirfiles.add_metadata_to_dirfile(swpdf, {"raw_sweep_filename": self.current_dirfile.name})
+        #
+        # # load the sweep into mc.sweep
+        self.sweep.load_sweep_dirfile(swpdf)
 
     # def test_loop(self):
     #     step_times = []
@@ -553,31 +558,33 @@ class muxChannel(object):
     #         print "out of loop"
     #     #self.writer_daemon.pause_writing()
 
-    def tune_resonators(self, method = "maxspeed"):
+    def retune_kids(self, force_first_sweep = False, findf0_method = "maxspeed", **swpkwargs):
         """
-        Function to find resonator frequencies from a sweep
+        Function to retune resonators.
         """
-        assert method in ['maxspeed', 'mins21'], "Given method {0} for finding resonant frequencies not valid.".format(method)
-
-        #_lib_dirfiles.open_dirfile(dirfilename, **dirfile_flags):
-
-        if self.current_sweep_dirfile:
-            sweep_data, = _lib_dirfiles.read_sweep_dirfile( self.current_sweep_dirfile )
-
-        else:
-            _logger.warning("no sweep dirfile set. Nothing done.")
+        _logger.info('starting resonator tuning process on {0}'.format(self.roachid) )
+        # if we haven't already swept, do the first sweep
+        if not self.sweep.dirfile or force_first_sweep == True:
+            # sweep
+            self.sweep_lo(**swpkwargs)
 
         # remove blind tones/ don't retune blind tones
 
+        # analyse sweep - tone_freqs = None returns parameters at that F0, and can be used to find F0s
+        self.sweep.calc_sweep_cal_params( tonefreqs = None, method = findf0_method )
+        self.sweep.write_sweep_cal_params(overwrite = True)
         # use method to find F0s from KID rountines
-
+        self.sweep.calparams['f0s']
         # change frequencies in self.toneslist
-
+        self.toneslist.bb_freqs = self.sweep.calparams['f0s'] - self.toneslist.lo_freq
         # write to qdr (optional)
-
-        #return sweep_data_dict
-        # close dirfile to prevent further writing
-        #self.current_dirfile.close()
+        self.write_freqs_to_fpga( auto_write = True )
+        # resweep with new tones
+        self.sweep_lo(**swpkwargs)
+        # recalculate sweep cal params, this time with the written tones
+        self.sweep.calc_sweep_cal_params( tonefreqs = self.toneslist.rf_freqs, method = method )
+        # write these to the new sweep file
+        self.sweep.write_sweep_cal_params(overwrite = True)
 
     #@profile
     def start_stream(self, **stream_kwargs):

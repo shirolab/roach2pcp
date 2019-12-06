@@ -22,7 +22,7 @@ class FPC1000(object):
 
 
     '''BASIC FUNCTIONS'''
-    def IDN(self):
+    def idn(self):
         reply = self.inst.query("*IDN?")
         return reply
     def reset_instrument(self):
@@ -166,10 +166,10 @@ class FPC1000(object):
         maxes_freq = np.empty(Nf)
         sweepcount = 1
 
-	#dummy sweep. Can't figure out why but VI_ERROR_TMO timeout every first time I run get_trace_data()
-	#it always works the second time, but never the first. This wasn't a problem on the previous computer
-	#RM 20191010
-	try:
+        #dummy sweep. Can't figure out why but VI_ERROR_TMO timeout every first time I run get_trace_data()
+        #it always works the second time, but never the first. This wasn't a problem on the previous computer
+        #RM 20191010
+        try:
             self.execute_func_and_wait_until_complete(self.initiate_sweep, 1)
             tracedata = self.get_trace_data()
         except:

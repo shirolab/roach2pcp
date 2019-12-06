@@ -34,6 +34,8 @@ import detector_peaks as find_peaks
 from scipy.signal import savgol_filter
 import signal
 
+from .sweep import pcpSweep
+
 # Offline mode. For plotly
 init_notebook_mode(connected=True)
 
@@ -622,25 +624,42 @@ class pcp_plot(object):
 class pcpInteractivePlot(object):
     """Simple interactive plotting interface based on matplotlib for convenient visualisation
     of the sweep data. """
+
+
     # TODO
     #   - make this compatible with the pcp.sweep object
     #   - plot everything else...
     # - this class should be used by pcp.pcpSweep to plot all sweeps
     # want the ability to plot multiple sweeps on the same axis, and loop through in the same way
 
-    def __init__(self, fdata, iqdata, caldata, calparams):
-        # make sure shape of fdata and iqdata are >1
+    #def __init__(self, fdata, iqdata, caldata, calparams, tonenames, sortfreqs = True, block=False):
+    def __init__(self, pcpsweeps, sortfreqs = True, block=False):
 
-        self.freqs    = _np.atleast_2d( fdata )
-        self.iqdata   = _np.atleast_2d( iqdata )
-        self.caldata  = _np.atleast_2d( caldata )
-        self.calparam = _np.atleast_1d( calparams )
+        self.block = block
 
-        self.ntones = len(self.freqs)
+        pcpsweeps = _np.atleast_1d(pcpsweeps).tolist() # numpy atleast_1d is easy way to ensure list/array input
+        assert all([isinstance(pcpsweep, pcpSweep) for pcpsweep in pcpsweeps]), "input type don't appear to be pcpSweeps"
+        self.sweeplist = pcpsweeps
 
+        # check that sweep names are different and set to be different if true
+
+
+        # check all the sweeps have the same number of tones as a preliminary check
+        assert len(set([len(s.tonenames) for s in pcpsweeps]))==1, "the given sweeps appear to have a different number of tones"
+        #assert [s.tonenames for s in pcpsweeps]))==1, "the given sweeps appear to have different tonenames"
+        self.ntones = len(s.tonenames)
+
+        self.sortidxs = _np.argsort(self.sweeplist[0].rf_freqs.T[0]) if sortfreqs else _np.arange(self.ntones) # sort on the first frequency element
+        self.tonenames = _np.array(s.tonenames)[self.sortidxs].tolist()
+
+        #
         self.idx = 0
-        self._linedict = {}
+        self._linedict = {s.name: {} for s in self.sweeplist}
+        #
+        self._configure_axes()
+        self._configure_plots()
 
+    def reshow(self):
         self._configure_axes()
         self._configure_plots()
 
@@ -664,33 +683,44 @@ class pcpInteractivePlot(object):
         self.axiq = axiq; self.axmag = axmag; self.axphi = axphi; self.axcal = axcal
 
     def _configure_plots(self):
-
-        self._linedict['iqmain'],  = self.axiq.plot(self.iqdata[ self.idx ].real, self.iqdata[ self.idx].imag, 'o')
-        self._linedict['magmain'], = self.axmag.plot(self.freqs[ self.idx ]/1.e6, 20*_np.log10( _np.abs(self.iqdata[ self.idx ]) ) )
-        self._linedict['phimain'], = self.axphi.plot(self.freqs[ self.idx]/1.e6, _np.angle(self.iqdata[ self.idx ] ) )
-        self._linedict['speedre'], = self.axcal.plot(self.freqs[ self.idx]/1.e6, self.caldata[ self.idx ].real ) # didf
-        self._linedict['speedim'], = self.axcal.plot(self.freqs[ self.idx]/1.e6, self.caldata[ self.idx ].imag ) # dqdf
-        self._linedict['speedab'], = self.axcal.plot(self.freqs[ self.idx]/1.e6, abs(self.caldata[ self.idx ]) ) # sqrt(didf^2 + dqdf^2)
+        for sweep in self.sweeplist:
+            self._linedict[sweep.name]['iqmain'],  = self.axiq.plot(sweep.data[self.sortidxs][self.idx].real, sweep.data[self.sortidxs][self.idx].imag, 'o')
+            self._linedict[sweep.name]['magmain'], = self.axmag.plot(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, 20*_np.log10( _np.abs(sweep.data[self.sortidxs][self.idx]) ) )
+            self._linedict[sweep.name]['phimain'], = self.axphi.plot(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, _np.angle(sweep.data[self.sortidxs][self.idx] ) )
+            self._linedict[sweep.name]['speedre'], = self.axcal.plot(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, sweep.caldata[self.sortidxs][self.idx].real ) # didf
+            self._linedict[sweep.name]['speedim'], = self.axcal.plot(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, sweep.caldata[self.sortidxs][self.idx].imag ) # dqdf
+            self._linedict[sweep.name]['speedab'], = self.axcal.plot(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, abs(sweep.caldata[self.sortidxs][self.idx]) ) # sqrt(didf^2 + dqdf^2)
+            self._linedict[sweep.name]['magmain'].set_label(sweep.name)  
         self.refresh_plot()
 
     def refresh_plot(self):
+        for sweep in self.sweeplist:
+            self._linedict[sweep.name]['iqmain'].set_data(sweep.data[self.sortidxs][self.idx].real, sweep.data[self.sortidxs][self.idx].imag)
+            self._linedict[sweep.name]['magmain'].set_data(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, 20*_np.log10( _np.abs(sweep.data[self.sortidxs][self.idx]) ) )
+            self._linedict[sweep.name]['phimain'].set_data(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, _np.angle(sweep.data[self.sortidxs][self.idx] ) )
+            self._linedict[sweep.name]['speedre'].set_data(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, sweep.caldata[self.sortidxs][self.idx].real ) # didf
+            self._linedict[sweep.name]['speedim'].set_data(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, sweep.caldata[self.sortidxs][self.idx].imag ) # dqdf
+            self._linedict[sweep.name]['speedab'].set_data(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, abs(sweep.caldata[self.sortidxs][self.idx]) ) # sqrt(didf^2 + dqdf^2)
 
-        self._linedict['iqmain'].set_data(self.iqdata[ self.idx ].real, self.iqdata[ self.idx].imag)
-        self._linedict['magmain'].set_data(self.freqs[ self.idx ]/1.e6, 20*_np.log10( _np.abs(self.iqdata[ self.idx ]) ) )
-        self._linedict['phimain'].set_data(self.freqs[ self.idx ]/1.e6, _np.angle(self.iqdata[ self.idx ] ) )
-        self._linedict['speedre'].set_data(self.freqs[ self.idx]/1.e6, self.caldata[ self.idx ].real )
-        self._linedict['speedim'].set_data(self.freqs[ self.idx]/1.e6, self.caldata[ self.idx ].imag )
-        self._linedict['speedab'].set_data(self.freqs[ self.idx]/1.e6, abs(self.caldata[ self.idx ]) )
+            self.axmag.legend(loc='lower left', bbox_to_anchor= (0.0, 1.01), ncol=2, borderaxespad=0, frameon=False)
+
+        # self._linedict['iqmain'].set_data(self.iqdata[ self.idx ].real, self.iqdata[ self.idx ].imag)
+        # self._linedict['magmain'].set_data(self.freqs[ self.idx ]/1.e6, 20*_np.log10( _np.abs(self.iqdata[ self.idx ]) ) )
+        # self._linedict['phimain'].set_data(self.freqs[ self.idx ]/1.e6, _np.angle(self.iqdata[ self.idx ] ) )
+        # self._linedict['speedre'].set_data(self.freqs[ self.idx ]/1.e6, self.caldata[ self.idx ].real )
+        # self._linedict['speedim'].set_data(self.freqs[ self.idx ]/1.e6, self.caldata[ self.idx ].imag )
+        # self._linedict['speedab'].set_data(self.freqs[ self.idx ]/1.e6, abs(self.caldata[ self.idx ]) )
 
         self.axiq.relim(); self.axiq.autoscale()
         self.axmag.relim(); self.axmag.autoscale()
         self.axphi.relim(); self.axphi.autoscale()
         self.axcal.relim(); self.axcal.autoscale()
 
-        self.fig.suptitle('res {0}'.format( _np.roll( _np.arange(self.ntones), -self.idx)[0] ), fontsize=16)
+        #self.fig.suptitle('res {0}'.format( _np.roll( _np.arange(self.ntones), -self.idx)[0] ), fontsize=16)
+        self.fig.suptitle('res {0}'.format( _np.roll( self.tonenames, -self.idx )[0] ), fontsize=16)
 
         plt.draw()
-        self.fig.show()
+        plt.show(block=self.block)
 
     def _on_key_press(self, event):
 

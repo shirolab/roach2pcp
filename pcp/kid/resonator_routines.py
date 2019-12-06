@@ -33,7 +33,7 @@ def calc_sweep_cal_params(sweep_f, sweep_i, sweep_q, tone_freqs = None , **kwarg
 
         assert len(tone_freqs) == sweep_f.shape[0], "length of written tones does not match the data shape"
         # check that the given tone frequencies are within the range of the sweep frequencies
-        assert _np.logical_and( tone_freqs > sweep_f.min(), tone_freqs < sweep_f.max() ).all(),\
+        assert _np.logical_and( tone_freqs >= sweep_f.min(), tone_freqs <= sweep_f.max() ).all(),\
                                             "some frequencies appear to lie outside of the given sweep range"
         # find the frequency index in the sweep freq data that corresponds to the closest tone frequency
         idxs = _np.argmin( _np.abs(sweep_f - tone_freqs[:, _np.newaxis]), axis=1 )
@@ -41,7 +41,7 @@ def calc_sweep_cal_params(sweep_f, sweep_i, sweep_q, tone_freqs = None , **kwarg
         # return the maximum values
         idxs = _np.argmax( didq2, axis=1 )
 
-    # set up a 2D array to index along the second dimension all at once 
+    # set up a 2D array to index along the second dimension all at once
     idxs = ( _np.arange(len(idxs)), idxs )
 
     # the values have to be in the same order as SWEEP_CALPARAM_FIELDS is defined

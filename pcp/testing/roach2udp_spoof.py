@@ -48,11 +48,12 @@ try:
 
         print "Sending packet to {ip} at port {port}".format(ip=DESTADDR, port=DESTPORT)
 
-        packet = pcp.lib.lib_datapackets.gen_fake_roach_packet(use_test_packet=True)
+        packet = pcp.lib.lib_datapackets.gen_fake_roach_packet(use_test_packet=True, add_noise = True)
 
         # get and increment the packet count from the test packet
         packet_count = np.frombuffer(packet[-9:-5], ">u4")[0]
-        packet = packet[:-9] + struct.pack('>I', packet_count + i) + packet[-5:]
+        #packet = packet[:-9] + struct.pack('>I', packet_count + i) + packet[-5:]
+        packet = packet[:-9] + struct.pack('>I', i) + packet[-5:]
         print np.frombuffer(packet[-9:-5], ">u4")[0], i
 
         s = server_socket.sendto(packet, (DESTADDR, DESTPORT))

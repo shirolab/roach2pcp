@@ -60,7 +60,7 @@ class pcpSweep(object):
         assert _lib_dirfiles.check_valid_sweep_dirfile(dirfile), "{0} doesn't appear to be a valid pcp sweep file".format(dirfile)
 
         # if data exists, save a copy to the history
-        if self.dirfile is not None:
+        if self.dirfile is not None and _lib_dirfiles.is_dirfile_valid(self.dirfile):
             _logger.info("previous data appears to exist - saved a copy of {0} to history".format(_os.path.basename(self.dirfile.name)))
             self.store_sweep()
 
@@ -77,19 +77,19 @@ class pcpSweep(object):
         # sweep_data_fields = filter(lambda x: x.startswith("sweep."), self.dirfile.entry_list())
         sweep_data_fields = _lib_dirfiles.get_fields_in_fragment(self.dirfile, "format", exclude_index = True) # get the main fragment
 
+        self.tonenames = _np.array(self.dirfile.get_sarray( sweep_data_fields.pop(sweep_data_fields.index('tonenames') )))
         self._bb_freqs = self.dirfile.get_carray( sweep_data_fields.pop(sweep_data_fields.index('bb_freqs') ))
         self.lo_freqs  = self.dirfile.get_carray( sweep_data_fields.pop(sweep_data_fields.index('lo_freqs') ))
 
         self._lo_freq  = self.lo_freqs[(self.lo_freqs.shape[0]-1)/2]
         self.rf_freqs  = _np.repeat(self._bb_freqs[:, _np.newaxis], self.lo_freqs.shape[0], axis=1) + self.lo_freqs
 
-        self.data_fields = [s.split(".")[-1] for s in sweep_data_fields]
+        #self.data_fields = [s.split(".")[-1] for s in sweep_data_fields]
         self.data        = _np.array( [self.dirfile.get_carray(fc) for fc in sweep_data_fields] )
 
-        # todo - make this into a dictionary?
         #calparam_fields = filter(lambda x: x.startswith("calparam."), self.dirfile.entry_list())
         calparam_fields = _lib_dirfiles.get_fields_in_fragment( self.dirfile, 'calparam' )
-        self.calparams = { s.split(".")[-1] : self.dirfile.get_carray(s) for s in calparam_fields}
+        self.calparams  = { s.split(".")[-1] : self.dirfile.get_carray(s) for s in calparam_fields}
 
         # self.calparam_fields = [s.split(".")[-1] for s in cal_param_fields]
         # self.calparams       =  _np.array( [self.dirfile.get_carray(fc) for fc in cal_param_fields] )
@@ -108,19 +108,20 @@ class pcpSweep(object):
         """Function to store a copy """
         self.history.append( deepcopy(self) )
 
-    def calc_sweep_cal_params(self, tonefreqs = None):
+    def calc_sweep_cal_params(self, tonefreqs = None, method = "maxspeed"):
         """
         Function to calculate the calibration parameters from the currently loaded sweep data and filter parameters.
 
         Set tonefreqs to calculate the sweep parameters at those frequencies. Otherwise, this function will return the
         true F0 and the parameters at those F0s, which may differ from the written tones.
         """
+        assert method in ['maxspeed', 'mins21'], "Given method {0} for finding resonant frequencies not valid.".format(method)
 
         _logger.info("Calculating new set of calibration parameters. To restore original parameters values, use self.get_data().\
                     Use self.write_sweep_cal_params to write the new calibration parameters to file to be used in streaming.")
 
         # add filter parameters here!
-
+        assert self.data is not None, "there doesn't appear to be any sweep data available. Do a sweep, or load an existing file and rerun"
         self.calparams, self.caldata = _resonator_routines.calc_sweep_cal_params(self.rf_freqs, \
                                                                                 self.data.real, \
                                                                                 self.data.imag, \
