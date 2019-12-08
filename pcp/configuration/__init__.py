@@ -13,6 +13,7 @@ from .lib_config import config_dir, general_config, filesys_config, logging_conf
 
 from .lib_config import reload_configfiles, verify_config_consistency
 
+_logger = _logging.getLogger(__name__)
 # define some constants for convenience
 ROOTDIR = filesys_config['rootdir']
 
@@ -33,7 +34,7 @@ LIVEFILEDIR = filesys_config['livefiledir'] if _os.path.isabs(filesys_config['li
 LOGFILEDIR  = logging_config['logfiledir'] if _os.path.isabs(logging_config['logfiledir']) \
                                             else _os.path.join(ROOTDIR, logging_config['logfiledir'])
 
-# no checks on permissions...
+# set up file system according to the configuration files - no checks on permissions...
 if not _os.path.exists(ROOTDIR)    : _os.makedirs(ROOTDIR)
 if not _os.path.exists(PIDFILEDIR) : _os.makedirs(PIDFILEDIR)
 if not _os.path.exists(LOGFILEDIR) : _os.makedirs(LOGFILEDIR)
@@ -55,3 +56,27 @@ if not _os.path.exists(FIRMWAREDIR):
     raise OSError("Firmware directory doesn't exist. Please point to a valid directory ")
 elif not any( map(lambda x: _os.path.splitext(x)[-1]=='.fpg', _os.listdir(FIRMWAREDIR) ) ):
     raise AttributeError("Firmware directory doesn't appear to contain any .fpg files. Please point to a valid directory ")
+
+
+# set system limits on num open files, send and revice buffer lengths
+try:
+    os.system("sysctl -w fs.file-max = 100000 ")
+    _logger.info("changed max number of open files to 10k")
+except:
+    _logger.warning("couldn't change the max number of files. ")
+
+# set system limits udp receive buffer length (only required for raw sockets (not used any more))
+try:
+    os.system("sysctl -w net.core.rmem_max='88104 117473 176208' ")
+    _logger.info("changed SNDBUF default to 2**22 = 4194304")
+except:
+    _logger.warning("couldn't change default SNDBUF")
+
+# set system limits send buffer lengths (required for faster tone writing )
+try:
+    os.system("sysctl -w net.ipv4.tcp_wmem='4096 4194304 4194304'")
+    os.system("sysctl -w net.core.wmem_max=4194304")
+
+    _logger.info("changed SNDBUF default to 2**22 = 4194304")
+except:
+    _logger.warning("couldn't change default RCVBUF")

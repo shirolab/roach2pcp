@@ -10,6 +10,33 @@ Put most recent commits at the top please!
     - off resonance mode (just move the LO?) - is that ever useful? why not just add blind tone? maybe quicker?
 
 
+- add ri.fpga.disconnect() in shutdown
+- also add any hardware shutdown to the procedure
+
+- add write_freqs_to_fpga - force reupload (fix bug where if errors, _last_written_bb_freqs is still written )
+- conveinience function to check sweep frequencies
+- add name into pcpSweeps
+- add extra data to pcpInteractiveSweepPlot (f0s...etc)
+- add auto-wrtie-cal-parameters after a sweep (currently default )
+  - KK requests method to tune only resonators that require it - how to implement that? maybe interactively?
+- add inputatt to metadata
+- for the r+s synth - print status of sweep (maybe the tqdm bar is appropriate here )
+- check toneslist bb_freq -> rf_conversion ?
+
+- write non-blocking_blindwrite to roach_iface for faster tone writing
+  - need to check if roach does send back a response, and whether we need to check that?
+
+- begin putting togehter multi-roach operations
+  - initialise
+  - sweep
+    - view sweeps (tabbed interface would be nice here) - https://stackoverflow.com/questions/37346845/tabbed-window-for-matplotlib-figures-is-it-possible
+  - stream start/stop
+  - shutdown
+- scripts
+  - do observation on multi-roach systems
+    - with/without tuning
+    - add obs id
+- tracking of on/off resonance ?
 
 --------------------------------------------------------------------------------
 2019-12-04 [PB] - major additions continued
