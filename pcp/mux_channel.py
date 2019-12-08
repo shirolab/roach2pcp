@@ -68,7 +68,7 @@ class muxChannel(object):
         self._initalise_folders()
 
         #self.fpga            = _lib_fpga.get_fpga_instance(roachid)
-        self.roach_iface     = _lib_fpga.roachInterface( roachid )
+        self.ri     = _lib_fpga.roachInterface( roachid )
 
         # initialise writer daemon
         self.writer_daemon   = self._initialise_daemon_writer()
@@ -230,16 +230,16 @@ class muxChannel(object):
 
         # convenience access for writing to packet
     def write_int(self):
-        self.roach_iface.fpga.write_int
+        self.ri.fpga.write_int
 
     def read_int(self):
-        self.roach_iface.fpga.read_int
+        self.ri.fpga.read_int
 
     def write_freqs_to_fpga(self, auto_write = False):
         """High level function to write the current toneslist frequencies to the QDR"""
 
         # make sure fpga looks like its running
-        if not ( self.roach_iface.fpga and self.roach_iface.fpga.is_connected() ):
+        if not ( self.ri.fpga and self.ri.fpga.is_connected() ):
             _logger.warning("fpga instance appears to be broken. Returning.")
             self._last_written_bb_freqs = None
             return
@@ -253,7 +253,7 @@ class muxChannel(object):
 
         # write_freqs_to_qdr
         if auto_write or raw_input("Write new tones to qdr? [y/n]").lower() == 'y':
-            self.roach_iface.write_freqs_to_qdr(self.toneslist.bb_freqs, self.toneslist.amps, self.toneslist.phases)
+            self.ri.write_freqs_to_qdr(self.toneslist.bb_freqs, self.toneslist.amps, self.toneslist.phases)
         else:
             _logger.info("new tones loaded but not written to qdr.")
 
@@ -679,6 +679,9 @@ class muxChannel(object):
         except AttributeError:
             pass
 
+        if self.ri.fpga:
+            self.ri.fpga._disconnect()
+            
 class muxChannelList(object):
 
     def __init__(self, channel_list):

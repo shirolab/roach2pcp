@@ -60,23 +60,30 @@ elif not any( map(lambda x: _os.path.splitext(x)[-1]=='.fpg', _os.listdir(FIRMWA
 
 # set system limits on num open files, send and revice buffer lengths
 try:
-    os.system("sysctl -w fs.file-max = 100000 ")
+    _os.system("sysctl -w fs.file-max=100000 ")
     _logger.info("changed max number of open files to 10k")
+    print "changed max number of open files to 10k"
 except:
     _logger.warning("couldn't change the max number of files. ")
+    print "couldn't change the max number of files. "
 
 # set system limits udp receive buffer length (only required for raw sockets (not used any more))
 try:
-    os.system("sysctl -w net.core.rmem_max='88104 117473 176208' ")
-    _logger.info("changed SNDBUF default to 2**22 = 4194304")
+    _os.system("sysctl -w net.core.rmem_max='88104 117473 176208' ")
+    _logger.info("changed RCVBUF default to 117473")
+    print "changed RCVBUF default to 117473"
+
 except:
-    _logger.warning("couldn't change default SNDBUF")
+    _logger.warning("couldn't change default RCVBUF")
+    print "couldn't change default RCVBUF"
 
 # set system limits send buffer lengths (required for faster tone writing )
 try:
-    os.system("sysctl -w net.ipv4.tcp_wmem='4096 4194304 4194304'")
-    os.system("sysctl -w net.core.wmem_max=4194304")
+    _os.system("sysctl -w net.ipv4.tcp_wmem='4096 16777216 16777216'")
+    _os.system("sysctl -w net.core.wmem_max=16777216")
 
-    _logger.info("changed SNDBUF default to 2**22 = 4194304")
+    _logger.info("changed SNDBUF default to 2**24 = 16777216")
+    print "changed SNDBUF default to 2**24 = 16777216"
 except:
     _logger.warning("couldn't change default RCVBUF")
+    print "couldn't change default RCVBUF"

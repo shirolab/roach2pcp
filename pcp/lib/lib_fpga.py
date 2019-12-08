@@ -1,6 +1,6 @@
 # functions for control and configuration of the fpga/ppc
 
-import time as _time, os as _os, logging as _logging, struct as _struct, socket as _socket # inet_aton as _inet_aton
+import time as _time, os as _os, errno as _errno, logging as _logging, struct as _struct, socket as _socket # inet_aton as _inet_aton
 import threading as _threading, tqdm as _tqdm, functools as _functools, time as _time
 from ..configuration import color_msg as cm
 
@@ -23,6 +23,15 @@ except ImportError:
     _logger.warning( "can't find casperfpga module - limited functionality available" )
     _casperfpga = None
     pass
+
+try:
+    import katcp as _katcp
+
+except ImportError:
+    _logger.warning( "can't find katcp module - limited functionality available" )
+    _katcp = None
+    pass
+
 
 def check_registers_are_valid(registers, firmware_reg_list):
 
@@ -473,9 +482,11 @@ class roachInterface(object):
                 print 'Waveform rescaled by fixed amount: waveMax:',waveMax,'New Ipp:',_np.ptp(i),'New Qpp:',_np.ptp(q)
             return i,q
 
-    def _fast_blindwrite(self, device_name, data, offset=0, timeout=2):
+    def _fast_blindwrite(self, device_name, data, offset=0, timeout=10):
         """Stripped down copy of the blindwrite function, intended to be faster """
 
+
+        assert _katcp, "katcp module not found."
         assert self.fpga.is_running(), "fpga firmware doesn't appear to be running "
         assert self.fpga.is_connected(), "connection to fpga doesn't appear to be alive"
 
@@ -485,13 +496,16 @@ class roachInterface(object):
 
         sock = self.fpga._sock
 
-        msgtosend = katcp.Message.request("write", * (device_name, str(offset), data) )
+        msgtosend = _katcp.Message.request("write", * (device_name, str(offset), data) )
 
         data = str(msgtosend) + "\n" # <- takes ~ 1s? can we reduce this?
         datalen = len(data)
-
+        print datalen
         # send the data (copy loop from katcp)
         send_failed = False
+        totalsent = 0
+        t0 = _time.time()
+        print "socket send buffer", sock.getsockopt(_socket.SOL_SOCKET, _socket.SO_SNDBUF)
 
         while totalsent < datalen:
             if timeout is not None and _time.time() - t0 > timeout:
@@ -501,9 +515,9 @@ class roachInterface(object):
                 break
             try:
                 sent = sock.send(data[totalsent:])
-            except socket.error, e:
-                if len(e.args) == 2 and e.args[0] == errno.EAGAIN and \
-                        sock is self._sock:
+            except _socket.error, e:
+                if len(e.args) == 2 and e.args[0] == _errno.EAGAIN and sock is self.fpga._sock:
+
                     continue
                 else:
                     send_failed = True
@@ -514,6 +528,7 @@ class roachInterface(object):
                 break
 
             totalsent += sent
+            print totalsent
 
         return send_failed
 
@@ -695,12 +710,18 @@ class roachInterface(object):
   #       return I_lut.astype('>i2').tostring(), Q_lut.astype('>i2').tostring() # I_lut_packed, Q_lut_packed
 
     @progress_wrapped(description=cm.BOLD+"Writing tones"+cm.ENDC, estimated_time=15.75)
-    def write_freqs_to_qdr(self, freqs, amps, phases, autoFullScale=True, fast_write = False, iqgaindict = {}) dac_iq_gain=None, dac_iq_phase=None, dds_iq_gain=None, dds_iq_phase=None, dds_iq_offset=None, **kwargs):
+    def write_freqs_to_qdr(self, freqs, amps, phases, autoFullScale=True, fast_write = False, iq_gaindict = {}): #dac_iq_gain=None, dac_iq_phase=None, dds_iq_gain=None, dds_iq_phase=None, dds_iq_offset=None, **kwargs):
         # Writes packed LUTs to QDR
 
         #write fft_shift ?
         fft_shift = 2**5 if len(freqs) >= 400 else 2**9
         write_to_fpga_register(self.fpga, { "fft_shift_reg": fft_shift - 1} , self.firmware_reg_list, sleep_time = 0. )
+
+        dac_iq_gain   = iq_gaindict.pop("dac_iq_gain",   None)
+        dac_iq_phase  = iq_gaindict.pop("dac_iq_phase",  None)
+        dds_iq_gain   = iq_gaindict.pop("dds_iq_gain",   None)
+        dds_iq_phase  = iq_gaindict.pop("dds_iq_phase",  None)
+        dds_iq_offset = iq_gaindict.pop("dds_iq_offset", None)
 
         I_lut_packed, Q_lut_packed = self.pack_luts(freqs, amps, phases, autoFullScale=autoFullScale,
             dac_iq_gain=dac_iq_gain, dac_iq_phase=dac_iq_phase,
@@ -711,8 +732,8 @@ class roachInterface(object):
                                             "start_dac_reg": 0 }, self.firmware_reg_list, sleep_time = 0. )
         if fast_write == True:
             # added custom function to try to speed up the tone writing
-            assert not _fast_blindwrite(self.firmware_reg_list['qdr0_reg'], I_lut_packed, offset = 0), "write to qdr0_reg failed"
-            assert not _fast_blindwrite(self.firmware_reg_list['qdr1_reg'], Q_lut_packed, offset = 0), "write to qdr1_reg failed"
+            assert not self._fast_blindwrite(self.firmware_reg_list['qdr0_reg'], I_lut_packed, offset = 0), "write to qdr0_reg failed"
+            assert not self._fast_blindwrite(self.firmware_reg_list['qdr1_reg'], Q_lut_packed, offset = 0), "write to qdr1_reg failed"
         # blindwrites takes around 8-9 seconds each
         else:
             self.fpga.blindwrite(self.firmware_reg_list['qdr0_reg'], I_lut_packed, offset = 0)
@@ -756,18 +777,18 @@ class roachInterface(object):
 
     def read_QDR_katcp(self):
         # Reads out QDR buffers with KATCP, as 16-b signed integers.
-        self.QDR0 = np.fromstring(self.fpga.read('qdr0_memory', 8 * 2**20), dtype = '>i2')
-        self.QDR1 = np.fromstring(self.fpga.read('qdr1_memory', 8 * 2**20), dtype = '>i2')
+        self.QDR0 = _np.fromstring(self.fpga.read('qdr0_memory', 8 * 2**20), dtype = '>i2')
+        self.QDR1 = _np.fromstring(self.fpga.read('qdr1_memory', 8 * 2**20), dtype = '>i2')
         self.I_katcp = self.QDR0.reshape(len(self.QDR0)/4., 4.)
         self.Q_katcp = self.QDR1.reshape(len(self.QDR1)/4., 4.)
         #self.I_dac_katcp = np.hstack(zip(self.I_katcp[:,1],self.I_katcp[:,0]))
         #self.Q_dac_katcp = np.hstack(zip(self.Q_katcp[:,1],self.Q_katcp[:,0]))
         #self.I_dds_katcp = np.hstack(zip(self.I_katcp[:,3],self.I_katcp[:,2]))
         #self.Q_dds_katcp = np.hstack(zip(self.Q_katcp[:,3],self.Q_katcp[:,2]))
-        self.I_dac_katcp = np.dstack((self.I_katcp[:,1], self.I_katcp[:,0])).ravel()
-        self.Q_dac_katcp = np.dstack((self.Q_katcp[:,1], self.Q_katcp[:,0])).ravel()
-        self.I_dds_katcp = np.dstack((self.I_katcp[:,3], self.I_katcp[:,2])).ravel()
-        self.Q_dds_katcp = np.dstack((self.Q_katcp[:,3], self.Q_katcp[:,2])).ravel()
+        self.I_dac_katcp = _np.dstack((self.I_katcp[:,1], self.I_katcp[:,0])).ravel()
+        self.Q_dac_katcp = _np.dstack((self.Q_katcp[:,1], self.Q_katcp[:,0])).ravel()
+        self.I_dds_katcp = _np.dstack((self.I_katcp[:,3], self.I_katcp[:,2])).ravel()
+        self.Q_dds_katcp = _np.dstack((self.Q_katcp[:,3], self.Q_katcp[:,2])).ravel()
 
     #Active PPS
     def active_pps(self, active=True):

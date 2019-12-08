@@ -45,7 +45,7 @@ def main(roach):
     # Rewrite tones
     # roach.toneslist.amps = np.ones_like(roach.toneslist.bb_freqs)
     # roach.toneslist.set_phases()
-    roach.roach_iface.write_freqs_to_qdr(roach.toneslist.bb_freqs,
+    roach.ri.write_freqs_to_qdr(roach.toneslist.bb_freqs,
                                          roach.toneslist.amps,
                                          roach.toneslist.phases)
     roach.sweep_lo()

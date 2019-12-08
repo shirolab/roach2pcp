@@ -24,21 +24,21 @@ def verify_configuration():
 
 def _check_firmware_loaded(roaches, upload_firm):
     for roach in roaches:
-        if roach.roach_iface.fpg_uploaded:
-            print "[ " + cm.OKBLUE + "ok" + cm.ENDC +" ] Firmware Roach: {roachid}".format(roachid = roach.roachid) 
+        if roach.ri.fpg_uploaded:
+            print "[ " + cm.OKBLUE + "ok" + cm.ENDC +" ] Firmware Roach: {roachid}".format(roachid = roach.roachid)
         else:
-            print "[ " + cm.WARNING + "fail" + cm.ENDC +" ] Not Firmware in Roach: {roachid}".format(roachid = roach.roachid) 
+            print "[ " + cm.WARNING + "fail" + cm.ENDC +" ] Not Firmware in Roach: {roachid}".format(roachid = roach.roachid)
             if upload_firm:
-                roach.roach_iface.upload_firmware_file(force_reupload=True)
+                roach.ri.upload_firmware_file(force_reupload=True)
 
 def _check_packets_received(roaches):
     flag_roaches = []
     for roach in roaches:
         if roach.writer_daemon.check_packets_received:
-            print "[ " + cm.OKBLUE + "ok" + cm.ENDC +" ] {roachid} Packets received :)".format(roachid = roach.roachid) 
+            print "[ " + cm.OKBLUE + "ok" + cm.ENDC +" ] {roachid} Packets received :)".format(roachid = roach.roachid)
             flag_roaches.append(True)
         else:
-            print "[ " + cm.WARNING + "fail" + cm.ENDC +" ] {roachid} No packets received :(".format(roachid = roach.roachid) 
+            print "[ " + cm.WARNING + "fail" + cm.ENDC +" ] {roachid} No packets received :(".format(roachid = roach.roachid)
             flag_roaches.append(False)
 
     return flag_roaches
@@ -54,7 +54,7 @@ def main(roach_list, force_reupload=False):
     if force_reupload:
         for roach in roaches:
             roach.initialse_hardware()
-            roach.roach_iface.initialise_fpga(force_reupload=True)
+            roach.ri.initialise_fpga(force_reupload=True)
     else:
         # Check Firmware
         _check_firmware_loaded(roaches, upload_firm=False)
@@ -64,7 +64,7 @@ def main(roach_list, force_reupload=False):
 
         for i in range(len(roaches)):
             if not active_roach[i]:
-                roaches[i].roach_iface.initialise_fpga(force_reupload=True)
+                roaches[i].ri.initialise_fpga(force_reupload=True)
             roaches[i].initialise_hardware()
 
     roach_dict = {}

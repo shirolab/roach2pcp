@@ -76,7 +76,7 @@ def load_sweep_and_retune(roach, sweepfile, edge_buffer = 5):
             #plt.ion()
             #plt.figure()
             #plt.plot(lo, dSdf)
-            
+
             dlo = lo[ np.argmax(dSdf) ] - lo_cent # if max is to left, want negative df
             #dlo = lo_buf[ np.argmax(dSdf) ] - lo_cent # if max is to left, want negative df
             #plt.axvline(lo[ np.argmax(dSdf) ], label = 'mag grad')
@@ -95,6 +95,6 @@ def load_sweep_and_retune(roach, sweepfile, edge_buffer = 5):
     roach.toneslist.lo_freq = lo_cent
     print roach.toneslist.bb_freqs
     #write new bb_freqs to qdr
-    roach.roach_iface.write_freqs_to_qdr(roach.toneslist.bb_freqs,
+    roach.ri.write_freqs_to_qdr(roach.toneslist.bb_freqs,
                                          roach.toneslist.amps,
                                          roach.toneslist.phases)
