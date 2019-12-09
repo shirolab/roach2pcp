@@ -21,18 +21,22 @@ histdictkeys = [ 'filename', \
 
 class pcpSweep(object):
 
-    def __init__(self, roachid, dirfile = None):
+    def __init__(self, dirfile = None):
         """
         A pcpSweepdata object. Used to contain and manipulate the current sweep data.
 
         """
         # set up class attributes
 
+        self.name = None
+
         self._bb_freqs = None
         self.lo_freqs  = None
 
         self._lo_freq  = None
         self.rf_freqs  = None
+
+        self.tonefreqs = None
 
         self.data_fields = None
         self.data        = None
@@ -50,7 +54,7 @@ class pcpSweep(object):
 
         self.filter_dict = {} # dictionary for a filter used to smooth the calibation data
 
-    def load_sweep_dirfile(self, dirfile):
+    def load_sweep_dirfile(self, dirfile, auto_analyse = False):
         """
 
         Function to load a dirfile into the sweep dirfile.
@@ -65,7 +69,11 @@ class pcpSweep(object):
             self.store_sweep()
 
         self.dirfile = dirfile
+        self.name = _os.path.basename(dirfile.name)
         self.get_data()
+
+        if auto_analyse:
+            self.calc_sweep_cal_params()
 
     def get_data(self):
         """
@@ -84,6 +92,7 @@ class pcpSweep(object):
         self._lo_freq  = self.lo_freqs[(self.lo_freqs.shape[0]-1)/2]
         self.rf_freqs  = _np.repeat(self._bb_freqs[:, _np.newaxis], self.lo_freqs.shape[0], axis=1) + self.lo_freqs
 
+        self.tonefreqs = self._bb_freqs + self._lo_freq
         #self.data_fields = [s.split(".")[-1] for s in sweep_data_fields]
         self.data        = _np.array( [self.dirfile.get_carray(fc) for fc in sweep_data_fields] )
 
@@ -108,7 +117,7 @@ class pcpSweep(object):
         """Function to store a copy """
         self.history.append( deepcopy(self) )
 
-    def calc_sweep_cal_params(self, tonefreqs = None, method = "maxspeed"):
+    def calc_sweep_cal_params(self, tonefreqs = None, method = "maxspeed", exclude_idxs=[]):
         """
         Function to calculate the calibration parameters from the currently loaded sweep data and filter parameters.
 
@@ -117,15 +126,27 @@ class pcpSweep(object):
         """
         assert method in ['maxspeed', 'mins21'], "Given method {0} for finding resonant frequencies not valid.".format(method)
 
-        _logger.info("Calculating new set of calibration parameters. To restore original parameters values, use self.get_data().\
-                    Use self.write_sweep_cal_params to write the new calibration parameters to file to be used in streaming.")
+        _logger.info("Calculating new set of calibration parameters. To restore original parameters values, use self.get_data()."\
+                    "Use self.write_sweep_cal_params to write the new calibration parameters to file to be used in streaming.")
 
         # add filter parameters here!
         assert self.data is not None, "there doesn't appear to be any sweep data available. Do a sweep, or load an existing file and rerun"
-        self.calparams, self.caldata = _resonator_routines.calc_sweep_cal_params(self.rf_freqs, \
+
+        calparams, caldata = _resonator_routines.calc_sweep_cal_params(self.rf_freqs, \
                                                                                 self.data.real, \
                                                                                 self.data.imag, \
                                                                                 tone_freqs = tonefreqs )
+        # get the indexes of the data we want to analyse (default all of them )
+        allidxs = _np.arange( len(self.data), dtype=_np.int )
+        idxstoanalyse = list( set(allidxs).difference(exclude_idxs) )
+
+        if (self.calparams is not None) and (self.caldata is not None):
+            self.caldata[ idxstoanalyse ]    = caldata[ idxstoanalyse ]
+            for key, val in self.calparams.items():
+                self.calparams[key][ idxstoanalyse ]  = calparams[key][ idxstoanalyse ]
+        else:
+            self.caldata   = caldata
+            self.calparams = calparams
 
     def set_filter_params(self):
         pass
@@ -206,25 +227,12 @@ class pcpSweep(object):
     def calc_new_frequencies(self):
         pass
 
-    def plot_sweep(self):
-        """Simple plotter to visualise and navigate sweep data"""
+    def plot_sweep(self, sweeplist, sortfreqs = False):
+        from . import visualisation as vis
 
-        import matplotlib.pyplot as plt
+        self.ip = vis.pcpInteractivePlot( sweeplist, sortfreqs=False)
 
-        #
-        fig = plt.figure(figsize=(13.5,  7))
 
-        #If the three integers are R, C, and P in order, the subplot will take the Pth position on a grid with R rows and C columns.
-        axiq  = fig.add_subplot(122)
-        axmag = fig.add_subplot(321)
-        axphi = fig.add_subplot(323, sharex = axmag)
-        axcal = fig.add_subplot(325, sharex = axmag)
-
-        axiq.plot(self.data[0].real, self.data[0].imag, 'o')
-        axmag.plot(self.rf_freqs[0], _np.abs(self.data[0]))
-        axphi.plot(self.rf_freqs[0], _np.angle(self.data[0]))
-
-        fig.show()
 
         # how complicated do we want to get
         #

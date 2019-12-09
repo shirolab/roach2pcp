@@ -79,7 +79,7 @@ class muxChannel(object):
         self.toneslist.load_tonelist = self._decorate_tonelist_loader( self.toneslist.load_tonelist )
 
         # set up the sweep object (used for storing saved data)
-        self.sweep = sweep.pcpSweep(self.roachid)
+        self.sweep = sweep.pcpSweep()
 
         self._last_written_bb_freqs = None
 
@@ -681,7 +681,7 @@ class muxChannel(object):
 
         if self.ri.fpga:
             self.ri.fpga._disconnect()
-            
+
 class muxChannelList(object):
 
     def __init__(self, channel_list):

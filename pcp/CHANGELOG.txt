@@ -3,31 +3,54 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 --------------------------------------------------------------------------------
-2019-12-05 [PB] - looking at merging muscat changes
+2019-12-08 [PB] - looking at merging muscat changes
   - lots of changes done by the muscat team - possibly too many to incorporate on a short timescale
   - some important/useful features that could be incorporated
     - iqcalibration
     - off resonance mode (just move the LO?) - is that ever useful? why not just add blind tone? maybe quicker?
 
 
-- add ri.fpga.disconnect() in shutdown
-- also add any hardware shutdown to the procedure
+- added ri.fpga.disconnect() in shutdown to close the connection to the fpga
+- also added a _fast_blindwrite to roach_interface
+  - unfortunately, it did not reduce the write time --> bottleneck is somewhere on the roach
+
+- added name attribute, defaults to os.path.basename(dirfile.name) into pcpSweep - used to distinguish data when plotting
+
+- modified mc.sweep.calc_sweep_cal_params()
+    - added auto-analyse key when loading a new dirfile ( default = False )
+    - added exclude_idxs which allows the user to exclude certain indexes from calculating parameters, which can be used
+    if we want to correct only a few tones
+
+- added auto-analyse key to mc.sweep.calc_sweep_cal_params loading a new dirfile ( default = False )
+
+- improvements to pcpInteractiveSweepPlot
+  - implemented shift+click to add tone to a selected list (used for choosing tones to reanalyse in subsequent )
+  - added tonedata on mag, phi and speed (need to do iq )
+
+
+TODO
+- add any hardware shutdown to the procedure
 
 - add write_freqs_to_fpga - force reupload (fix bug where if errors, _last_written_bb_freqs is still written )
-- conveinience function to check sweep frequencies
-- add name into pcpSweeps
+
+- convenience function to check sweep frequencies
+  - need to rearrange sweep_params and move them to pcpSweep
+
+- iqcal_dict in mc.ri
+  - add iqcal to toneslist
+  - add script to measure these values?
+  - then add to muxchannel.write_freqs_to_qdr()
+
 - add extra data to pcpInteractiveSweepPlot (f0s...etc)
-- add auto-wrtie-cal-parameters after a sweep (currently default )
-  - KK requests method to tune only resonators that require it - how to implement that? maybe interactively?
+
 - add inputatt to metadata
+
 - for the r+s synth - print status of sweep (maybe the tqdm bar is appropriate here )
+
 - check toneslist bb_freq -> rf_conversion ?
 
-- write non-blocking_blindwrite to roach_iface for faster tone writing
-  - need to check if roach does send back a response, and whether we need to check that?
-
-- begin putting togehter multi-roach operations
-  - initialise
+- begin putting together multi-roach operations
+  - initialize
   - sweep
     - view sweeps (tabbed interface would be nice here) - https://stackoverflow.com/questions/37346845/tabbed-window-for-matplotlib-figures-is-it-possible
   - stream start/stop
