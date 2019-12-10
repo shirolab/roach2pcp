@@ -248,6 +248,7 @@ class Toneslist(object):
 			phases   = _np.array(tonedict['phases'])
 			bb_freqs = _np.array(tonedict['freqs'])
 
+		ask = False
 		# check to see if current tonelist matches new tones by comparing number of tones and fractional shift in bb_freqs
 		if len(self.tonenames) != len(amps) :
 			warn = "Length of new tones does not appear to match the currently loaded toneslist -- "
@@ -264,6 +265,7 @@ class Toneslist(object):
 
 		self.amps = amps; self.phases = phases; self.bb_freqs = bb_freqs
 		_logger.info("new tones loaded from {0}".format( _os.path.basename( self.tonehistory[datetime_tag])) )
+		_time.sleep(0.1)
 
 	def write_tonehistfile(self):
 		""" Write the current tone parameters to a timestamped .tone file in the tonehistdir for the given
@@ -428,6 +430,7 @@ class Toneslist(object):
 			self.phases = _np.zeros_like(self.bb_freqs)
 
 		elif how == "opposite":
+			_logger.warning("opposite not currently implmented. defaulting to zeros")
 			self.phases = _np.zeros_like(self.bb_freqs) # <-- need to implement opposite phase for improved sideband leakage
 
 	def load_tonelist(self, tonelistfile = "", **loaderkwargs):
@@ -489,9 +492,12 @@ class Toneslist(object):
 		self.lo_freq = self.find_optimum_lo() # this will trigger the frequency lists to be updated
 
 		# update the amps and phases to default values
-		self.amps = _np.ones(self.tonenames.shape)
-		self.phases = self.set_phases(how = "random")
+		self.amps   = _np.ones(self.tonenames.shape)
+		self.set_phases(how = "random")
 		self.ampcorr.update({'default': _np.ones(self.tonenames.shape)})
+
+		_logger.info("Successfully loaded toneslist file {0}".format(file_to_read) )
+		_time.sleep(0.1)
 
 	def find_optimum_lo(self):
 		"""For a given set of tones, this function will find the optimum LO frequency to

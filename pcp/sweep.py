@@ -37,6 +37,7 @@ class pcpSweep(object):
         self.rf_freqs  = None
 
         self.tonefreqs = None
+        self.tonenames = None
 
         self.data_fields = None
         self.data        = None

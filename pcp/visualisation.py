@@ -24,6 +24,7 @@ import numpy as _np
 import cmath as _cmath
 import pygetdata as _gd
 
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.widgets import MultiCursor
 
@@ -683,6 +684,9 @@ class pcpInteractivePlot(object):
     def _configure_axes(self):
 
         fig = plt.figure(figsize=(13.5,  7))
+        #fig = matplotlib.figure.Figure(figsize=(13.5,  7))
+        #matplotlib.backends.backend_qt5agg.FigureCanvas(fig)
+
         axiq  = fig.add_subplot(122)
         axmag = fig.add_subplot(321)
         axphi = fig.add_subplot(323, sharex = axmag)
@@ -696,6 +700,7 @@ class pcpInteractivePlot(object):
         fig.canvas.mpl_connect('key_press_event',   self._on_key_press)
         fig.canvas.mpl_connect('key_release_event', self._on_key_release)
         fig.canvas.mpl_connect('button_press_event', self._on_mouse_click)
+
         # set figure and axes to class attributes
         self.fig = fig
         self.axiq = axiq; self.axmag = axmag; self.axphi = axphi; self.axcal = axcal
@@ -705,6 +710,8 @@ class pcpInteractivePlot(object):
         for sweep in self.sweeplist:
 
             self._linedict[sweep.name]['iqmain'], = self.axiq.plot(sweep.data[self.sortidxs][self.idx].real, sweep.data[self.sortidxs][self.idx].imag, 'o')
+            self._linedict[sweep.name]['iqtone'], = self.axiq.plot(1,1, 'rD', ms=10, label = 'tone')
+            self._linedict[sweep.name]['iqf0'],   = self.axiq.plot(1,1, 'gD', ms=10, label = 'calcf0')
 
             self._linedict[sweep.name]['magmain'], = self.axmag.plot(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, 20*_np.log10( _np.abs(sweep.data[self.sortidxs][self.idx]) ) )
             self._linedict[sweep.name]['magtone']  = self.axmag.axvline(sweep.tonefreqs[self.sortidxs][self.idx]/1.e6, c='r', ls='dashed')
@@ -726,9 +733,14 @@ class pcpInteractivePlot(object):
 
     def refresh_plot(self):
         for sweep in self.sweeplist:
-            self._linedict[sweep.name]['iqmain'].set_data(sweep.data[self.sortidxs][self.idx].real, sweep.data[self.sortidxs][self.idx].imag)
-            self._linedict[sweep.name]['magmain'].set_data(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, 20*_np.log10( _np.abs(sweep.data[self.sortidxs][self.idx]) ) )
+            toneidx = _np.where(sweep.lo_freqs==sweep._lo_freq)
+            f0idx   = _np.where(sweep.lo_freqs==sweep._lo_freq)
 
+            self._linedict[sweep.name]['iqmain'].set_data(sweep.data[self.sortidxs][self.idx].real, sweep.data[self.sortidxs][self.idx].imag)
+            self._linedict[sweep.name]['iqtone'].set_data(sweep.data[self.sortidxs][self.idx].real[toneidx], sweep.data[self.sortidxs][self.idx].imag[toneidx])
+            self._linedict[sweep.name]['iqf0'  ].set_data(sweep.data[self.sortidxs][self.idx].real[f0idx],   sweep.data[self.sortidxs][self.idx].imag[f0idx])
+
+            self._linedict[sweep.name]['magmain'].set_data(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, 20*_np.log10( _np.abs(sweep.data[self.sortidxs][self.idx]) ) )
             self._linedict[sweep.name]['magtone'].set_data(sweep.tonefreqs[      self.sortidxs][self.idx]/1.e6, [0,1] )
             self._linedict[sweep.name]['magf0'  ].set_data(sweep.calparams['f0s'][self.sortidxs][self.idx]/1.e6, [0,1] )
 
@@ -763,7 +775,7 @@ class pcpInteractivePlot(object):
                                                             else self.fig.set_facecolor( self._color_dict['default'] )
 
         plt.draw()
-        plt.show(block=self.block)
+        #plt.show(block=self.block)
 
     def _on_key_press(self, event):
         if event.key == 'right':
@@ -787,6 +799,150 @@ class pcpInteractivePlot(object):
             # add index to a _picked
             self._picked.remove(self.idx) if self.idx in self._picked else self._picked.append(self.idx)            # check if self.idx already exists in self._picked and remove
             self.refresh_plot()
+
+#------------------------------------------------------------------------------------
+# playing aorund with embedding mpl figures into simple qt application
+#------------------------------------------------------------------------------------
+#
+# from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+# from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+# from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QTabWidget, QVBoxLayout
+# import matplotlib.pyplot as plt
+# import sys
+#
+# class plotWindow():
+#     def __init__(self, parent=None):
+#         self.app = QApplication(sys.argv)
+#         self.MainWindow = QMainWindow()
+#         self.MainWindow.__init__()
+#         self.MainWindow.setWindowTitle("plot window")
+#         self.canvases = []
+#         self.figure_handles = []
+#         self.toolbar_handles = []
+#         self.tab_handles = []
+#         self.current_window = -1
+#         self.tabs = QTabWidget()
+#         self.MainWindow.setCentralWidget(self.tabs)
+#         self.MainWindow.resize(1280, 900)
+#         self.MainWindow.show()
+#
+#     def addPlot(self, title, figure):
+#         new_tab = QWidget()
+#         layout = QVBoxLayout()
+#         new_tab.setLayout(layout)
+#
+#         #figure.subplots_adjust(left=0.05, right=0.99, bottom=0.05, top=0.91, wspace=0.2, hspace=0.2)
+#         new_canvas = FigureCanvas(figure)
+#         new_toolbar = NavigationToolbar(new_canvas, new_tab)
+#
+#         layout.addWidget(new_canvas)
+#         layout.addWidget(new_toolbar)
+#         self.tabs.addTab(new_tab, title)
+#
+#         self.toolbar_handles.append(new_toolbar)
+#         self.canvases.append(new_canvas)
+#         self.figure_handles.append(figure)
+#         self.tab_handles.append(new_tab)
+#
+#     def show(self):
+#         self.app.exec_()
+#
+#
+# import sys
+# import time
+#
+# import numpy as np
+#
+# from matplotlib.backends.qt_compat import QtCore, QtWidgets, is_pyqt5
+# from PyQt5.QtWidgets import QDialog, QApplication, QPushButton, QVBoxLayout
+#
+# from matplotlib.backend_bases import FigureManagerBase, key_press_handler
+#
+# if is_pyqt5():
+#     from matplotlib.backends.backend_qt5agg import (
+#         FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
+# else:
+#     from matplotlib.backends.backend_qt4agg import (
+#         FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
+# from matplotlib.figure import Figure
+#
+#
+# class ApplicationWindow(QtWidgets.QMainWindow):
+#     def __init__(self):
+#         super(ApplicationWindow, self).__init__()
+#         self._main = QtWidgets.QWidget()
+#         self.setCentralWidget(self._main)
+#         layout = QtWidgets.QVBoxLayout(self._main)
+#
+#         static_canvas = FigureCanvas(Figure(figsize=(5, 3)))
+#         layout.addWidget(static_canvas)
+#         self.addToolBar(NavigationToolbar(static_canvas, self))
+#
+#         self._static_ax = static_canvas.figure.subplots()
+#         t = np.linspace(0, 10, 501)
+#         self._static_ax.plot(t, np.tan(t), ".")
+#
+#
+# class Window(QtWidgets.QDialog):
+#     def __init__(self, parent=None, figure = None):
+#         super(Window, self).__init__(parent)
+#
+#         # a figure instance to plot on
+#         if not figure:
+#             self.figure = plt.figure()
+#         else:
+#             self.figure = figure
+#         # this is the Canvas Widget that displays the `figure`
+#         # it takes the `figure` instance as a parameter to __init__
+#         self.canvas = FigureCanvas(self.figure)
+#
+#         self.canvas.setFocusPolicy( QtCore.Qt.ClickFocus )
+#         self.canvas.setFocus()
+#         # this is the Navigation widget
+#         # it takes the Canvas widget and a parent
+#         self.toolbar = NavigationToolbar(self.canvas, self)
+#
+#         # Just some button connected to `plot` method
+#         self.button = QPushButton('Plot')
+#         self.button.clicked.connect(self.plot)
+#
+#         self.canvas.mpl_connect('key_press_event', self.on_key_press)
+#
+#         # set the layout
+#         layout = QVBoxLayout()
+#         layout.addWidget(self.toolbar)
+#         layout.addWidget(self.canvas)
+#         layout.addWidget(self.button)
+#         self.setLayout(layout)
+#
+#     def plot(self):
+#         ''' plot some random stuff '''
+#         # random data
+#         data = [_np.random.random() for i in range(10)]
+#
+#         # instead of ax.hold(False)
+#         self.figure.clear()
+#
+#         # create an axis
+#         ax = self.figure.add_subplot(111)
+#
+#         # discards the old graph
+#         # ax.hold(False) # deprecated, see above
+#
+#         # plot data
+#         ax.plot(data, '*-')
+#
+#         # refresh canvas
+#         self.canvas.draw()
+#
+#     def on_key_press(self, event):
+#         print 'you pressed', event.key
+#         # implement the default mpl key press events described at
+#         # http://matplotlib.sourceforge.net/users/navigation_toolbar.html#navigation-keyboard-shortcuts
+#         key_press_handler(event, self.canvas, self.toolbar)
+#
+
+
 
 
 

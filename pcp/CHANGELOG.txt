@@ -25,10 +25,18 @@ Put most recent commits at the top please!
 
 - improvements to pcpInteractiveSweepPlot
   - implemented shift+click to add tone to a selected list (used for choosing tones to reanalyse in subsequent )
-  - added tonedata on mag, phi and speed (need to do iq )
+  - added tonedata and calcf0 on mag, phi and speed and iq plot
 
+- fixed bug in toneslist that was setting phases = None when loading a new tonelistfile
 
 TODO
+
+- add check adc levels
+
+- sam r has a rescale dac function - is that the same as what arllready exsits in write_freqs_to_qdr?
+
+- add useful logging messages
+
 - add any hardware shutdown to the procedure
 
 - add write_freqs_to_fpga - force reupload (fix bug where if errors, _last_written_bb_freqs is still written )
@@ -41,13 +49,11 @@ TODO
   - add script to measure these values?
   - then add to muxchannel.write_freqs_to_qdr()
 
-- add extra data to pcpInteractiveSweepPlot (f0s...etc)
-
 - add inputatt to metadata
 
 - for the r+s synth - print status of sweep (maybe the tqdm bar is appropriate here )
 
-- check toneslist bb_freq -> rf_conversion ?
+- xcheck toneslist bb_freq -> rf_conversion ?
 
 - begin putting together multi-roach operations
   - initialize

@@ -73,7 +73,7 @@ class muxChannel(object):
         # initialise writer daemon
         self.writer_daemon   = self._initialise_daemon_writer()
 
-        # configure the tonelist - add functionality to modify datapacket_dict when the toneslist changes
+        # configure the tonelist - added functionality to modify datapacket_dict when the toneslist changes
         self.toneslist = toneslist.Toneslist(roachid, loader_function = _pd.read_csv)
         self.writer_daemon.initialise_datapacket_dict( self.toneslist )
         self.toneslist.load_tonelist = self._decorate_tonelist_loader( self.toneslist.load_tonelist )
@@ -691,21 +691,39 @@ class muxChannelList(object):
 
         assert isinstance(channel_list, (list, tuple)) and len(channel_list) > 0 , "input {0} not recognised".format( type(channel_list) )
 
-        self.ROACH_LIST = channel_list
+        self.channels = channel_list
 
         # determine if the elements of the list are instantiated muxChannel objects
         if all( [isinstance(el, muxChannel) for el in channel_list]):
             _logger.debug("found a list of existing muxchannels with roachids: {0}".format( [el.roachid for el in channel_list] ) )
 
-        elif set(channel_list).issubset(ROACH_LIST):
+        elif set(channel_list).issubset(self.channels):
             # create the muxchannels
             for roachid in channel_list:
-                _logger.debug("initialising muxChannel({roachid}) ".format( roachid=roachid ) )
+                _logger.info("initialising mux channel - {roachid} ".format( roachid=roachid ) )
                 setattr( self, roachid, muxChannel(roachid) )
 
     def _verify_channel_list_valid(self, channel_list):
-        assert set(channel_list).issubset(self.ROACH_LIST), "channels given are not valid {0}".format(set(channel_list).difference(self.ROACH_LIST))
+        assert set(channel_list).issubset(self.channels), "channels given are not valid {0}".format(set(channel_list).difference(self.channels))
         return True
+
+    def init_channel_list(self, interactive=True):
+        """Function to initalise the current channel list"""
+        assert len(self.channels) > 0, "channel list appears to be empty"
+
+        # assert all hardware is connected and working
+            # check firmware loaded
+            # check synth_los are all connected and respond
+            # check attenuator objects respond
+
+
+        # check toneslists are all loaded
+
+        # write tones to qdr (in parallel)
+
+        # confirm packets streaming on all roaches
+
+        # return
 
     def set_attenuation(self, new_vals, channels_to_change, mode = "increment"):
         """
@@ -785,6 +803,10 @@ class muxChannelList(object):
 
         #return res
 
+    def retune_kids(self, exclude=[]):
+        # run the retune script on all of the roaches
+        pass
+
     def start_stream_multi(self, channels_to_stream, *stream_args):
         pass
         # stream all
@@ -793,11 +815,17 @@ class muxChannelList(object):
         pass
 
     def shutdown_all(self, which = None):
-        for roachid in self.ROACH_LIST:
+        for roachid in self.channels:
             try:
                 getattr(self, roachid).shutdown()
             except:
                 _logger.exception("shutdown not successful.")
+
+    def plot_sweeps(self):
+        pass
+        # function to call visualisation to plot all the sweeps in a single sindow?
+
+
 
 def _worker(arg):
     print arg
