@@ -93,21 +93,28 @@ class FPC1000(object):
         POS, NEG, SAMP, RMS, AVER, APEak
         Use RMS '''
         self.inst.write("DET {s}".format(s=detector_str))
+
+
     def get_trace_data(self, delay=None):
         data = self.inst.query_ascii_values("TRAC:DATA?", container=np.array, delay = delay)
         return data
 
-    def execute_func_and_wait_until_complete(self, func, polltime, *args):
+    def execute_func_and_wait_until_complete(self, func, polltime, return_func_data, *args):
         #set event status register to 1
         self.set_event_status_register(1)
         #execute command
-        func(*args)
+        funcout = func(*args)
         ESR  = 0
         while ESR != 1:
             time.sleep(polltime)
             ESR = int(self.poll_complete())
+            print 'ESR = ', ESR
+        print 'function completed execution'
         #when self.poll_complete() returns 1, execution completed
-        return ESR
+        if return_func_data == True:
+            return ESR, funcout
+        else:
+            return ESR
 
     def wide_sweep(self, start, stop, df, Navg, rbw=3000.0):
         #setting sweep state
@@ -153,11 +160,19 @@ class FPC1000(object):
         '''f0array in Hz'''
         #setup system for measurement
         self.set_resolution_bandwidth_auto('OFF')
+        time.sleep(0.1)
         self.set_resolution_bandwidth(rbw)
+        time.sleep(0.1)
         self.set_video_bandwidth_auto('OFF')
+        time.sleep(0.1)
         self.set_video_bandwidth(vbw)
+        time.sleep(0.1)
         self.set_span(span)
+        time.sleep(0.1)
         self.set_detector_mode("RMS")
+        time.sleep(0.1)
+        resp = self.inst.query("*OPC?")
+        print resp
         #init arrays for data storage
         Nf = len(f0array)
         full_freq = np.empty((Nf, self.num_data_vals))
@@ -170,7 +185,7 @@ class FPC1000(object):
         #it always works the second time, but never the first. This wasn't a problem on the previous computer
         #RM 20191010
         try:
-            self.execute_func_and_wait_until_complete(self.initiate_sweep, 1)
+            self.execute_func_and_wait_until_complete(self.initiate_sweep, 1, False)
             tracedata = self.get_trace_data()
         except:
             pass
@@ -178,14 +193,28 @@ class FPC1000(object):
         for ii in range(Nf):
             ff = f0array[ii]
             self.set_center_freq(ff)
-            self.execute_func_and_wait_until_complete(self.initiate_sweep, 1)
+            time.sleep(0.1)
+            resp = self.inst.query("*OPC?")
+            print resp
+            self.execute_func_and_wait_until_complete(self.initiate_sweep, 1, False)
+            resp = self.inst.query("*OPC?")
+            print resp
             print 'completed sweep {aa} of {bb}'.format(aa=sweepcount, bb=Nf)
-            tracedata = self.get_trace_data()
+
+            ESR, tracedata = self.execute_func_and_wait_until_complete(self.get_trace_data, 1, True)
+            resp = self.inst.query("*OPC?")
+            print resp
+            # tracedata = self.get_trace_data()
             #storing trace in sweep_data
             sweep_data[ii,:] = tracedata
             #calculating the frequency axis
+            time.sleep(0.1)
             startf = self.get_start_freq()
+            time.sleep(0.1)
             stopf = self.get_stop_freq()
+            time.sleep(0.1)
+            resp = self.inst.query("*OPC?")
+            print resp 
             tempf = np.linspace(startf, stopf, self.num_data_vals)
             #storing frequency array from sweep in full_freq
             full_freq[ii,:] = tempf
@@ -200,20 +229,5 @@ class FPC1000(object):
 
 if __name__ == '__main__':
 
-	#do stuff
+    pass
 
-    # rm = visa.ResourceManager('@py')
-    #
-    # resource_string = "TCPIP{boardnum}::{ipaddress}::INSTR".format(boardnum = 0, ipaddress = "192.168.40.94")
-    #
-    # inst = rm.open_resource(resource_string)
-    FPC = FPC1000()
-
-    dotest=False
-
-    if dotest==True:
-        startfreq = 10.e6
-        stopfreq = 800.e6
-        df = 50.e3
-        Navg = 1
-        ff, tdat = FPC.wide_sweep(startfreq, stopfreq, df, Navg)
