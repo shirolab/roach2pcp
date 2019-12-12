@@ -3,23 +3,31 @@ import os
 import matplotlib.pyplot as plt
 import pyvisa as visa
 import time
-
+import logging
 class FPC1000(object):
     def __init__(self, boardnum = 0, ipaddress = "192.168.1.144"):
+
+        self.logger = logging.getLogger(__name__)
         self.rm = visa.ResourceManager('@py')
+
+
         self.resource_string = "TCPIP{bn}::{ip}::INSTR".format(bn = boardnum, ip = ipaddress)
         self.inst = self.rm.open_resource(self.resource_string)
+
+        self.inst.timeout = 100. # timeout milliseconds
         #when requesting data from fpc, only returns 1183 vals (one for each pixel)
         self.num_data_vals = 1183
 
         #setting some standard parameters
-	self.reset_instrument()
+        self.reset_instrument()
         self.set_sweeptime_auto("ON")
         self.set_resolution_bandwidth_auto("OFF")
         self.set_power_units_dBm()
         self.set_ref_level_dBm(-10)
         self.set_sweep_mode_single()
 
+        self.vbw = 3000
+        self.rbw = 300
 
     '''BASIC FUNCTIONS'''
     def idn(self):
@@ -29,9 +37,11 @@ class FPC1000(object):
         self.inst.write("*RST")
     def clear_status_registers(self):
         self.inst.write("*CST")
+    def clear_status(self):
+        self.inst.write("*CLS")
     def close_connection(self):
         self.inst.close()
-    def OPC(self):
+    def opc(self):
         reply = self.inst.query("*OPC?")
         return reply
     def set_event_status_register(self, bitval):
@@ -156,78 +166,67 @@ class FPC1000(object):
         return full_freq, sweep_data
 
 
-    def targeted_sweep(self, f0array, span, rbw, vbw):
+    def targeted_sweep(self, f0, span):
         '''f0array in Hz'''
         #setup system for measurement
         self.set_resolution_bandwidth_auto('OFF')
-        time.sleep(0.1)
-        self.set_resolution_bandwidth(rbw)
-        time.sleep(0.1)
+        self.set_resolution_bandwidth(self.rbw)
         self.set_video_bandwidth_auto('OFF')
-        time.sleep(0.1)
-        self.set_video_bandwidth(vbw)
-        time.sleep(0.1)
+        self.set_video_bandwidth(self.vbw)
         self.set_span(span)
-        time.sleep(0.1)
         self.set_detector_mode("RMS")
-        time.sleep(0.1)
-        resp = self.inst.query("*OPC?")
-        print resp
-        #init arrays for data storage
-        Nf = len(f0array)
-        full_freq = np.empty((Nf, self.num_data_vals))
-        sweep_data = np.empty((Nf, self.num_data_vals))
-        maxes = np.empty(Nf)
-        maxes_freq = np.empty(Nf)
-        sweepcount = 1
 
-        #dummy sweep. Can't figure out why but VI_ERROR_TMO timeout every first time I run get_trace_data()
-        #it always works the second time, but never the first. This wasn't a problem on the previous computer
-        #RM 20191010
-        try:
-            self.execute_func_and_wait_until_complete(self.initiate_sweep, 1, False)
-            tracedata = self.get_trace_data()
-        except:
-            pass
+        self.set_center_freq(f0)
 
-        for ii in range(Nf):
-            ff = f0array[ii]
-            self.set_center_freq(ff)
-            time.sleep(0.1)
-            resp = self.inst.query("*OPC?")
-            print resp
-            self.execute_func_and_wait_until_complete(self.initiate_sweep, 1, False)
-            resp = self.inst.query("*OPC?")
-            print resp
-            print 'completed sweep {aa} of {bb}'.format(aa=sweepcount, bb=Nf)
+        self.execute_func_and_wait_until_complete(self.initiate_sweep, 0.1, False)
 
-            ESR, tracedata = self.execute_func_and_wait_until_complete(self.get_trace_data, 1, True)
-            resp = self.inst.query("*OPC?")
-            print resp
-            # tracedata = self.get_trace_data()
-            #storing trace in sweep_data
-            sweep_data[ii,:] = tracedata
-            #calculating the frequency axis
-            time.sleep(0.1)
-            startf = self.get_start_freq()
-            time.sleep(0.1)
-            stopf = self.get_stop_freq()
-            time.sleep(0.1)
-            resp = self.inst.query("*OPC?")
-            print resp 
-            tempf = np.linspace(startf, stopf, self.num_data_vals)
-            #storing frequency array from sweep in full_freq
-            full_freq[ii,:] = tempf
-            #finding max and frequency it occurred at, and store in array
-            max_index = np.argmax(tracedata)
-            maxtemp = tracedata[max_index]
-            maxfreqtemp = tempf[max_index]
-            maxes[ii] = maxtemp
-            maxes_freq[ii] = maxfreqtemp
-            sweepcount+=1
-        return full_freq, sweep_data, maxes, maxes_freq
+        tracenotdone = True
+        while tracenotdone:
+            try:
+                tracedata = self.get_trace_data()
+                tracenotdone = False
+            except visa.VisaIOError:
+                self.logger.info("timeout error, getting trace again")
+                self.clear_status()
+                pass
+
+        freqs = np.linspace(self.get_start_freq(), self.get_stop_freq(), self.num_data_vals)
+
+        return freqs, tracedata
+
+        # for ii in range(Nf):
+        #     ff = f0array[ii]
+        #     self.set_center_freq(ff)
+        #     time.sleep(0.1)
+        #     self.execute_func_and_wait_until_complete(self.initiate_sweep, 1, False)
+        #     #resp = self.inst.query("*OPC?")
+        #
+        #     ESR, tracedata = self.execute_func_and_wait_until_complete(self.get_trace_data, 1, True)
+        #     resp = self.inst.query("*OPC?")
+        #     print resp
+        #     # tracedata = self.get_trace_data()
+        #     #storing trace in sweep_data
+        #     sweep_data[ii,:] = tracedata
+        #     #calculating the frequency axis
+        #     time.sleep(0.1)
+        #     startf = self.get_start_freq()
+        #     time.sleep(0.1)
+        #     stopf = self.get_stop_freq()
+        #     time.sleep(0.1)
+        #     resp = self.inst.query("*OPC?")
+        #     print resp
+        #     tempf = np.linspace(startf, stopf, self.num_data_vals)
+        #     #storing frequency array from sweep in full_freq
+        #     full_freq[ii,:] = tempf
+        #     #finding max and frequency it occurred at, and store in array
+        #     max_index = np.argmax(tracedata)
+        #     maxtemp = tracedata[max_index]
+        #     maxfreqtemp = tempf[max_index]
+        #     maxes[ii] = maxtemp
+        #     maxes_freq[ii] = maxfreqtemp
+        #     sweepcount+=1
+        # return full_freq, sweep_data, maxes, maxes_freq
 
 if __name__ == '__main__':
 
     pass
-
