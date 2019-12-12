@@ -17,12 +17,13 @@ Saves the outputs of the spectrum sweep to savedir
 '''
 
 #instantiate class connection to FPC1000
-try:
-    fpcobj = fpc1000.FPC1000()
-except ValueError as err:
-    _logger.error(err.message)
 
 def main(roach, savedir, savestr, span, rbw, vbw, save = False, baseband=False, ret=False):
+    try:
+        fpcobj = fpc1000.FPC1000()
+    except ValueError as err:
+        _logger.error(err.message)
+
     #calculate the frequencies to be targeted
     if baseband==False:
         tone_array = _np.sort(roach.toneslist.rf_freqs.values )
