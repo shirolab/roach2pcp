@@ -153,6 +153,22 @@ for tt in tone_noiq:
     ee = ee + 1
     vv = vv + 2
 
+# df PSDs
+samprate = 488 # Hz
+pp = 1
+for tt in tone_noiq:
+    # Set name and vnum
+    descrname = tt + ' PSD'
+    fields.append(descrname)
+    vnum = np.append(vnum, v_init + vv)
+    mystr = '<powerspectrum vector="' + printmyvec(tt + '_df',fields, vnum) \
+            + '" samplerate="' + str(samprate/int(skip)) + '" gaussiansigma="1" average="true" fftlength="11" removemean="true" apodize="true" apodizefunction="0" vectorunits="V" rateunits="Hz" outputtype="1" initialVNum="' + str(vnum[-1]) + \
+            '" initialXNum="' + str(xx) + '" initialPSDNum="' + str(pp) + '"/>'
+    kstF.write(mystr); kstF.write('\n')
+    xx = xx + dx
+    vv = vv + 2
+    pp = pp + 1
+
 kstF.write('</objects>'); kstF.write('\n')
 # Wow that worked
 
@@ -168,7 +184,7 @@ for gg, ggv in enumerate(gen_fields[2:]):
     kstF.write(mystr); kstF.write('\n')
     cc = cc + 1
 
-# Now df, mag, ang 
+# Now df, mag, ang, PSD
 for tt in tone_noiq:
     name = tt + '_df'
     mystr = '<curve xvector="' + printmyvec('python_timestamp',fields,vnum) + \
@@ -201,7 +217,18 @@ for tt in tone_noiq:
     kstF.write(mystr); kstF.write('\n')
     cc = cc + 1
 
-# Now equation-based things - different from above since they're built off relations
+    # PSD: like equations above
+    descrname = tt + ' PSD'
+    xvecname = printmyvec(descrname, fields, vnum)
+    xvecname = xvecname.replace(' (V', ':f (V')
+    yvecname = printmyvec(descrname, fields, vnum, incr=1)
+    yvecname = yvecname.replace(' (V', ':psd (V')
+    mystr = '<curve xvector="' + xvecname + \
+            '" yvector="' + yvecname + '" color="#000000" alpha="255" headcolor="#000000" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="0" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" descriptiveNameIsManual="true" descriptiveName="' + descrname + '" initialCNum="' + str(cc) + '"/>'
+    kstF.write(mystr); kstF.write('\n')
+    cc = cc + 1
+
+
 """
 for tt in tone_noiq:
     # Set name and vnum
