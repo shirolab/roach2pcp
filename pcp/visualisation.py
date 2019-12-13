@@ -683,9 +683,10 @@ class pcpInteractivePlot(object):
 
     def _configure_axes(self):
 
-        fig = plt.figure(figsize=(13.5,  7))
-        #fig = matplotlib.figure.Figure(figsize=(13.5,  7))
-        #matplotlib.backends.backend_qt5agg.FigureCanvas(fig)
+        #fig = plt.figure(figsize=(13.5,  7))
+
+        fig = matplotlib.figure.Figure(figsize=(13.5,  7))
+        canvas = matplotlib.backends.backend_qt5agg.FigureCanvasQTAgg(fig)
 
         axiq  = fig.add_subplot(122)
         axmag = fig.add_subplot(321)
@@ -705,6 +706,7 @@ class pcpInteractivePlot(object):
         self.fig = fig
         self.axiq = axiq; self.axmag = axmag; self.axphi = axphi; self.axcal = axcal
 
+        canvas.show()
     def _configure_plots(self):
 
         for sweep in self.sweeplist:
@@ -773,8 +775,9 @@ class pcpInteractivePlot(object):
 
         self.fig.set_facecolor( self._color_dict['picked'] ) if self.idx in self._picked \
                                                             else self.fig.set_facecolor( self._color_dict['default'] )
+        self.fig.canvas.draw()
+        #plt.draw()
 
-        plt.draw()
         #plt.show(block=self.block)
 
     def _on_key_press(self, event):
@@ -804,49 +807,49 @@ class pcpInteractivePlot(object):
 # playing aorund with embedding mpl figures into simple qt application
 #------------------------------------------------------------------------------------
 #
-# from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-# from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-# from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QTabWidget, QVBoxLayout
-# import matplotlib.pyplot as plt
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QTabWidget, QVBoxLayout
+#import matplotlib.pyplot as plt
 # import sys
 #
-# class plotWindow():
-#     def __init__(self, parent=None):
-#         self.app = QApplication(sys.argv)
-#         self.MainWindow = QMainWindow()
-#         self.MainWindow.__init__()
-#         self.MainWindow.setWindowTitle("plot window")
-#         self.canvases = []
-#         self.figure_handles = []
-#         self.toolbar_handles = []
-#         self.tab_handles = []
-#         self.current_window = -1
-#         self.tabs = QTabWidget()
-#         self.MainWindow.setCentralWidget(self.tabs)
-#         self.MainWindow.resize(1280, 900)
-#         self.MainWindow.show()
-#
-#     def addPlot(self, title, figure):
-#         new_tab = QWidget()
-#         layout = QVBoxLayout()
-#         new_tab.setLayout(layout)
-#
-#         #figure.subplots_adjust(left=0.05, right=0.99, bottom=0.05, top=0.91, wspace=0.2, hspace=0.2)
-#         new_canvas = FigureCanvas(figure)
-#         new_toolbar = NavigationToolbar(new_canvas, new_tab)
-#
-#         layout.addWidget(new_canvas)
-#         layout.addWidget(new_toolbar)
-#         self.tabs.addTab(new_tab, title)
-#
-#         self.toolbar_handles.append(new_toolbar)
-#         self.canvases.append(new_canvas)
-#         self.figure_handles.append(figure)
-#         self.tab_handles.append(new_tab)
-#
-#     def show(self):
-#         self.app.exec_()
-#
+class plotWindow():
+    def __init__(self, parent=None):
+        self.app = QtWidgets.QApplication(sys.argv)
+        self.MainWindow = QtWidgets.QMainWindow()
+        self.MainWindow.__init__()
+        self.MainWindow.setWindowTitle("plot window")
+        self.canvases = []
+        self.figure_handles = []
+        self.toolbar_handles = []
+        self.tab_handles = []
+        self.current_window = -1
+        self.tabs = QtWidgets.QTabWidget()
+        self.MainWindow.setCentralWidget(self.tabs)
+        self.MainWindow.resize(1280, 900)
+        self.MainWindow.show()
+
+    def addPlot(self, title, figure):
+        new_tab = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout()
+        new_tab.setLayout(layout)
+
+        #figure.subplots_adjust(left=0.05, right=0.99, bottom=0.05, top=0.91, wspace=0.2, hspace=0.2)
+        new_canvas = FigureCanvas(figure)
+        new_toolbar = NavigationToolbar(new_canvas, new_tab)
+
+        layout.addWidget(new_canvas)
+        layout.addWidget(new_toolbar)
+        self.tabs.addTab(new_tab, title)
+
+        self.toolbar_handles.append(new_toolbar)
+        self.canvases.append(new_canvas)
+        self.figure_handles.append(figure)
+        self.tab_handles.append(new_tab)
+
+    def show_app(self):
+        self.app.exec_()
+
 #
 # import sys
 # import time

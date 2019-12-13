@@ -374,13 +374,15 @@ class muxChannel(object):
                     while self.synth_lo.frequency <= lo_freq and time.time() <= t0 + sleeptime :
                         time.sleep(sleeptime / 100.)
 
-                step_times.append( time.time() )
+                step_times.append( self.writer_daemon.pytime )
 
                 # check the stop event to break out of the loop
                 if stop_event.is_set():
                     break
                 #pbar.set_description(cm.BOLD + "LO: %i" % lo_freq + cm.ENDC)
                 time.sleep(sleeptime)
+
+                # should we wait for a number of samples per frequency? can sample self.current_dirfile.nframes
 
             #pbar.close()
             #print cm.OKGREEN + "Sweep done!" + cm.ENDC

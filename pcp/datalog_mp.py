@@ -186,6 +186,7 @@ class dataLogger(object):
 
         # initialise status flag(s). Upon starting, the writer is initially paused.
         self.is_writing = mp.Value(ctypes.c_bool, False)
+        self.pytime     = mp.Value(ctypes.c_double, time.time())
         #self.is_writing = False
 
     # -----------------------------------------------------------------------------
@@ -314,7 +315,8 @@ class dataLogger(object):
 
                     prevcnt = newcnt
                     # append (packet, time.time()) to queue which passes to packet to _writer_thread_function
-                    self._writer_queue.appendleft( ( packet, time.time() ) )
+                    self.pytime.value = time.time()
+                    self._writer_queue.appendleft( ( packet, self.pytime.value ) )
 
                     #print "sending packet to pipe", packet[:10]
                     #datapipe_in.send( ( packet, time.time() ) )

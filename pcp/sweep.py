@@ -29,6 +29,7 @@ class pcpSweep(object):
         # set up class attributes
 
         self.name = None
+        self.dirfile = dirfile
 
         self._bb_freqs = None
         self.lo_freqs  = None
@@ -50,7 +51,6 @@ class pcpSweep(object):
         if dirfile:
             self.load_sweep_dirfile(dirfile)
         else:
-            self.dirfile = None
             _logger.warning("No sweep dirfile loaded. Use load_sweep_dirfile(dirfile) to load data")
 
         self.filter_dict = {} # dictionary for a filter used to smooth the calibation data
