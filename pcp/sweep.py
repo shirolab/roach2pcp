@@ -95,7 +95,7 @@ class pcpSweep(object):
 
         self.tonefreqs = self._bb_freqs + self._lo_freq
         #self.data_fields = [s.split(".")[-1] for s in sweep_data_fields]
-        self.data        = _np.array( [self.dirfile.get_carray(fc) for fc in sweep_data_fields] )
+        self.data        = _np.array( [self.dirfile.get_carray(fc) for fc in self.tonenames] )
 
         #calparam_fields = filter(lambda x: x.startswith("calparam."), self.dirfile.entry_list())
         calparam_fields = _lib_dirfiles.get_fields_in_fragment( self.dirfile, 'calparam' )

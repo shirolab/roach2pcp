@@ -634,7 +634,9 @@ class pcpInteractivePlot(object):
     # want the ability to plot multiple sweeps on the same axis, and loop through in the same way
 
     #def __init__(self, fdata, iqdata, caldata, calparams, tonenames, sortfreqs = True, block=False):
-    def __init__(self, pcpsweeps, sortfreqs = True, block=False):
+    def __init__(self, pcpsweeps, sortfreqs = True, block=False, usepyplot = True):
+
+        self.usepyplot = usepyplot
 
         self.block = block
 
@@ -683,10 +685,12 @@ class pcpInteractivePlot(object):
 
     def _configure_axes(self):
 
-        #fig = plt.figure(figsize=(13.5,  7))
-
-        fig = matplotlib.figure.Figure(figsize=(13.5,  7))
-        canvas = matplotlib.backends.backend_qt5agg.FigureCanvasQTAgg(fig)
+        if self.usepyplot == False:
+            fig = matplotlib.figure.Figure(figsize=(13.5,  7))
+            canvas = matplotlib.backends.backend_qt5agg.FigureCanvasQTAgg(fig)
+        else:
+            fig = plt.figure(figsize=(13.5,  7))
+            canvas = fig.canvas
 
         axiq  = fig.add_subplot(122)
         axmag = fig.add_subplot(321)
@@ -706,7 +710,8 @@ class pcpInteractivePlot(object):
         self.fig = fig
         self.axiq = axiq; self.axmag = axmag; self.axphi = axphi; self.axcal = axcal
 
-        canvas.show()
+        #canvas.show()
+
     def _configure_plots(self):
 
         for sweep in self.sweeplist:
@@ -734,9 +739,13 @@ class pcpInteractivePlot(object):
         self.refresh_plot()
 
     def refresh_plot(self):
+
         for sweep in self.sweeplist:
+
+            f0idxs = _np.array([_np.searchsorted(a, v) for a, v in zip(sweep.rf_freqs, sweep.calparams['f0s'])])
+
             toneidx = _np.where(sweep.lo_freqs==sweep._lo_freq)
-            f0idx   = _np.where(sweep.lo_freqs==sweep._lo_freq)
+            f0idx   = f0idxs[self.idx]
 
             self._linedict[sweep.name]['iqmain'].set_data(sweep.data[self.sortidxs][self.idx].real, sweep.data[self.sortidxs][self.idx].imag)
             self._linedict[sweep.name]['iqtone'].set_data(sweep.data[self.sortidxs][self.idx].real[toneidx], sweep.data[self.sortidxs][self.idx].imag[toneidx])
@@ -914,7 +923,7 @@ class pcpInteractivePlot(object):
 #         # set the layout
 #         layout = QVBoxLayout()
 #         layout.addWidget(self.toolbar)
-#         layout.addWidget(self.canvas)
+#         layout.addWi  dget(self.canvas)
 #         layout.addWidget(self.button)
 #         self.setLayout(layout)
 #

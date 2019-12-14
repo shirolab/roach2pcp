@@ -456,7 +456,7 @@ class dataLogger(object):
                     last_iteration = False
                 else:
                     time.sleep(sizetowrite/488.*0.5) # <-- tidy this up?
-                    # check what is writing is still true, otherwise check flag to save data on the last iteration
+                    # check is_writing is still true, otherwise check flag to save data on the last iteration
                     if self.is_writing.value == False:
                         last_iteration = True
 
