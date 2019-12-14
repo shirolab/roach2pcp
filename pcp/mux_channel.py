@@ -95,7 +95,7 @@ class muxChannel(object):
 
         # get configuration for specific roach
         self.ROACH_CFG = roach_config[self.roachid]
-        self.sample_rate = self.ROACH_CFG["dac_bandwidth"] / ( 2**self.ROACH_CFG["roach_accum_len"] )
+        self.sample_rate = self.ROACH_CFG["dac_bandwidth"] / ( 2**self.ROACH_CFG["roach_accum_len"] + 1 )
 
         self.initialise_hardware()
 
@@ -373,9 +373,9 @@ class muxChannel(object):
                     t0 = time.time()
                     while self.synth_lo.frequency <= lo_freq and time.time() <= t0 + sleeptime :
                         time.sleep(sleeptime / 100.)
-
-                step_times.append( self.writer_daemon.pytime )
-
+                pytime = self.writer_daemon.pytime.value
+                step_times.append( pytime )
+                print "lo stepped at ", pytime
                 # check the stop event to break out of the loop
                 if stop_event.is_set():
                     break
@@ -387,15 +387,17 @@ class muxChannel(object):
             #pbar.close()
             #print cm.OKGREEN + "Sweep done!" + cm.ENDC
         except KeyboardInterrupt:
-            #step_times= step_times[:ix] # does this help?
             pass
 
         # sweep has finished, pause the writing and continue to process the data
+        time.sleep(2.5)
+        print "pausing writing at ", self.writer_daemon.pytime.value
+
         self.writer_daemon.pause_writing()
 
         #  get only the indexes that were swept
         lofreqs_that_were_swept = self.toneslist.sweep_lo_freqs[np.arange(ix+1)]
-
+        #lofreqs_that_were_swept = self.toneslist.sweep_lo_freqs
         # Back to the central frequency
         if self.loswitch == True:
             self.synth_lo.frequency = self.toneslist.lo_freq
@@ -576,7 +578,7 @@ class muxChannel(object):
         self.sweep.calc_sweep_cal_params( tonefreqs = None, method = findf0_method )
         self.sweep.write_sweep_cal_params(overwrite = True)
         # use method to find F0s from KID rountines
-        self.sweep.calparams['f0s']
+        _logger.debug( "new f0s found- {0}".format(self.sweep.calparams['f0s']) )
         # change frequencies in self.toneslist
         self.toneslist.bb_freqs = self.sweep.calparams['f0s'] - self.toneslist.lo_freq
         # write to qdr (optional)
@@ -584,7 +586,7 @@ class muxChannel(object):
         # resweep with new tones
         self.sweep_lo(**swpkwargs)
         # recalculate sweep cal params, this time with the written tones
-        self.sweep.calc_sweep_cal_params( tonefreqs = self.toneslist.rf_freqs, method = method )
+        self.sweep.calc_sweep_cal_params( tonefreqs = self.toneslist.rf_freqs, method = findf0_method )
         # write these to the new sweep file
         self.sweep.write_sweep_cal_params(overwrite = True)
 
