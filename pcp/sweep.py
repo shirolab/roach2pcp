@@ -218,11 +218,8 @@ class pcpSweep(object):
         for calfield, calval in zip(_lib_dirfiles.DERIVED_CALPARAM_FIELDS, caldatalist):
             stream_dirfile.put_carray(".".join([cal_ns, calfield]), calval)
 
-        # self.current_dirfile.put_carray('f0s', self.sweep._bb_freqs + self.sweep._lo_freq)
-        # self.current_dirfile.put_carray('didf_sumdidq2', self.sweep.calparams['didf'] / self.sweep.calparams['didq2'] )
-        # self.current_dirfile.put_carray('dqdf_sumdidq2', self.sweep.calparams['dqdf'] / self.sweep.calparams['didq2'] )
-        # self.current_dirfile.put_carray('i0_didf_sumdidq2', self.sweep.calparams['didf'] * self.sweep.calparams['i0'] / self.sweep.calparams['didq2'] )
-        # self.current_dirfile.put_carray('q0_dqdf_sumdidq2', self.sweep.calparams['dqdf'] * self.sweep.calparams['q0'] / self.sweep.calparams['didq2'] )
+        # write the derived paramters to disk
+        stream_dirfile.flush()
 
 
     def calc_new_frequencies(self):

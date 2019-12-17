@@ -41,7 +41,7 @@ def _initialise_spec_analyser( specan ):
     return 1
 
 def main(muxch, specan, span = 100e3, baseband=False, save=True):
-    _logger.info( "This is the function that is run" )
+    _logger.info( "Running amplitude correction measurement" )
 
     # confirm that spectrum analyser is operational and works as expected
     assert _initialise_spec_analyser(specan)

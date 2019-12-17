@@ -3,6 +3,28 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 --------------------------------------------------------------------------------
+
+- fixed bugs in visualisation
+
+- blind tones - check for mirrorring
+   - np.diff(np.sort(np.abs(s._bb_freqs))) < 10e3
+   - can always move the LO in order to reduce the level of overlapping -> incorporate into 'find_optimum_lo'
+   - what is the bin width? is it just a case of not having 2 tones in a single bin?
+
+-x implement timestamp check when finishing write
+
+- implement multiple-roach sweep visualization
+
+- sweep calc parameters?
+
+- add measurement of spectrum analyzer sweep
+
+ - implement phase-df conversion
+
+ - add roachid info on logging messages - can we do that all at once grabbing roachid somehow?
+
+ - protection of overwriting certain objects?
+
 2019-12-08 [PB] - looking at merging muscat changes
   - lots of changes done by the muscat team - possibly too many to incorporate on a short timescale
   - some important/useful features that could be incorporated

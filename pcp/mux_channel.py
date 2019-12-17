@@ -391,7 +391,7 @@ class muxChannel(object):
 
         # sweep has finished, pause the writing and continue to process the data
         time.sleep(2.5)
-        print "pausing writing at ", self.writer_daemon.pytime.value
+        _logger.debug( "pausing writing at ", self.writer_daemon.pytime.value )
 
         self.writer_daemon.pause_writing()
 

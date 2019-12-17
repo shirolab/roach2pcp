@@ -406,7 +406,7 @@ class dataLogger(object):
         #assert isinstance(self._writer_queue, deque), "queue object doesn't appear to be correct"
         # check that a dirfile exists before starting wirter loop
         if not type(self.current_dirfile) == _gd.dirfile:
-            print "no dirfile set"
+            _logger.warning( "no dirfile set" )
 
         #print datapipe_out.__repr__
         datatowrite = []
@@ -461,7 +461,6 @@ class dataLogger(object):
                         last_iteration = True
 
             if datatowrite:
-                print "{0} packets didn't get saved!!".format( len(datatowrite) )
                 _logger.warning( "{0} packets didn't get saved!!".format( len(datatowrite) ) ) # just in case some data is left in the buffer
                 datatowrite = []
             time.sleep(0.1)
@@ -636,6 +635,19 @@ class dataLogger(object):
         #self.is_writing.value = self._read_response_from_eventqueue( command_to_send )
 
     def pause_writing(self):
+        """Pause the data writing daemon. Current data file remains open. """
+        # check to ensure that all data is written to disk (found a bug somewhere that made this not happen...)
+        stoptime = self.pytime.value
+        try:
+            # ensure that the latest written timestamp is after stoptime
+            while stoptime <= self.current_dirfile.getdata("python_timestamp")[-1]:
+                _logger.debug("waiting for data writing to catch up")
+                _time.sleep(0.1)
+        except:
+            _logger.warning("can't read the current timestamp from dirfile - check all data is written to disk")
+            _time.sleep(1)
+
+        # send the stop command
         command_to_send = ("STOP_WRITE", 0)
         self._add_to_queue_and_wait( command_to_send )
         self._read_response_from_eventqueue( command_to_send )
