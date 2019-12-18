@@ -39,7 +39,8 @@ class apsinSynthDevice(object):
         except Exception as exc:
             # 9 appears to be instrument in use
             # no link appears to be wrong ipaddress
-            print "Error!", exc
+            _logger.exception( "Error!", exc)
+            self.instrument = None
             return
 
         self.vendor   = "dummy"
@@ -71,11 +72,14 @@ class apsinSynthSource(object):
         self.sourceNumber = source
 
         # initialise parameters
-        self.frequency = 1e6 # in Hz
-        self.output_power = 0 # in dBm
-        self.reference = "int" # ext, int
-        self.islocked  = False
+        try:
+            self.frequency = 1e6 # in Hz
+            self.output_power = 0 # in dBm
+            self.reference = "int" # ext, int
+            self.islocked  = False
 
+        except AttributeError:
+            _logger.error("error initialising the synthesiser")
 
     @property
     def rf_output(self):

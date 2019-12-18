@@ -4,6 +4,14 @@ This file will document and keep track of changes with each push to the master b
 Put most recent commits at the top please!
 --------------------------------------------------------------------------------
 
+2019-12-17
+
+TODO
+  - fix shutting down of synth hardware on exit
+
+  --------------------------------------------------------------------------------
+
+
 - fixed bugs in visualisation
 
 - blind tones - check for mirrorring

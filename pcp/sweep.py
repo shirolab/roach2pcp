@@ -67,7 +67,7 @@ class pcpSweep(object):
         # if data exists, save a copy to the history
         if self.dirfile is not None and _lib_dirfiles.is_dirfile_valid(self.dirfile):
             _logger.info("previous data appears to exist - saved a copy of {0} to history".format(_os.path.basename(self.dirfile.name)))
-            self.store_sweep()
+            #self.store_sweep()
 
         self.dirfile = dirfile
         self.name = _os.path.basename(dirfile.name)
@@ -228,7 +228,7 @@ class pcpSweep(object):
     def plot_sweep(self, sweeplist, sortfreqs = False):
         from . import visualisation as vis
 
-        self.ip = vis.pcpInteractivePlot( sweeplist, sortfreqs=False)
+        #self.ip = vis.pcpInteractivePlot( sweeplist, sortfreqs=False)
 
 
 

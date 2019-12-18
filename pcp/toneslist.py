@@ -459,7 +459,7 @@ class Toneslist(object):
 			assert 'freq' in data.columns, "there doesn't appear to be a frequency axis - {0}".format( data.columns )
 
 			if 'name' not in data.columns:
-				data.insert(0, 'name', _pd.Series( ['K{0:04d}'.format(v) for v in _np.arange(len(data))] , index=data.index))
+				data.insert(0, 'name', _pd.Series( ['K{0:03d}'.format(v) for v in _np.arange(len(data))] , index=data.index))
 			if 'power' not in data.columns:
 				data.insert(2, 'power', _pd.Series( _np.zeros_like(data.index) , index=data.index))
 

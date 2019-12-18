@@ -1,19 +1,24 @@
 # Dear god
 import numpy as np
 
-kstF = open('mysession.kst', 'w')
+collist = ['#e6194B','#3cb44b','#ffe119','#4363d8','#f58231',
+           '#911eb4','#42d4f4','#f032e6','#bfef45','#fabebe',
+           '#469990','#e6beff','#9A6324','#fffac8','#800000',
+           '#aaffc3','#808000','#ffd8b1','#000075','#a9a9a9']
+
+kstF = open('mysession2.kst', 'w')
 kstF.write('<?xml version="1.0" encoding="UTF-8"?>'); kstF.write('\n')
 kstF.write('<kst version="2.0">'); kstF.write('\n')
 
 ###############
-# Default things to stick in each line - make everything a string, but
-# no quotation marks
+# Default things
 file = '/data/dirfiles/roach0/sf.txt'
 fileRelative = '../../data/dirfiles/roach0/sf.txt'
 start = '-1'
 count = '15000'
-skip = '10'
-n_tones = 3
+skip = '1' # 10 standard
+n_tones = 25
+samprate = 488 # Hz
 
 ###############
 # Write data sources
@@ -154,7 +159,7 @@ for tt in tone_noiq:
     vv = vv + 2
 
 # df PSDs
-samprate = 488 # Hz
+
 pp = 1
 for tt in tone_noiq:
     # Set name and vnum
@@ -186,9 +191,11 @@ for gg, ggv in enumerate(gen_fields[2:]):
 
 # Now df, mag, ang, PSD
 for tt in tone_noiq:
+
+    mycolor = collist[ int(tt[1:]) % len(collist) ] 
     name = tt + '_df'
     mystr = '<curve xvector="' + printmyvec('python_timestamp',fields,vnum) + \
-            '" yvector="' + printmyvec(name,fields,vnum) + '" color="#000000" alpha="255" headcolor="#000000" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="0" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" descriptiveNameIsManual="true" descriptiveName="' + tt + ' df' + '" initialCNum="' + str(cc) + '"/>'
+            '" yvector="' + printmyvec(name,fields,vnum) + '" color="' + mycolor + '" alpha="255" headcolor="#000000" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="0" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" descriptiveNameIsManual="true" descriptiveName="' + tt + ' df' + '" initialCNum="' + str(cc) + '"/>'
     kstF.write(mystr); kstF.write('\n')
     cc = cc + 1
 
@@ -207,13 +214,13 @@ for tt in tone_noiq:
     yvecname = printmyvec(descrname, fields, vnum, incr=1)
     yvecname = yvecname.replace(' (V', ':y (V')
     mystr = '<curve xvector="' + xvecname + \
-            '" yvector="' + yvecname + '" color="#000000" alpha="255" headcolor="#000000" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="0" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" descriptiveNameIsManual="true" descriptiveName="' + descrname + '" initialCNum="' + str(cc) + '"/>'
+            '" yvector="' + yvecname + '" color="' + mycolor + '" alpha="255" headcolor="#000000" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="0" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" descriptiveNameIsManual="true" descriptiveName="' + descrname + '" initialCNum="' + str(cc) + '"/>'
     kstF.write(mystr); kstF.write('\n')
     cc = cc + 1
 
     name = tt + '_angz'
     mystr = '<curve xvector="' + printmyvec('python_timestamp',fields,vnum) + \
-            '" yvector="' + printmyvec(name,fields,vnum) + '" color="#000000" alpha="255" headcolor="#000000" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="0" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" descriptiveNameIsManual="true" descriptiveName="' + tt + ' Phase' + '" initialCNum="' + str(cc) + '"/>'
+            '" yvector="' + printmyvec(name,fields,vnum) + '" color="' + mycolor + '" alpha="255" headcolor="#000000" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="0" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" descriptiveNameIsManual="true" descriptiveName="' + tt + ' Phase' + '" initialCNum="' + str(cc) + '"/>'
     kstF.write(mystr); kstF.write('\n')
     cc = cc + 1
 
@@ -224,7 +231,7 @@ for tt in tone_noiq:
     yvecname = printmyvec(descrname, fields, vnum, incr=1)
     yvecname = yvecname.replace(' (V', ':psd (V')
     mystr = '<curve xvector="' + xvecname + \
-            '" yvector="' + yvecname + '" color="#000000" alpha="255" headcolor="#000000" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="0" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" descriptiveNameIsManual="true" descriptiveName="' + descrname + '" initialCNum="' + str(cc) + '"/>'
+            '" yvector="' + yvecname + '" color="' + mycolor + '" alpha="255" headcolor="#000000" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="0" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" descriptiveNameIsManual="true" descriptiveName="' + descrname + '" initialCNum="' + str(cc) + '"/>'
     kstF.write(mystr); kstF.write('\n')
     cc = cc + 1
 
@@ -255,11 +262,12 @@ for tt in tone_noiq:
 
 # Now IQ
 for tt in tone_noiq:
+    mycolor = collist[ int(tt[1:]) % len(collist) ] 
     descrname = tt + ' IQ'
     xvecname = printmyvec(tt + '_I', fields, vnum)
     yvecname = printmyvec(tt + '_Q', fields, vnum)
     mystr =  '<curve xvector="' + xvecname + \
-             '" yvector="' + yvecname + '" color="#000000" alpha="15" headcolor="#000000" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="13" pointdensity="0" pointsize="1" hasbars="false" ignoreautoscale="false" hashead="true" headtype="6" descriptiveNameIsManual="true" descriptiveName="' + descrname + '" initialCNum="' + str(cc) + '"/>'
+             '" yvector="' + yvecname + '" color="' + mycolor + '" alpha="15" headcolor="#000000" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="13" pointdensity="0" pointsize="1" hasbars="false" ignoreautoscale="false" hashead="true" headtype="6" descriptiveNameIsManual="true" descriptiveName="' + descrname + '" initialCNum="' + str(cc) + '"/>'
     kstF.write(mystr); kstF.write('\n')
     cc = cc + 1
 

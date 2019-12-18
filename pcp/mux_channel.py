@@ -71,7 +71,7 @@ class muxChannel(object):
         self.ri     = _lib_fpga.roachInterface( roachid )
 
         # initialise writer daemon
-        self.writer_daemon   = self._initialise_daemon_writer()
+        self.writer_daemon = self._initialise_daemon_writer()
 
         # configure the tonelist - added functionality to modify datapacket_dict when the toneslist changes
         self.toneslist = toneslist.Toneslist(roachid, loader_function = _pd.read_csv)
@@ -390,7 +390,7 @@ class muxChannel(object):
             pass
 
         # sweep has finished, pause the writing and continue to process the data
-        time.sleep(2.5)
+        #time.sleep(2.5)
         _logger.debug( "pausing writing at ", self.writer_daemon.pytime.value )
 
         self.writer_daemon.pause_writing()
@@ -680,6 +680,11 @@ class muxChannel(object):
         try:
             self.current_dirfile.close()
             self.sweep.dirfile.close()
+
+            if self.loswitch == True:
+                self.synth_lo.device.close()
+                self.synth_clk.device.close()
+
         except AttributeError:
             pass
 
