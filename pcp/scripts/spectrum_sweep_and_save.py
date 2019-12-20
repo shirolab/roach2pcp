@@ -1,38 +1,68 @@
-import os as _os
-import numpy as _np
+#!/usr/bin/env python
 
+# script to measure the amplitude correction.
+# This script is intended only to be run once, for a given tonelist.
 
-import logging as _logging
+# A targeted spectrum sweep with a spectrum analyzer (that has to have a method targeted_sweep() ).
+# Uses the curent uploaded toneslist/LO settings to do windowed sweep
+# centered on each tone with a variable span, resolution bandwidth, and
+# video bandwidth.
+#
+import numpy as _np, logging as _logging, time as _time
 _logger = _logging.getLogger(__name__)
 
-from ..drivers.ancillary import fpc1000
+from .. import ROACH_LIST, mux_channel
 
-'''
-This script will take a targeted spectrum sweep with FPC spectrum analyzer.
-Uses the curent uploaded toneslist/LO settings to do windowed sweep
-centered on each tone with a variable span, resolution bandwidth, and
-video bandwidth.
+# check that hardware is initialised
+# fpga uploaded and running
+# packets streaming
+# LO and attenuators set
 
-Saves the outputs of the spectrum sweep to savedir
-'''
+# initalise spectrum analyser (with rbw, vbw)
+#
+def _initialise_spec_analyser( specan ):
+    # check that instrument is working - as for IDN?
+    methods = [m for m in dir(specan) if not m.startswith("__") and callable(getattr(specan, m))]
 
-#instantiate class connection to FPC1000
+    # search for 'idn' in methods
+    idnsearch = [m for m in methods if 'idn' in m.lower()]
 
-def main(roach, savedir, savestr, span, rbw, vbw, save = False, baseband=False, ret=False):
     try:
-        fpcobj = fpc1000.FPC1000()
-    except ValueError as err:
-        _logger.error(err.message)
+        getattr(specan, idnsearch[0])
+    except IndexError:
+        print "no idn method found in object"
+        return 0
+    except:
+        print "error when trying to run the idn function {0}".format(idnsearch)
+        return 0
+
+    # check has method targeted_sweep()
+    assert hasattr(specan, 'targeted_sweep'), " it appears that object {0} doesn't have a method targeted_sweep "
+    return 1
+
+def main(f0_array, specan, span = 100e3, save=True):
+    _logger.info( "This is the function that is run" )
+
+    # confirm that spectrum analyser is operational and works as expected
+    assert _initialise_spec_analyser(specan)
 
     #calculate the frequencies to be targeted
-    if baseband==False:
-        tone_array = _np.sort(roach.toneslist.rf_freqs.values )
-    else:
-        tone_array = _np.sort(_np.abs(roach.toneslist.bb_freqs.values))
-    #do targeted sweep
-    full_freq, sweep_data, maxes, maxes_freq = fpcobj.targeted_sweep(tone_array, span, rbw, vbw)
-    if save == True:
-        full_save_path = _os.path.join(savedir, savestr)
-        _np.savez(full_save_path,freq=full_freq, sweep = sweep_data, maxes = maxes, maxes_freq = maxes_freq)
-    if ret == True:
-        return full_freq, sweep_data, maxes, maxes_freq
+
+    #Initialize settings for targeted sweep
+    specan.setup_for_targeted_sweep(specan.rbw, specan.vbw)
+
+    # sweep over the tones
+    freqarr, dataarr = [],[]
+    try:
+        for tone in f0_array:
+            freqs, data = specan.targeted_sweep(tone, span)
+            freqarr.append(freqs); dataarr.append(data)
+
+    except KeyboardInterrupt:
+        print "interuppted - nothing done"
+        return
+
+    # convert to numpy arrays
+    freqarr = _np.array(freqarr); dataarr = _np.array(dataarr)
+
+    return freqarr, dataarr

@@ -48,9 +48,11 @@ def main(muxch, specan, span = 100e3, baseband=False, save=True):
 
     #calculate the frequencies to be targeted
     if baseband==False:
-        tones_to_sweep = muxch.toneslist.rf_freqs.values
+        tones_to_sweep = muxch.toneslist.rf_freqs # check VALUES?
     else:
-        tones_to_sweep = _np.abs( muxch.toneslist.bb_freqs.values )
+        tones_to_sweep = _np.abs( muxch.toneslist.bb_freqs )
+    #Initialize settings for targeted sweep
+    specan.setup_for_targeted_sweep(specan.rbw, specan.vbw)
 
     # sweep over the tones
     freqarr, dataarr = [],[]

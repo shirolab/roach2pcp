@@ -14,7 +14,8 @@ class FPC1000(object):
         self.resource_string = "TCPIP{bn}::{ip}::INSTR".format(bn = boardnum, ip = ipaddress)
         self.inst = self.rm.open_resource(self.resource_string)
 
-        self.inst.timeout = 100. # timeout milliseconds
+        # timeout below is a problem???
+        #self.inst.timeout = 100. # timeout milliseconds
         #when requesting data from fpc, only returns 1183 vals (one for each pixel)
         self.num_data_vals = 1183
 
@@ -151,10 +152,19 @@ class FPC1000(object):
             # print 'res bandwidth' + self.inst.query("BAND:RES?")
             self.set_start_freq(lfreq)
             self.set_stop_freq(rfreq)
-            self.execute_func_and_wait_until_complete(self.initiate_sweep, 1, )
+            self.execute_func_and_wait_until_complete(self.initiate_sweep, 0.1, False)
             print 'completed sweep {aa} of {bb}'.format(aa=Nwindow+1, bb=int(Nwindow_total))
-            tracedata = self.get_trace_data()
-            # print len(tracedata)
+            tracenotdone = True
+            while tracenotdone:
+                try:
+                    tracedata = self.get_trace_data()
+                    tracenotdone = False
+                except visa.VisaIOError:
+                    self.logger.info("timeout error, getting trace again")
+                    self.clear_status()
+                    pass
+
+
             #saving data to array
             full_freq = np.append(full_freq, f_array)
             sweep_data = np.append(sweep_data, tracedata)
@@ -166,18 +176,17 @@ class FPC1000(object):
         return full_freq, sweep_data
 
 
-    def targeted_sweep(self, f0, span):
-        '''f0array in Hz'''
-        #setup system for measurement
+    def setup_for_targeted_sweep(self, rbw, vbw):
         self.set_resolution_bandwidth_auto('OFF')
-        self.set_resolution_bandwidth(self.rbw)
+        self.set_resolution_bandwidth(rbw)
         self.set_video_bandwidth_auto('OFF')
-        self.set_video_bandwidth(self.vbw)
-        self.set_span(span)
+        self.set_video_bandwidth(vbw)
         self.set_detector_mode("RMS")
 
-        self.set_center_freq(f0)
+    def targeted_sweep(self, f0, span):
 
+        self.set_center_freq(f0)
+        self.set_span(span)
         self.execute_func_and_wait_until_complete(self.initiate_sweep, 0.1, False)
 
         tracenotdone = True
