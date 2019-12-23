@@ -640,12 +640,12 @@ class dataLogger(object):
         stoptime = self.pytime.value
         try:
             # ensure that the latest written timestamp is after stoptime
-            while stoptime <= self.current_dirfile.getdata("python_timestamp")[-1]:
+            while stoptime >= self.current_dirfile.getdata("python_timestamp")[-1]:
                 _logger.debug("waiting for data writing to catch up")
-                _time.sleep(0.1)
+                time.sleep(0.1)
         except:
             _logger.warning("can't read the current timestamp from dirfile - check all data is written to disk")
-            _time.sleep(1)
+            time.sleep(1)
 
         # send the stop command
         command_to_send = ("STOP_WRITE", 0)

@@ -455,6 +455,9 @@ class muxChannel(object):
         # alias to current dirfile for convenience
         self.current_dirfile = self.writer_daemon.current_dirfile
 
+        # Set LO to first freq
+        self.synth_lo.frequency = self.toneslist.sweep_lo_freqs[0]
+
         # start writing data to file...
         _logger.debug( "starting to write data" )
         self.writer_daemon.start_writing()
