@@ -1,10 +1,27 @@
 # Dear god
 import numpy as np
 
-collist = ['#e6194B','#3cb44b','#ffe119','#4363d8','#f58231',
-           '#911eb4','#42d4f4','#f032e6','#bfef45','#fabebe',
-           '#469990','#e6beff','#9A6324','#fffac8','#800000',
-           '#aaffc3','#808000','#ffd8b1','#000075','#a9a9a9']
+# Taken partially from https://sashat.me/2017/01/11/list-of-20-simple-distinct-colors/
+collist = ['#e6194B',# red
+           '#3cb44b',# green
+           '#ffe119',# yellow
+           '#4363d8',# blue
+           '#f58231',# orange
+           '#911eb4',# purple
+           '#42d4f4',# cyan
+           '#f032e6',# magenta
+           #'#bfef45',# lime
+           #'#fabebe',# pink
+           '#469990',# teal
+           '#e6beff',# lavender
+           '#9A6324',# brown
+           #'#fffac8',# beige
+           '#800000',# maroon
+           #'#aaffc3',# mint
+           '#808000',# olive
+           #'#ffd8b1',# apricot
+           '#000075',# navy
+           ]#'#a9a9a9']
 
 kstF = open('mysession2.kst', 'w')
 kstF.write('<?xml version="1.0" encoding="UTF-8"?>'); kstF.write('\n')
@@ -16,8 +33,8 @@ file = '/data/dirfiles/roach0/sf.txt'
 fileRelative = '../../data/dirfiles/roach0/sf.txt'
 start = '-1'
 count = '15000'
-skip = '1' # 10 standard
-n_tones = 25
+skip = '10' # 10 standard
+n_tones = 120
 samprate = 488 # Hz
 
 ###############
@@ -185,7 +202,7 @@ kstF.write('<relations>'); kstF.write('\n')
 cc = 1
 for gg, ggv in enumerate(gen_fields[2:]):
     mystr = '<curve xvector="' + printmyvec('python_timestamp',fields,vnum) + \
-            '" yvector="' + printmyvec(ggv,fields,vnum) + '" color="#000000" alpha="255" headcolor="#000000" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="0" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" descriptiveNameIsManual="true" descriptiveName="' + gen_field_names[2:][gg] + '" initialCNum="' + str(cc) + '"/>'
+            '" yvector="' + printmyvec(ggv,fields,vnum) + '" color="#4363d8" alpha="255" headcolor="#000000" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="0" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" descriptiveNameIsManual="true" descriptiveName="' + gen_field_names[2:][gg] + '" initialCNum="' + str(cc) + '"/>'
     kstF.write(mystr); kstF.write('\n')
     cc = cc + 1
 
