@@ -14,23 +14,25 @@ log.info('Starting initialization script')
 log.info('Initializing r0')
 r0 = pcp.mux_channel.muxChannel('roach0')
 r0.ri.initialise_fpga(force_reupload=True)
-log.info('r0: Writing tones list')
-# To manually set LO freq...
-# r0.toneslist.lo_freq = ???
-r0.write_freqs_to_fpga(auto_write = True)
-log.info('r0: Done writing tones list')
 
-###############################
-# Initialize synth
-log.info('Initializing synthesizer to ' + str(r0.toneslist.lo_freq/1e6) + ' MHz')
-r0.synth_lo.frequency = r0.toneslist.lo_freq
-# For UC using SGS
-r0.synth_lo.output_power = 10.5
-r0.synth_lo.rf_output = True
+# Initialize synth (do this first since ampcorr is dependent on LO location)
+log.info('Setting up LO')
+pcp.scripts.lo_wrapper(r0) # can send in user-defined freq here
 
-###############################
-log.info('Checking that packets are streaming...')
+# If for this toneslist/LO you haven't yet measured the amplitude correction...
+log.info('Making amplitude correction measurement')
+pcp.scripts.ampcorr_wrapper(r0) # saves the correction
+# We have now written a corrected toneslist and that file was printed to screen
+
+# Assuming we have a good previous tone history file
+# (write it down for each session!)
+log.info('Loading/writing saved tone history')
+r0.toneslist.load_tonehistfile('20200226-222701')
+r0.write_freqs_to_fpga(auto_write = True, check = False)
+
+log.info('Checking that packets are streaming')
 r0.writer_daemon.check_packets_received()
+
 log.info('Initialization complete')
 
 ###############################
