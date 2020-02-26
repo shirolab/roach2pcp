@@ -288,6 +288,7 @@ class Toneslist(object):
 		with open(outfname, 'w') as outfile:
 			_yaml.dump(data, outfile, default_flow_style=False)
 
+		_logger.info('Wrote toneslist file: ' + outfname )
 		self._load_tonehistdir() # reload the tonehistory directory to include the new file
 
 	@property
