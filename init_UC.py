@@ -17,7 +17,7 @@ r0.ri.initialise_fpga(force_reupload=True)
 log.info('r0: Writing tones list')
 # To manually set LO freq...
 # r0.toneslist.lo_freq = ???
-r0.write_freqs_to_fpga()
+r0.write_freqs_to_fpga(auto_write = True)
 log.info('r0: Done writing tones list')
 
 ###############################
