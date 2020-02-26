@@ -44,7 +44,7 @@ def _check_packets_received(roaches):
     return flag_roaches
 
 def main(roach_list, force_reupload=False):
-    _logger.info( "this is the function that is run" )
+    _logger.info( "SCRIPT: initialise_roaches" )
 
     roaches = []
     for roachid in roach_list:

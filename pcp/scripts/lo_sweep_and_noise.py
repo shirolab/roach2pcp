@@ -6,7 +6,6 @@ import time
 import glob
 import pygetdata as gd
 
-print "reloaded"
 '''
 -Purpose-
 As a function of input/output attenuation, do lo sweep

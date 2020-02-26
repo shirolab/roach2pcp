@@ -41,7 +41,7 @@ def _initialise_spec_analyser( specan ):
     return 1
 
 def main(muxch, specan, span = 100e3, baseband=False, save=True):
-    _logger.info( "Running amplitude correction measurement" )
+    _logger.info( "SCRIPT: measure_ampcorr" )
 
     # confirm that spectrum analyser is operational and works as expected
     assert _initialise_spec_analyser(specan)
@@ -80,6 +80,7 @@ def main(muxch, specan, span = 100e3, baseband=False, save=True):
 
     # add new entry to mc.tonelist.ampcorr with unix time as the key
     muxch.toneslist.ampcorr.update( { str(int(_time.time())): ampcorr} )
+    _logger.info('New amplitude correction saved')
 
     if save == True:
         # save to a new ampcorr file

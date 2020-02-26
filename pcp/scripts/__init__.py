@@ -5,6 +5,10 @@
 # Each script file should contain a main() function that runs the 'script'. This function is then imported here
 # and attached to the original module name. A handle to the original module is stored and hidden for debugging purposes.
 
+# Please have the first line in each script be a log message saying the name of the script!  e.g.
+#     _logger.info('SCRIPT: my_script_name')
+# so that it's obvious in the log exactly when the script was started
+
 # dynamically import the main() function from each file contained in this directory and
 import sys as _sys, time as _time, pkgutil as _pkgutil, logging as _logging
 
