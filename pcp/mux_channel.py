@@ -235,8 +235,9 @@ class muxChannel(object):
     def read_int(self):
         self.ri.fpga.read_int
 
-    def write_freqs_to_fpga(self, auto_write = False):
-        """High level function to write the current toneslist frequencies to the QDR"""
+    def write_freqs_to_fpga(self, auto_write = False, corrtouse = None):
+        """High level function to write the current toneslist frequencies to the QDR
+           To use an amplitude correction: corrtouse = 'total' or timestamp of requested"""
 
         # make sure fpga looks like its running
         if not ( self.ri.fpga and self.ri.fpga.is_connected() ):
@@ -244,12 +245,20 @@ class muxChannel(object):
             self._last_written_bb_freqs = None
             return
         # check if new tones equal old tones, return if True
+        # BUT amplitudes could be different, add an option to override???
         if all(self.toneslist.bb_freqs == self._last_written_bb_freqs):
             _logger.info("It looks like this set of tones has already been uploaded. Nothing done.")
             return
 
         # check that toneslist LO and synth LO match - if not yell and or ask to change the LO
         assert self.toneslist.lo_freq == self.synth_lo.frequency, "synth frequency doesn't match toneslist.lo_freq"
+
+        # If requested, use amplitude correction
+        if corrtouse is not None:
+            if corrtouse == 'total':
+                self.toneslist.amps = self.toneslist.ampcorr[corrtouse]()
+            else:
+                self.toneslist.amps = self.toneslist.ampcorr[corrtouse] # should be a timestamp
 
         # write_freqs_to_qdr
         if auto_write or raw_input("Write new tones to qdr? [y/n]").lower() == 'y':
