@@ -7,34 +7,32 @@ import numpy as np
 import pcp
 
 log = pcp.logger
-log.info('Starting initialization script')
 
 #################################
 # Initialize ROACHes
 log.info('Initializing r0')
 r0 = pcp.mux_channel.muxChannel('roach0')
-r0.ri.initialise_fpga(force_reupload=True)
+
+#################################
+# EVERYTHING BELOW should operate on variables that already
+# exist in the workspace, so should be done with scripts
+"""
+# Upload fpga firmware
+pcp.scripts.upload_fpgas(r0)
 
 # Initialize synth (do this first since ampcorr is dependent on LO location)
-log.info('Setting up LO')
 pcp.scripts.lo_wrapper(r0) # can send in user-defined freq here
 
 # If for this toneslist/LO you haven't yet measured the amplitude correction...
-log.info('Making amplitude correction measurement')
 pcp.scripts.ampcorr_wrapper(r0) # saves the correction
 # We have now written a corrected toneslist and that file was printed to screen
 
-# Assuming we have a good previous tone history file
-# (write it down for each session!)
-log.info('Loading/writing saved tone history')
-r0.toneslist.load_tonehistfile('20200226-222701')
-r0.write_freqs_to_fpga(auto_write = True, check = False)
+# Assuming we have a good previous tone history file (write it down for each session!)
+pcp.scripts.write_oldtonelist(r0, '20200227-165025')
 
 log.info('Checking that packets are streaming')
 r0.writer_daemon.check_packets_received()
-
-log.info('Initialization complete')
-
+"""
 ###############################
 # For e.g. observations, may want to flag when in different
 # datataking modes
