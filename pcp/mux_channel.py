@@ -65,7 +65,7 @@ class muxChannel(object):
         self.roachid  = roachid
 
         # initialise/create the file structure for data saving + the sourcefile
-        self._initalise_folders()
+        self._initialise_folders()
 
         #self.fpga            = _lib_fpga.get_fpga_instance(roachid)
         self.ri     = _lib_fpga.roachInterface( roachid )
@@ -109,7 +109,7 @@ class muxChannel(object):
             self.writer_daemon.initialise_datapacket_dict( self.toneslist )
         return load_and_update_datapacket_dict
 
-    def _initalise_folders(self):
+    def _initialise_folders(self):
         """Function to initialise the file structure for data saving for the mux channel"""
         # generate directory path for data saving and tonehistory
         self.DIRFILE_SAVEDIR  = os.path.join(ROOTDIR, filesys_config['savedatadir'], self.roachid)
@@ -729,7 +729,7 @@ class muxChannelList(object):
         return True
 
     def init_channel_list(self, interactive=True):
-        """Function to initalise the current channel list"""
+        """Function to initialise the current channel list"""
         assert len(self.channels) > 0, "channel list appears to be empty"
 
         # assert all hardware is connected and working
@@ -890,7 +890,7 @@ def _worker(arg):
 #   - configuration of logging files. Have log file for each Roach independently, or all in one? (doesn't really matter,
 # we can pass the log file handle to each roach instance)
 #  - spawn a datalog.py instance for each Roach
-# - This should then return a list of the roach interface objects, with everything initalised and running, to be used
+# - This should then return a list of the roach interface objects, with everything initialised and running, to be used
 # for subsequent tasks (e.g. biasing, streaming...etc)
 
 
