@@ -9,7 +9,7 @@ from .. import ROACH_LIST, mux_channel
 
 
 def main(muxch, freq = 'default', power = 10.5):
-    _logger.info( "SCRIPT: lo_wrapper" )
+    _logger.info("SCRIPT: lo_wrapper")
 
     if freq != 'default':
         muxch.toneslist.lo_freq = freq
