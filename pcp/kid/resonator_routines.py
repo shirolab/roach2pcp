@@ -8,7 +8,7 @@ from ..lib.lib_dirfiles import SWEEP_CALPARAM_FIELDS
 
 _logger = _logging.getLogger(__name__)
 
-def calc_sweep_cal_params(sweep_f, sweep_i, sweep_q, tone_freqs = None , **kwargs):
+def calc_sweep_cal_params(sweep_f, sweep_i, sweep_q, tone_freqs = None , exclude_endpoints = False, **kwargs):
 
     """
     Given a sweep dataset, this function will return  I,Q,dI/df,dQ/df at f0. If a list of tone_freqs is specified, then the function returns calibration parameters at that
@@ -39,7 +39,15 @@ def calc_sweep_cal_params(sweep_f, sweep_i, sweep_q, tone_freqs = None , **kwarg
         idxs = _np.argmin( _np.abs(sweep_f - tone_freqs[:, _np.newaxis]), axis=1 )
     else:
         # return the maximum values
-        idxs = _np.argmax( didq2, axis=1 )
+        if exclude_endpoints:
+            if exclude_endpoints == True:
+                exclude_endpoints = 1
+            dum = didq2
+            dum[:,0:exclude_endpoints] = _np.nan
+            dum[:,-exclude_endpoints:] = _np.nan
+            idxs = _np.nanargmax(dum, axis=1)
+        else:
+            idxs = _np.argmax( didq2, axis=1 )
 
     # set up a 2D array to index along the second dimension all at once
     idxs = ( _np.arange(len(idxs)), idxs )
