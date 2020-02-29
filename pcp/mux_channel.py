@@ -228,12 +228,15 @@ class muxChannel(object):
         else:
             self.output_atten = None
 
-        # convenience access for writing to packet
-    def write_int(self):
-        self.ri.fpga.write_int
+    def write_int(self, register, int):
+        """ Write to FPGA register - e.g. to indicate status
+            r0.write_int('GbE_packet_info', 1)
+        """
+        self.ri.fpga.write_int(register, int)
 
-    def read_int(self):
-        self.ri.fpga.read_int
+    def read_int(self, register):
+        """ r0.read_int('GbE_packet_info')"""
+        self.ri.fpga.read_int(register)
 
     def write_freqs_to_fpga(self, auto_write = False, corrtouse = None, check = True):
         """High level function to write the current toneslist frequencies to the QDR
@@ -576,7 +579,7 @@ class muxChannel(object):
 
     def retune_kids(self, force_first_sweep = False, findf0_method = "maxspeed", **swpkwargs):
         """
-        Function to retune resonators.
+        Function to retune resonators.  FOR NOW USE SCRIPT
         """
         _logger.info('starting resonator tuning process on {0}'.format(self.roachid) )
         # if we haven't already swept, do the first sweep

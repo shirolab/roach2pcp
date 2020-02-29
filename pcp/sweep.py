@@ -118,12 +118,17 @@ class pcpSweep(object):
         """Function to store a copy """
         self.history.append( deepcopy(self) )
 
+    def despike(data, threshold):
+        """ Identify indices that are likely to be erroneous, by some rms threshold """
+
+
+
     def calc_sweep_cal_params(self, tonefreqs = None, method = "maxspeed", exclude_idxs=[]):
         """
         Function to calculate the calibration parameters from the currently loaded sweep data and filter parameters.
 
         Set tonefreqs to calculate the sweep parameters at those frequencies. Otherwise, this function will return the
-        true F0 and the parameters at those F0s, which may differ from the written tones.
+        calculated F0 and the parameters at those F0s, which may differ from the written tones.
         """
         assert method in ['maxspeed', 'mins21'], "Given method {0} for finding resonant frequencies not valid.".format(method)
 
