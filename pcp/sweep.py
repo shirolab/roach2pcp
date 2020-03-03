@@ -123,7 +123,7 @@ class pcpSweep(object):
 
 
 
-    def calc_sweep_cal_params(self, tonefreqs = None, method = "maxspeed", exclude_idxs=[], exclude_ends=False):
+    def calc_sweep_cal_params(self, tonefreqs = None, method = "maxspeed", exclude_idxs=[], exclude_endpoints=False, choose_range=False):
         """
         Function to calculate the calibration parameters from the currently loaded sweep data and filter parameters.
 
@@ -135,14 +135,27 @@ class pcpSweep(object):
         _logger.info("Calculating new set of calibration parameters. To restore original parameters values, use self.get_data()."\
                     "Use self.write_sweep_cal_params to write the new calibration parameters to file to be used in streaming.")
 
-        # add filter parameters here!
         assert self.data is not None, "there doesn't appear to be any sweep data available. Do a sweep, or load an existing file and rerun"
+        # Precondition the sweep data to make finding f0s easier/more reliable
+        # Stupid-simple: Generate a mask of indices to NaN out so the max didq2 doesn't choose those indices
+        nan_mask = _np.zeros_like(self.rf_freqs, dtype='bool')  # Must be a bool for this to work
+        # First just remove endpoints
+        if exclude_endpoints:
+            if exclude_endpoints == True:
+                exclude_endpoints = 1
+            nan_mask[:,0:exclude_endpoints] = True
+            nan_mask[:,-exclude_endpoints:] = True
 
+        if choose_range:
+            if choose_range == 'left':
+                nan_mask[:, len(self.rf_freqs[0,:])/2 :] = True # not being super careful about even/odd
+            if choose_range == 'right':
+                nan_mask[:, 0:len(self.rf_freqs[0,:])/2] = True
+                
         calparams, caldata = _resonator_routines.calc_sweep_cal_params(self.rf_freqs, \
                                                                                 self.data.real, \
                                                                                 self.data.imag, \
-                                                                                tone_freqs = tonefreqs,
-                                                                                exclude_endpoints = exclude_ends)
+                                                                                nanmask = nan_mask)
         # get the indexes of the data we want to analyse (default all of them )
         allidxs = _np.arange( len(self.data), dtype=_np.int )
         idxstoanalyse = list( set(allidxs).difference(exclude_idxs) )
