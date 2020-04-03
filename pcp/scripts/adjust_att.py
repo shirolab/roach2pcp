@@ -10,7 +10,7 @@ import numpy as np
 
 def maximize_outputatten(muxch, outputmax, outputstep, maxADCval):
     # Always start at maximum attenuation so that we don't damage anything
-    att_arr = np.arange(outputmax, 0, -1* np.abs(outputstep))
+    att_arr = np.arange(outputmax, -1*np.abs(outputstep), -1*np.abs(outputstep))
     for aa, aav in enumerate(att_arr):
         muxch.output_atten.att = aav
         i, q = muxch.ri.read_ADC()
@@ -19,9 +19,14 @@ def maximize_outputatten(muxch, outputmax, outputstep, maxADCval):
             continue
         else:
             break
-    # Set attenuation to the first value higher than this
-    _logger.info('Setting output attenuation to ' + str(att_arr[aa-1]) + ' dB')
-    muxch.output_atten.att = att_arr[aa-1]
+
+    if (aa+1) < len(att_arr):  # If we stopped early, set to att just before this one
+        max_ind = aa-1
+    else: # If we never hit the max ADC, set to last (lowest) att
+        max_ind = aa
+
+    _logger.info('Setting output attenuation to ' + str(att_arr[max_ind]) + ' dB')
+    muxch.output_atten.att = att_arr[max_ind]
 
 
 def main(muxch, type = 'output', outputmax = 30, outputstep = 3, maxADCval = 0.5):
@@ -29,4 +34,5 @@ def main(muxch, type = 'output', outputmax = 30, outputstep = 3, maxADCval = 0.5
 
     if type == 'output':
         _logger.info('Adjusting output attenuation')
+        _logger.info('Maximizing ADC voltage below ' + str(maxADCval) + ' V threshold')
         maximize_outputatten(muxch, outputmax, outputstep, maxADCval)
