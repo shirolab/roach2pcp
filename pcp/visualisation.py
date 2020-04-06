@@ -698,12 +698,14 @@ class pcpInteractivePlot(object):
         axphi = fig.add_subplot(323, sharex = axmag)
         axcal = fig.add_subplot(325, sharex = axmag)
 
-        axiq.set_xlabel("I [ADC V]"); axiq.set_ylabel("Q [ADC V]")
+        axiq.set_xlabel("I [ADC]"); axiq.set_ylabel("Q [ADC]")
+        axiq.yaxis.tick_right()
         axmag.set_ylabel("Mag(S21) [dB]")
         axphi.set_ylabel("Ang(S21) [rad]")
-        axcal.set_xlabel("Freq [MHz]"); axcal.set_ylabel("Speed")
+        axcal.set_xlabel("Frequency [MHz]"); axcal.set_ylabel("Speed")
         axcal.xaxis.set_major_formatter(FormatStrFormatter('%3.2f'))
-
+        axiq.grid(); axmag.grid(); axphi.grid(); axcal.grid()
+        
         fig.canvas.mpl_connect('key_press_event',   self._on_key_press)
         fig.canvas.mpl_connect('key_release_event', self._on_key_release)
         fig.canvas.mpl_connect('button_press_event', self._on_mouse_click)
@@ -736,8 +738,8 @@ class pcpInteractivePlot(object):
             self._linedict[sweep.name]['speedtone']  = self.axcal.axvline(sweep.tonefreqs[self.sortidxs][self.idx]/1.e6, c='r', ls='dashed')
             self._linedict[sweep.name]['speedf0']    = self.axcal.axvline(sweep.calparams['f0s'][self.sortidxs][self.idx]/1.e6, c='g', ls='dashed')
 
-            self._linedict[sweep.name]['magmain'].set_label(sweep.name)
-
+            #self._linedict[sweep.name]['magmain'].set_label(sweep.name)
+                        
         self.refresh_plot()
 
     def refresh_plot(self):
@@ -767,8 +769,11 @@ class pcpInteractivePlot(object):
             self._linedict[sweep.name]['speedtone'].set_data(sweep.tonefreqs[      self.sortidxs][self.idx]/1.e6, [0,1] )
             self._linedict[sweep.name]['speedf0'  ].set_data(sweep.calparams['f0s'][self.sortidxs][self.idx]/1.e6, [0,1] )
 
-            self.axmag.legend(loc='lower left', bbox_to_anchor= (0.0, 1.01), ncol=2, borderaxespad=0, frameon=False)
+            self._linedict[sweep.name]['magmain'].set_label('Sweep')
+            self._linedict[sweep.name]['magtone'].set_label('Set tone: %3.3f' % (sweep.tonefreqs[self.sortidxs][self.idx]/1.e6) )
+            self._linedict[sweep.name]['magf0'].set_label('Calc f0: %3.3f' % (sweep.calparams['f0s'][self.sortidxs][self.idx]/1.e6) )
 
+            self.axmag.legend(loc='lower left', bbox_to_anchor= (0.0, 1.01), ncol=3, borderaxespad=0, frameon=False)
         # self._linedict['iqmain'].set_data(self.iqdata[ self.idx ].real, self.iqdata[ self.idx ].imag)
         # self._linedict['magmain'].set_data(self.freqs[ self.idx ]/1.e6, 20*_np.log10( _np.abs(self.iqdata[ self.idx ]) ) )
         # self._linedict['phimain'].set_data(self.freqs[ self.idx ]/1.e6, _np.angle(self.iqdata[ self.idx ] ) )
@@ -782,7 +787,7 @@ class pcpInteractivePlot(object):
         self.axcal.relim(); self.axcal.autoscale()
 
         #self.fig.suptitle('res {0}'.format( _np.roll( _np.arange(self.ntones), -self.idx)[0] ), fontsize=16)
-        self.fig.suptitle('Resonator {0}'.format( _np.roll( self.tonenames, -self.idx )[0] ), fontsize=16)
+        self.fig.suptitle(sweep.name[0:15] + ': Resonator {0}'.format( _np.roll( self.tonenames, -self.idx )[0] ), fontsize=16)
 
         self.fig.set_facecolor( self._color_dict['picked'] ) if self.idx in self._picked \
                                                             else self.fig.set_facecolor( self._color_dict['default'] )
