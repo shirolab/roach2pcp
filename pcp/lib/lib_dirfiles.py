@@ -688,7 +688,7 @@ def generate_sweep_dirfile( roachid, dirfilename, tonenames, numpoints = 501 ):
                                         dftype          = "sweep",
                                         tonenames       = tonenames,
                                         array_size      = numpoints,
-                                        filename_suffix = "sweep",
+                                        filename_suffix = "sweep_reduc",
                                         exclusive       = True ) #<-- makes sure that the sweep files are not overwritten/ appended to
     return sweep_dirfile
 

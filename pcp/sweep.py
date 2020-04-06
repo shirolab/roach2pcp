@@ -151,7 +151,7 @@ class pcpSweep(object):
                 nan_mask[:, len(self.rf_freqs[0,:])/2 :] = True # not being super careful about even/odd
             if choose_range == 'right':
                 nan_mask[:, 0:len(self.rf_freqs[0,:])/2] = True
-                
+
         calparams, caldata = _resonator_routines.calc_sweep_cal_params(self.rf_freqs, \
                                                                                 self.data.real, \
                                                                                 self.data.imag, \

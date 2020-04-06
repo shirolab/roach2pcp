@@ -463,7 +463,7 @@ class muxChannel(object):
         assert self.synth_lo is not None, "synthesiser doesn't appear to be initialised. "
 
         # create new dirfile and set it as the active file. Note that data writing is off by default.
-        self.set_active_dirfile( filename_suffix = "sweep_raw" + filename_suffix )
+        self.set_active_dirfile( filename_suffix = "sweep" + filename_suffix )
         # alias to current dirfile for convenience
         self.current_dirfile = self.writer_daemon.current_dirfile
 
