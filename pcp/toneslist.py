@@ -95,7 +95,7 @@ class Toneslist(object):
 
 	# -- sweep functionality --
 	#
-	_DTFMT = "%Y%m%d-%H%M%S"
+	_DTFMT = "%Y%m%d_%H%M%S"
 	def __init__(self, roachid,
 						loader_function = _pd.read_csv,\
 						auto_load = True,\

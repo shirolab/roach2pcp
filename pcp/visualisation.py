@@ -27,6 +27,7 @@ import pygetdata as _gd
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.widgets import MultiCursor
+from matplotlib.ticker import FormatStrFormatter
 
 plt.ion()
 
@@ -697,10 +698,11 @@ class pcpInteractivePlot(object):
         axphi = fig.add_subplot(323, sharex = axmag)
         axcal = fig.add_subplot(325, sharex = axmag)
 
-        axiq.set_xlabel("i (adc)"); axiq.set_ylabel("q (adc)")
-        axmag.set_ylabel("mag(s21) (db)")
-        axphi.set_ylabel("ang(s21) (rad)")
-        axcal.set_xlabel("freq (MHz)"); axcal.set_ylabel("speed")
+        axiq.set_xlabel("I [ADC V]"); axiq.set_ylabel("Q [ADC V]")
+        axmag.set_ylabel("Mag(S21) [dB]")
+        axphi.set_ylabel("Ang(S21) [rad]")
+        axcal.set_xlabel("Freq [MHz]"); axcal.set_ylabel("Speed")
+        axcal.xaxis.set_major_formatter(FormatStrFormatter('%3.2f'))
 
         fig.canvas.mpl_connect('key_press_event',   self._on_key_press)
         fig.canvas.mpl_connect('key_release_event', self._on_key_release)
@@ -780,7 +782,7 @@ class pcpInteractivePlot(object):
         self.axcal.relim(); self.axcal.autoscale()
 
         #self.fig.suptitle('res {0}'.format( _np.roll( _np.arange(self.ntones), -self.idx)[0] ), fontsize=16)
-        self.fig.suptitle('res {0}'.format( _np.roll( self.tonenames, -self.idx )[0] ), fontsize=16)
+        self.fig.suptitle('Resonator {0}'.format( _np.roll( self.tonenames, -self.idx )[0] ), fontsize=16)
 
         self.fig.set_facecolor( self._color_dict['picked'] ) if self.idx in self._picked \
                                                             else self.fig.set_facecolor( self._color_dict['default'] )
