@@ -671,10 +671,9 @@ class pcpInteractivePlot(object):
 
     def print_help(self):
         print """
-        Simple sweep visualisator.
-            - Use left + right arrow keys to browse through tones.
-            - Shift + click to choose tone to add to list (used for identifying tones to re-analyse)
-
+        Simple sweep visualizer.
+            - Use left/right arrow keys to browse through tones.
+            - Shift + click to add a tone to the re-analyze list.
         """
     @property
     def exclude_idxs(self):
@@ -720,7 +719,7 @@ class pcpInteractivePlot(object):
 
         for sweep in self.sweeplist:
 
-            self._linedict[sweep.name]['iqmain'], = self.axiq.plot(sweep.data[self.sortidxs][self.idx].real, sweep.data[self.sortidxs][self.idx].imag, 'o')
+            self._linedict[sweep.name]['iqmain'], = self.axiq.plot(sweep.data[self.sortidxs][self.idx].real, sweep.data[self.sortidxs][self.idx].imag, '-o')
             self._linedict[sweep.name]['iqtone'], = self.axiq.plot(1,1, 'rD', ms=10, label = 'tone')
             self._linedict[sweep.name]['iqf0'],   = self.axiq.plot(1,1, 'gD', ms=10, label = 'calcf0')
 
@@ -769,7 +768,7 @@ class pcpInteractivePlot(object):
             self._linedict[sweep.name]['speedtone'].set_data(sweep.tonefreqs[      self.sortidxs][self.idx]/1.e6, [0,1] )
             self._linedict[sweep.name]['speedf0'  ].set_data(sweep.calparams['f0s'][self.sortidxs][self.idx]/1.e6, [0,1] )
 
-            self._linedict[sweep.name]['magmain'].set_label('Sweep')
+            #self._linedict[sweep.name]['magmain'].set_label('Sweep')
             self._linedict[sweep.name]['magtone'].set_label('Set tone: %3.3f' % (sweep.tonefreqs[self.sortidxs][self.idx]/1.e6) )
             self._linedict[sweep.name]['magf0'].set_label('Calc f0: %3.3f' % (sweep.calparams['f0s'][self.sortidxs][self.idx]/1.e6) )
 

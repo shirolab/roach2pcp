@@ -6,6 +6,8 @@ import time
 import numpy as np
 import pcp
 import matplotlib.pyplot as plt
+import pcp.visualisation as vis
+
 plt.ion()
 
 log = pcp.logger
