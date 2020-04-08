@@ -771,9 +771,9 @@ def append_dirfile_to_sourcefile(srcfile, dirfilename, timespan = 120.):
     # choose only where last modified times are greater than timespan
     dirfilelist = dirfilelist[ modtimes > time.time() - timespan * 60. ]
     # append new file to the list
-    print dirfilelist
+    #print dirfilelist
     dirfilelist = np.append( dirfilelist, dirfilename )
-    print dirfilelist
+    #print dirfilelist
 
     # write to file (adding newlines)
     srcfile.seek(0)

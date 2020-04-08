@@ -387,7 +387,8 @@ class muxChannel(object):
                         time.sleep(sleeptime / 100.)
                 pytime = self.writer_daemon.pytime.value
                 step_times.append( pytime )
-                print "lo stepped at ", pytime
+                #print "lo stepped at ", pytime
+                _logger.info('LO stepped to ' + str(lo_freq/1.e6))
                 # check the stop event to break out of the loop
                 if stop_event.is_set():
                     break
