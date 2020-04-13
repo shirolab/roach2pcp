@@ -719,26 +719,31 @@ class pcpInteractivePlot(object):
 
         for sweep in self.sweeplist:
 
-            self._linedict[sweep.name]['iqmain'], = self.axiq.plot(sweep.data[self.sortidxs][self.idx].real, sweep.data[self.sortidxs][self.idx].imag, '-o')
+            self._linedict[sweep.name]['iqmain'], = self.axiq.plot(sweep.data[self.sortidxs][self.idx].real, sweep.data[self.sortidxs][self.idx].imag,'-o',c='C0')
+            #self._linedict[sweep.name]['iqmain_freq'] = self.axiq.scatter(sweep.data[self.sortidxs][self.idx].real, sweep.data[self.sortidxs][self.idx].imag, c=sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, edgecolors='none');
             self._linedict[sweep.name]['iqtone'], = self.axiq.plot(1,1, 'rD', ms=10, label = 'tone')
             self._linedict[sweep.name]['iqf0'],   = self.axiq.plot(1,1, 'gD', ms=10, label = 'calcf0')
 
-            self._linedict[sweep.name]['magmain'], = self.axmag.plot(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, 20*_np.log10( _np.abs(sweep.data[self.sortidxs][self.idx]) ) )
+            self._linedict[sweep.name]['magmain'], = self.axmag.plot(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, 20*_np.log10(_np.abs(sweep.data[self.sortidxs][self.idx])), c='C0')
             self._linedict[sweep.name]['magtone']  = self.axmag.axvline(sweep.tonefreqs[self.sortidxs][self.idx]/1.e6, c='r', ls='dashed')
             self._linedict[sweep.name]['magf0']    = self.axmag.axvline(sweep.calparams['f0s'][self.sortidxs][self.idx]/1.e6, c='g', ls='dashed')
 
-            self._linedict[sweep.name]['phimain'], = self.axphi.plot(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, _np.angle(sweep.data[self.sortidxs][self.idx] ) )
+            self._linedict[sweep.name]['phimain'], = self.axphi.plot(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6,_np.angle(sweep.data[self.sortidxs][self.idx]), c='C0' )
             self._linedict[sweep.name]['phitone']  = self.axphi.axvline(sweep.tonefreqs[self.sortidxs][self.idx]/1.e6, c='r', ls='dashed')
             self._linedict[sweep.name]['phif0']    = self.axphi.axvline(sweep.calparams['f0s'][self.sortidxs][self.idx]/1.e6, c='g', ls='dashed')
 
-            self._linedict[sweep.name]['speedre'],   = self.axcal.plot(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, sweep.caldata[self.sortidxs][self.idx].real ) # didf
-            self._linedict[sweep.name]['speedim'],   = self.axcal.plot(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, sweep.caldata[self.sortidxs][self.idx].imag ) # dqdf
-            self._linedict[sweep.name]['speedab'],   = self.axcal.plot(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, abs(sweep.caldata[self.sortidxs][self.idx]) ) # sqrt(didf^2 + dqdf^2)
+            self._linedict[sweep.name]['speedre'],   = self.axcal.plot(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, sweep.caldata[self.sortidxs][self.idx].real, c='C1' ) # didf
+            self._linedict[sweep.name]['speedim'],   = self.axcal.plot(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, sweep.caldata[self.sortidxs][self.idx].imag, c='C5' ) # dqdf
+            self._linedict[sweep.name]['speedab'],   = self.axcal.plot(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, abs(sweep.caldata[self.sortidxs][self.idx]), c='C4' ) # sqrt(didf^2 + dqdf^2)
             self._linedict[sweep.name]['speedtone']  = self.axcal.axvline(sweep.tonefreqs[self.sortidxs][self.idx]/1.e6, c='r', ls='dashed')
             self._linedict[sweep.name]['speedf0']    = self.axcal.axvline(sweep.calparams['f0s'][self.sortidxs][self.idx]/1.e6, c='g', ls='dashed')
 
             #self._linedict[sweep.name]['magmain'].set_label(sweep.name)
-                        
+            self._linedict[sweep.name]['magmain'].set_label('Sweep')
+            self._linedict[sweep.name]['speedre'].set_label('Re(Speed)')
+            self._linedict[sweep.name]['speedim'].set_label('Im(Speed)')
+            self._linedict[sweep.name]['speedab'].set_label('|Speed|')
+            
         self.refresh_plot()
 
     def refresh_plot(self):
@@ -751,6 +756,7 @@ class pcpInteractivePlot(object):
             f0idx   = f0idxs[self.idx]
 
             self._linedict[sweep.name]['iqmain'].set_data(sweep.data[self.sortidxs][self.idx].real, sweep.data[self.sortidxs][self.idx].imag)
+            #self._linedict[sweep.name]['iqmain_freq'].set_data(sweep.data[self.sortidxs][self.idx].real, sweep.data[self.sortidxs][self.idx].imag)
             self._linedict[sweep.name]['iqtone'].set_data(sweep.data[self.sortidxs][self.idx].real[toneidx], sweep.data[self.sortidxs][self.idx].imag[toneidx])
             self._linedict[sweep.name]['iqf0'  ].set_data(sweep.data[self.sortidxs][self.idx].real[f0idx],   sweep.data[self.sortidxs][self.idx].imag[f0idx])
 
@@ -771,8 +777,10 @@ class pcpInteractivePlot(object):
             #self._linedict[sweep.name]['magmain'].set_label('Sweep')
             self._linedict[sweep.name]['magtone'].set_label('Set tone: %3.3f' % (sweep.tonefreqs[self.sortidxs][self.idx]/1.e6) )
             self._linedict[sweep.name]['magf0'].set_label('Calc f0: %3.3f' % (sweep.calparams['f0s'][self.sortidxs][self.idx]/1.e6) )
-
+            
             self.axmag.legend(loc='lower left', bbox_to_anchor= (0.0, 1.01), ncol=3, borderaxespad=0, frameon=False)
+            self.axcal.legend(loc='upper left', ncol=1, borderaxespad=0, frameon=False)
+            
         # self._linedict['iqmain'].set_data(self.iqdata[ self.idx ].real, self.iqdata[ self.idx ].imag)
         # self._linedict['magmain'].set_data(self.freqs[ self.idx ]/1.e6, 20*_np.log10( _np.abs(self.iqdata[ self.idx ]) ) )
         # self._linedict['phimain'].set_data(self.freqs[ self.idx ]/1.e6, _np.angle(self.iqdata[ self.idx ] ) )
