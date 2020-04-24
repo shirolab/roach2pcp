@@ -376,6 +376,7 @@ class muxChannel(object):
         # acutally do the sweep - loop over LO frequencies, while saving time at lo_step
         try:
             sweepdirection = np.sign( np.diff(self.toneslist.sweep_lo_freqs) )[0] # +/- 1 for forward/backward - not used right now
+            _logger.info('Sweeping LO %3.1f kHz around %3.3f MHz in %1.1f kHz steps' % (np.ptp(self.toneslist.sweep_lo_freqs/1.e3), np.mean(self.toneslist.sweep_lo_freqs/1.e6), np.median(np.diff(self.toneslist.sweep_lo_freqs))/1.e3))
             for ix, lo_freq in enumerate(self.toneslist.sweep_lo_freqs):
 
                 if self.loswitch == True: # only switch if the muxchannel is configured to do so
@@ -388,7 +389,7 @@ class muxChannel(object):
                 pytime = self.writer_daemon.pytime.value
                 step_times.append( pytime )
                 #print "lo stepped at ", pytime
-                _logger.info('LO stepped to ' + str(lo_freq/1.e6))
+                #_logger.info('LO stepped to ' + str(lo_freq/1.e6))
                 # check the stop event to break out of the loop
                 if stop_event.is_set():
                     break
