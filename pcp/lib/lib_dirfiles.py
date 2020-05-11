@@ -331,7 +331,7 @@ def create_pcp_dirfile(roachid, dfname="", dftype = "stream", tonenames = [], *d
 def open_dirfile(dirfilename, **dirfile_flags):
 
     if is_path_a_dirfile(dirfilename):
-        return _gd.dirfile(dirfilename, dirfileflags)
+        return _gd.dirfile(dirfilename, **dirfile_flags)
     else:
         _logger.warning("can't open dirfile {0}".format(dirfilename))
 
