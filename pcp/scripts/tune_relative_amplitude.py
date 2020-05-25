@@ -70,9 +70,10 @@ def main(muxch,logfname, bif_target = 0.5, save_ampcorr=True, write_tones=False,
     #from each kid in each sweep, we extract parameter 'a' asymmetry parameter. As function of 
     _plt.ioff()
     optimal_att_in = _np.empty(Nkid)
-    tuningdir = '/data/tuning/roach0/'
+    basetuningdir = '/data/tuning/roach0/'
     tstamp = str(_time.strftime("%Y%m%d_%H%M%S",_time.gmtime()))
-    _os.mkdir(_os.path.join(tuningdir, tstamp))
+    _os.mkdir(_os.path.join(basetuningdir, tstamp + '_powertuning'))
+    tuningdir = _os.path.join(basetuningdir, tstamp + '_powertuning')
     for kk in range(Nkid):
         kidbifparam = _np.array([dd['fit_params'][4] for dd in fit_result_dicts[:,kk]])
         kidchisq = _np.array([dd['fit_chisq'] for dd in fit_result_dicts[:,kk]])
@@ -96,7 +97,7 @@ def main(muxch,logfname, bif_target = 0.5, save_ampcorr=True, write_tones=False,
             _plt.ylabel('Bifurcation parameter')
             _plt.axvline(optatten, color='r', label='optimal atten')
             _plt.legend()
-            _plt.savefig(_os.path.join(tuningdir, tstamp, 'K{:03d}'.format(kk)+'bifplot' )) 
+            _plt.savefig(_os.path.join(tuningdir,'K{:03d}'.format(kk)+'bifplot' )) 
             _plt.close()
                         
             #_plt.figure()
