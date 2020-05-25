@@ -8,7 +8,7 @@ _logger = _logging.getLogger(__name__)
 from .. import ROACH_LIST, mux_channel
 
 
-def main(muxch, input_att = None, output_att = None):
+def main(muxch, input_att = None, output_att = None, flag=''):
     _logger.info("SCRIPT: power_sweep")
 
     init_in = muxch.input_atten.att
@@ -29,7 +29,7 @@ def main(muxch, input_att = None, output_att = None):
             muxch.output_atten.att = oo
 
             muxch.sweep_lo()
-            _logger.info('IN: ' + str(muxch.input_atten.att) +
+            _logger.info(' '+ flag + ' IN: ' + str(muxch.input_atten.att) +
                          ', OUT: ' + str(muxch.output_atten.att) +
                          ', ' + muxch.sweep.name)
 

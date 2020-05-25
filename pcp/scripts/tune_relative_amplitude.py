@@ -18,9 +18,11 @@ Several sweeps as function of input attenuation are in this file with dirfile na
 4. save fit results in a dictionary
 3. Calculate optimal power setting
 4. Rewrite tones amplitude'''
-def main(muxch,logfname, save_ampcorr=True, write_tones=False, plot_bifpar=False):
+def main(muxch,logfname, bif_target = 0.5, save_ampcorr=True, write_tones=False, plot_bifpar=False):
     #load data from the log, including attenuations and dirfile names from the sweep
-    powersweeplogpath = _os.path.join(filesys_config['rootdir'], filesys_config['logfiledir'], logfname)
+    #powersweeplogpath = _os.path.join(filesys_config['rootdir'], filesys_config['logfiledir'], logfname)
+    '''CHANGE THIS AFTER TESTING !!!'''
+    powersweeplogpath = _os.path.join(_os.sep, 'home', 'kids', 'Documents', 'sweeplog.txt')
     dirfnames, att_in , att_out = load_sweep_log(powersweeplogpath)
     #sorting the above so that the arrays will be in increasing att_in order
     sortargs = _np.argsort(att_in)
@@ -66,22 +68,25 @@ def main(muxch,logfname, save_ampcorr=True, write_tones=False, plot_bifpar=False
      
     ###Done with fitting, now we analyze the result
     #from each kid in each sweep, we extract parameter 'a' asymmetry parameter. As function of 
+    _plt.ioff()
     optimal_att_in = _np.empty(Nkid)
+    tuningdir = '/data/tuning/roach0/'
+    tstamp = str(_time.strftime("%Y%m%d_%H%M%S",_time.gmtime()))
+    _os.mkdir(_os.path.join(tuningdir, tstamp))
     for kk in range(Nkid):
-        [fit_result_dicts[ll,kk] for ll in range(Nsweep)]
-         
         kidbifparam = _np.array([dd['fit_params'][4] for dd in fit_result_dicts[:,kk]])
         kidchisq = _np.array([dd['fit_chisq'] for dd in fit_result_dicts[:,kk]])
         #sort things so that data is in increasing att_in order
         afun = _scipy.interpolate.interp1d(att_in, kidbifparam, fill_value=(_np.min(att_in),_np.max(att_in) ), bounds_error=False)
         interpxx = _np.linspace(_np.min(att_in), _np.max(att_in), 1e3)
-        afun_2 = lambda x: afun(x) - 0.5
+        afun_2 = lambda x: afun(x) - bif_target
         try:
             optatten = _scipy.optimize.newton(afun_2, _np.min(att_in))
         except:
             optatten = _np.min(att_in)
         optimal_att_in[kk] = optatten
         interpyy = afun(interpxx)
+
         
         if plot_bifpar==True:
             _plt.figure()
@@ -91,13 +96,15 @@ def main(muxch,logfname, save_ampcorr=True, write_tones=False, plot_bifpar=False
             _plt.ylabel('Bifurcation parameter')
             _plt.axvline(optatten, color='r', label='optimal atten')
             _plt.legend()
+            _plt.savefig(_os.path.join(tuningdir, tstamp, 'K{:03d}'.format(kk)+'bifplot' )) 
+            _plt.close()
+                        
+            #_plt.figure()
+            #_plt.scatter(att_in, kidchisq)
+            #_plt.xlabel('input_attenuation [dB]')
+            #_plt.ylabel('Sum square diff fit vs. data')
             
-            
-            _plt.figure()
-            _plt.scatter(att_in, kidchisq)
-            _plt.xlabel('input_attenuation [dB]')
-            _plt.ylabel('Sum square diff fit vs. data')
-            _plt.show()
+    
     ### We've calculated the optimal input attenuation for each KID
     # Use this to calculate optimal amplitude correction
     #This minimum optimal attenuation will is the highest power tone. Set amp = 1 for this tone
@@ -115,6 +122,8 @@ def main(muxch,logfname, save_ampcorr=True, write_tones=False, plot_bifpar=False
         '''Is this up to date?'''
         muxch.toneslist.amps =  muxch.toneslist.amps*ampcorr
         muxch.write_freqs_to_fpga(auto_write=True)
+
+    _plt.ion()
     return fit_result_dicts, ampcorr
 
 '''This is temporary, subject to change based on how log file of a power sweep is generated'''
