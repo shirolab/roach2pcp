@@ -97,7 +97,7 @@ def is_dirfile_valid(dirfile):
         True or False depending on whether the dirfile is open.
 
     """
-    assert type(dirfile) == _gd.dirfile, "'{0}' doesn't appear to be a dirfile ".format(dirfile)
+    assert isinstance(dirfile, _gd.dirfile), "'{0}' doesn't appear to be a dirfile ".format(dirfile)
 
     try:
         return dirfile.name != "" # calling dirfile.name checks if the dirfile is valid

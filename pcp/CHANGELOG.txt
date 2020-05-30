@@ -2,12 +2,33 @@
 This file will document and keep track of changes with each push to the master branch.
 
 Put most recent commits at the top please!
+
+2020-04-24
+
+replaced type() check with isinstance
+
 --------------------------------------------------------------------------------
 
 2019-12-17
 
 TODO
   - fix shutting down of synth hardware on exit
+  - toneslist
+    - fix rf_freq checking
+    -
+
+  - general
+    - fix _last_written_bb_freqs check - add np.atleast_1d and add force_write option
+
+  - scripts
+    - make script for attenuation sweep
+    -
+
+  - sweep
+    - improve tuning (check only left/right?)
+      - how handle > 1 resonator in sweep band?
+      - how to find > 1 resonator in sweep band?
+
 
   --------------------------------------------------------------------------------
 
