@@ -1,5 +1,9 @@
 #!/usr/bin/env python
+"""
+Welcome to the roach control program...
 
+This is the main module docstring
+"""
 print ( \
 """
 Welcome to the Python Control Program for readout of kinetic inductance detectors
