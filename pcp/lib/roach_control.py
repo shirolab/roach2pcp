@@ -21,7 +21,7 @@ def lo_sweep_single(roachcontainer, tag = "cal"):
     # if it does, get the filename and append unique id (_#)
 
     # get list of LO frequencies for sweeping
-    # roachcontainer.losweep_freqs # this is calculated from the LO freq, ± sweep bandwidths
+    # roachcontainer.losweep_freqs # this is calculated from the LO freq, +/- sweep bandwidths
 
     # set dirfile for writer
     # roachcontainer.set_new_file()
@@ -40,4 +40,5 @@ def lo_sweep_single(roachcontainer, tag = "cal"):
 
     # now sweep has finished, create the derived sweep file and save to the current dirfile
 
-def reduce_and_make_sweep_file(roachcontainer)
+def reduce_and_make_sweep_file(roachcontainer):
+    pass

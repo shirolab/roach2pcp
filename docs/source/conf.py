@@ -44,6 +44,8 @@ extensions = [
     'sphinx.ext.napoleon',
 ]
 
+napoleon_google_docstring = False
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -71,13 +73,34 @@ exclude_patterns = []
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = None
 
+# using the requirements
+autodoc_mock_imports = ['pyusb']
+# autodoc_mock_imports = [ 'setproctitle',
+#                         'tqdm',
+#                         'psutil',
+#                         'PyVISA',
+#                         'memory_profiler',
+#                         'pandas',
+#                         'matplotlib',
+#                         'numpy',
+#                         'numpy.core',
+#                         'scipy',
+#                         'multiprocessing_logging',
+#                         'casperfpga',
+#                         'katcp',
+#                         'PyQt5',
+#                         'pyserial',
+#                         'python_daemon',
+#                         'python_dateutil',
+#                         'pyusb',
+#                         'PyYAML']
 
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'alabaster'
+html_theme = 'traditional'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
