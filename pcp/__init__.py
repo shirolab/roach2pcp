@@ -4,18 +4,18 @@ Welcome to the roach control program...
 
 This is the main module docstring
 """
-print ( \
-"""
-Welcome to the Python Control Program for readout of kinetic inductance detectors
-using Roach2 control boards.
-
-This initialisation script will load all submodules...
-
-For help, use the pcp.help() at anytime to print available top-level options. Alternatively, use
-pcp.<SUBMODULE>.help() to get detailed help for a given <SUBMODULE>.
-
-"""
-)
+# print ( \
+# """
+# Welcome to the Python Control Program for readout of kinetic inductance detectors
+# using Roach2 control boards.
+#
+# This initialisation script will load all submodules...
+#
+# For help, use the pcp.help() at anytime to print available top-level options. Alternatively, use
+# pcp.<SUBMODULE>.help() to get detailed help for a given <SUBMODULE>.
+#
+# """
+# )
 
 # stdlib imports
 import logging as _logging, logging.config as _logconfig
