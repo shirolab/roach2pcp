@@ -17,26 +17,26 @@ import sys
 sys.path.insert(0, os.path.abspath('../..'))
 
 # set up mock modules to build the docs that rely on external packages
-#autodoc_mock_imports = ['pyusb', 'multiprocessing_logging']
-autodoc_mock_imports = [ 'setproctitle',
-                        'tqdm',
-                        'psutil',
-                        'PyVISA',
-                        'memory_profiler',
-                        'pandas',
-                        'matplotlib',
-                        'scipy',
-                        'scipy.signal'
-                        'multiprocessing_logging',
-                        'casperfpga',
-                        'katcp',
-                        'PyQt5',
-                        'pyserial',
-                        'python_daemon',
-                        'python_dateutil',
-                        'pyusb',
-                        'pygetdata'
-                        'PyYAML']
+autodoc_mock_imports = ['pyusb', 'katcp', 'multiprocessing_logging', 'casperfpga', 'pygetdata', 'matplotlib', 'pandas' ]
+# autodoc_mock_imports = [ 'setproctitle',
+#                         'tqdm',
+#                         'psutil',
+#                         'PyVISA',
+#                         'memory_profiler',
+#                         'pandas',
+#                         'matplotlib',
+#                         'scipy',
+#                         'scipy.signal'
+#                         'multiprocessing_logging',
+#                         'casperfpga',
+#                         'katcp',
+#                         'PyQt5',
+#                         'pyserial',
+#                         'python_daemon',
+#                         'python_dateutil',
+#                         'pyusb',
+#                         'pygetdata'
+#                         'PyYAML']
 
 # -- Project information -----------------------------------------------------
 
