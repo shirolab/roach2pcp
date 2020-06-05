@@ -64,10 +64,10 @@ ATTEN_HW_DICT = {}
 
 SYNTHS_IN_USE = []
 ATTENS_IN_USE = []
-print("imported")
+
 # import lib submodules
 # import all sub-modules to top namespace
-import configuration, logfile, kid, unittests, mux_channel#, datalog_mp#, toneslist, scripts
+import scripts, configuration, logfile, kid, unittests, mux_channel, datalog_mp, toneslist
 
 
 

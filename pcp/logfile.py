@@ -46,6 +46,7 @@ General
 import logging, logging.config
 import multiprocessing_logging as mplogging
 
+#access module wide variables
 import pcp
 
 # Load configuration files
@@ -65,12 +66,13 @@ _logger = logging.getLogger(__name__)
 # https://stackoverflow.com/questions/1343227/can-pythons-logging-format-be-modified-depending-on-the-message-log-level
 
 class pcpFormatter(logging.Formatter):
+    def __init__(self):
 
-    logging_config = pcp.configuration.lib_config.load_config('logging_config')
+        super(pcpFormatter, self).__init__()
 
-    FORMATS = {logging.DEBUG : logging_config['formatters']['debugformat'].get('format', None),
-               'DEFAULT'     : logging_config['formatters']['fileformat'].get('format', None)}
-               #logging.INFO  : logging_config['formatters']['screenformat'].get('format', None),
+        self.FORMATS = {logging.DEBUG : pcp.LOGGING_CONFIG['formatters']['debugformat'].get('format', None),
+                        'DEFAULT'     : pcp.LOGGING_CONFIG['formatters']['fileformat'].get('format', None)}
+                   #logging.INFO  : logging_config['formatters']['screenformat'].get('format', None),
 
     def format(self, record):
 
