@@ -13,7 +13,8 @@
 import os, sys, time, shutil, functools, numpy as np, pandas as _pd, logging as _logging, multiprocessing as _mp
 _logger = _logging.getLogger(__name__)
 import pygetdata as _gd
-from ..configuration import filesys_config, roach_config, general_config, lib_config, firmware_registers
+import pcp, pcp.configuration
+#from ..configuration import , roach_config, general_config, lib_config, firmware_registers
 from .. import toneslist
 from . import lib_datapackets
 
@@ -277,6 +278,8 @@ def create_pcp_dirfile(roachid, dfname="", dftype = "stream", tonenames = [], *d
     assert type(dfname) == str
     assert dftype in ["stream", "sweep"]
 
+    timestr_fmt = pcp.GENERAL_CONFIG['default_datafilename_format']
+
     # --- handle kwargs ---
     filename_suffix = kwargs.pop("filename_suffix", "") # str to add to file path
     filename_suffix = "_"  + filename_suffix if filename_suffix else ""
@@ -307,7 +310,7 @@ def create_pcp_dirfile(roachid, dfname="", dftype = "stream", tonenames = [], *d
 
     # check if path exists - join new filename to existing path. Or if no path is given, create file in cwd
     elif os.path.exists(dfname) or dfname == "":
-        dfname = os.path.join( dfname, time.strftime(general_config['default_datafilename_format']) + filename_suffix )
+        dfname = os.path.join( dfname, time.strftime(timestr_fmt) + filename_suffix )
         _logger.debug("path exists; assume this is a directory in which to create the new dirfile".format(dfname))
     # assume that the path given is the intended path of the new dirfile
     else:
@@ -356,10 +359,11 @@ def generate_main_rawfields(dirfile, roachid, tonenames, fragnum=0 ):#, field_su
     # function to generate a standard set of dirfile entries for the roach readout
     # will be used for both timestreams and raw sweep files
 
+    pcp.ROACH_CONFIG
     if type(dirfile) != _gd.dirfile:
         _logger.error( "given dirfile is of type {0}, and not a valid dirfile. Nothing done.".format(type(dirfile)) )
         return
-    elif roachid not in roach_config.keys():
+    elif roachid not in pcp.ROACH_CONFIG.keys():
         _logger.error( "Unrecognised roachid = {0}".format(roachid) )
         return
 
@@ -370,7 +374,7 @@ def generate_main_rawfields(dirfile, roachid, tonenames, fragnum=0 ):#, field_su
     namespace = dirfile.fragment(fragnum).namespace
 
     # read in auxillary fields as defined in the configuration file and create getdata entries
-    firmware_dict = lib_config.get_firmware_register_dict( firmware_registers, roach_config[roachid]["firmware_file"] )
+    firmware_dict = pcp.configuration.lib_config.get_firmware_register_dict( pcp.FIRMWARE_REGS, pcp.ROACH_CONFIG[roachid]["firmware_file"] )
     aux_fields = firmware_dict["packet_structure"]["aux_field_cfg"]
 
     # write the python_timestamp field manually

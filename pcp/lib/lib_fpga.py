@@ -6,11 +6,13 @@ from ..configuration import color_msg as cm
 
 import numpy as _np
 
-from ..configuration import firmware_registers as _firmware_registers,\
-                            roach_config as _roach_config, \
-                            network_config as _network_config,\
-                            filesys_config as _filesys_config,\
-                            FIRMWARE_REG_DICT
+# access to module variables
+import pcp
+# from ..configuration import firmware_registers as _firmware_registers,\
+#                             roach_config as _roach_config, \
+#                             network_config as _network_config,\
+#                             filesys_config as _filesys_config,\
+#                             FIRMWARE_REG_DICT
 
 from . import lib_qdr as _lib_qdr
 
@@ -159,12 +161,12 @@ class roachInterface(object):
     def __init__(self, roachid):
 
         # get configuration from file for given roachid
-        self.network_config     = _network_config[roachid]
-        self.roach_config       = _roach_config[roachid]
-        self.firmware_reg_list  = FIRMWARE_REG_DICT[roachid]
+        self.NETWORK_CFG     = pcp.NETWORK_CONFIG[roachid]
+        self.ROACH_CFG       = pcp.ROACH_CONFIG[roachid]
+        self.FIRMWARE_REG_DICT  = pcp.FIRMWARE_REG_DICT[roachid]
 
         # try to get an fpga instance for the given roachid
-        self.fpga = get_fpga_instance( self.network_config["roach_ppc_ip"] )
+        self.fpga = get_fpga_instance( self.NETWORK_CFG["roach_ppc_ip"] )
 
         if self.fpga == None:
             _logger.warning( " No fpga instance present. If running a dummy, this is expected. Otherwise, something has gone wrong. " )
@@ -172,7 +174,7 @@ class roachInterface(object):
 
         self.fpg_uploaded  = self.fpga.is_running()
 
-        self.firmware_file = _os.path.join(_filesys_config["firmwaredir"] , self.roach_config["firmware_file"])
+        self.firmware_file = _os.path.join(pcp.FILESYS_CONFIG["firmwaredir"] , self.ROACH_CFG["firmware_file"])
         assert _os.path.exists(self.firmware_file)
 
         # these should be read from the config file
@@ -202,11 +204,11 @@ class roachInterface(object):
             if self.calibrate_qdr() < 0:
                 print "qdr calibration failed."
             else:
-                write_to_fpga_register(self.fpga, { 'write_qdr_status_reg': 1 }, self.firmware_reg_list )
+                write_to_fpga_register(self.fpga, { 'write_qdr_status_reg': 1 }, self.FIRMWARE_REG_DICT )
 
         # write registers (dds_shift + accum_len)
-        write_to_fpga_register(self.fpga, { 'accum_len_reg': 2**(self.roach_config['roach_accum_len'])-1, \
-                                            'dds_shift_reg': self.roach_config['dds_shift']  }, self.firmware_reg_list)
+        write_to_fpga_register(self.fpga, { 'accum_len_reg': 2**(self.ROACH_CFG['roach_accum_len'])-1, \
+                                            'dds_shift_reg': self.ROACH_CFG['dds_shift']  }, self.FIRMWARE_REG_DICT)
 
         # check that socket send buffer is larger (should be done outside of this function)
 
@@ -292,14 +294,14 @@ class roachInterface(object):
     @progress_wrapped(description=cm.BOLD+"QDR Calibration"+cm.ENDC, estimated_time=5.7)
     def calibrate_qdr(self):
     # Calibrates the QDRs. Run after loading firmware
-        write_to_fpga_register(self.fpga, { 'dac_reset_reg': 1 }, self.firmware_reg_list )
+        write_to_fpga_register(self.fpga, { 'dac_reset_reg': 1 }, self.FIRMWARE_REG_DICT )
         print cm.OKGREEN + 'DAC on' + cm.ENDC
 
         bFailHard = False
         calVerbosity = 1
 
-        qdrMemName = self.firmware_reg_list['qdr0_reg']
-        qdrNames   = [self.firmware_reg_list['qdr0_reg'], self.firmware_reg_list['qdr1_reg']] # <- not used?
+        qdrMemName = self.FIRMWARE_REG_DICT['qdr0_reg']
+        qdrNames   = [self.FIRMWARE_REG_DICT['qdr0_reg'], self.FIRMWARE_REG_DICT['qdr1_reg']] # <- not used?
 
         print cm.OKBLUE + 'Fpga Clock Rate =' + cm.BOLD, self.fpga.estimate_fpga_clock(), cm.ENDC
         self.fpga.get_system_information()
@@ -320,29 +322,29 @@ class roachInterface(object):
 
         """Configure GbE registers and parameters"""
 
-        udp_src_mac =  self.network_config['udp_source_mac']
-        udp_dest_mac = self.network_config['udp_dest_mac']
+        udp_src_mac =  self.NETWORK_CFG['udp_source_mac']
+        udp_dest_mac = self.NETWORK_CFG['udp_dest_mac']
 
-        udp_src_ip   = _struct.unpack( '!L', _socket.inet_aton(self.network_config['udp_source_ip']) )[0]
-        udp_src_port = self.network_config['udp_source_port']
+        udp_src_ip   = _struct.unpack( '!L', _socket.inet_aton(self.NETWORK_CFG['udp_source_ip']) )[0]
+        udp_src_port = self.NETWORK_CFG['udp_source_port']
 
-        udp_dest_ip   = _struct.unpack( '!L', _socket.inet_aton(self.network_config['udp_dest_ip']) )[0]
-        udp_dest_port = self.network_config['udp_dest_port']
+        udp_dest_ip   = _struct.unpack( '!L', _socket.inet_aton(self.NETWORK_CFG['udp_dest_ip']) )[0]
+        udp_dest_port = self.NETWORK_CFG['udp_dest_port']
 
         # Write the mac addresses for the udp source (fpga) and destination (computer)
         write_to_fpga_register(self.fpga, { 'udp_srcmac0_reg' : int(udp_src_mac[4:]  , 16), \
                                             'udp_srcmac1_reg' : int(udp_src_mac[0:4] , 16), \
                                             'udp_destmac0_reg': int(udp_dest_mac[4:] , 16), \
-                                            'udp_destmac1_reg': int(udp_dest_mac[0:4], 16)  }, self.firmware_reg_list, sleep_time = 0.05 )
+                                            'udp_destmac1_reg': int(udp_dest_mac[0:4], 16)  }, self.FIRMWARE_REG_DICT, sleep_time = 0.05 )
 
         write_to_fpga_register(self.fpga, { 'udp_srcip_reg'   : udp_src_ip,   \
                                             'udp_destip_reg'  : udp_dest_ip,  \
                                             'udp_destport_reg': udp_dest_port,\
-                                            'udp_srcport_reg' : udp_src_port  }, self.firmware_reg_list, sleep_time = 0.05 )
+                                            'udp_srcport_reg' : udp_src_port  }, self.FIRMWARE_REG_DICT, sleep_time = 0.05 )
 
-        write_to_fpga_register(self.fpga, { 'udp_start_reg': 0 }, self.firmware_reg_list, sleep_time = 0.1 ) # require separate calls for the same register
-        write_to_fpga_register(self.fpga, { 'udp_start_reg': 1 }, self.firmware_reg_list, sleep_time = 0.1 )
-        write_to_fpga_register(self.fpga, { 'udp_start_reg': 0 }, self.firmware_reg_list, sleep_time = 0.1 )
+        write_to_fpga_register(self.fpga, { 'udp_start_reg': 0 }, self.FIRMWARE_REG_DICT, sleep_time = 0.1 ) # require separate calls for the same register
+        write_to_fpga_register(self.fpga, { 'udp_start_reg': 1 }, self.FIRMWARE_REG_DICT, sleep_time = 0.1 )
+        write_to_fpga_register(self.fpga, { 'udp_start_reg': 0 }, self.FIRMWARE_REG_DICT, sleep_time = 0.1 )
 
         print cm.OKGREEN + "Downlink registers configured" + cm.ENDC
 
@@ -544,8 +546,8 @@ class roachInterface(object):
         # this is a bit slow...
         for ch, idx in enumerate(fft_bin_index):
             write_to_fpga_register(self.fpga, { 'bins_reg': idx, \
-                                                'load_bins_reg': 2*ch + 1}, self.firmware_reg_list, sleep_time = 0. )
-            write_to_fpga_register(self.fpga, {'load_bins_reg': 0 }, self.firmware_reg_list, sleep_time = 0. )
+                                                'load_bins_reg': 2*ch + 1}, self.FIRMWARE_REG_DICT, sleep_time = 0. )
+            write_to_fpga_register(self.fpga, {'load_bins_reg': 0 }, self.FIRMWARE_REG_DICT, sleep_time = 0. )
 
         return freq_residuals
 
@@ -656,8 +658,8 @@ class roachInterface(object):
   #       # this is a bit slow...
   #       for ch, idx in enumerate(fft_bin_index):
   #           write_to_fpga_register(self.fpga, { 'bins_reg': idx, \
-  #                                               'load_bins_reg': 2*ch + 1}, self.firmware_reg_list, sleep_time = 0. )
-  #           write_to_fpga_register(self.fpga, {'load_bins_reg': 0 }, self.firmware_reg_list, sleep_time = 0. )
+  #                                               'load_bins_reg': 2*ch + 1}, self.FIRMWARE_REG_DICT, sleep_time = 0. )
+  #           write_to_fpga_register(self.fpga, {'load_bins_reg': 0 }, self.FIRMWARE_REG_DICT, sleep_time = 0. )
 
   #                                               #enable write ram at address i
 
@@ -715,7 +717,7 @@ class roachInterface(object):
 
         #write fft_shift ?
         fft_shift = 2**5 if len(freqs) >= 400 else 2**9
-        write_to_fpga_register(self.fpga, { "fft_shift_reg": fft_shift - 1} , self.firmware_reg_list, sleep_time = 0. )
+        write_to_fpga_register(self.fpga, { "fft_shift_reg": fft_shift - 1} , self.FIRMWARE_REG_DICT, sleep_time = 0. )
 
         dac_iq_gain   = iq_gaindict.pop("dac_iq_gain",   None)
         dac_iq_phase  = iq_gaindict.pop("dac_iq_phase",  None)
@@ -727,23 +729,23 @@ class roachInterface(object):
             dac_iq_gain=dac_iq_gain, dac_iq_phase=dac_iq_phase,
             dds_iq_gain=dds_iq_gain, dds_iq_phase=dds_iq_phase, dds_iq_offset=dds_iq_offset)
 
-        write_to_fpga_register(self.fpga, { "dac_reset_reg": 1} , self.firmware_reg_list, sleep_time = 0. )
+        write_to_fpga_register(self.fpga, { "dac_reset_reg": 1} , self.FIRMWARE_REG_DICT, sleep_time = 0. )
         write_to_fpga_register(self.fpga, { "dac_reset_reg": 0, \
-                                            "start_dac_reg": 0 }, self.firmware_reg_list, sleep_time = 0. )
+                                            "start_dac_reg": 0 }, self.FIRMWARE_REG_DICT, sleep_time = 0. )
         if fast_write == True:
             # added custom function to try to speed up the tone writing
-            assert not self._fast_blindwrite(self.firmware_reg_list['qdr0_reg'], I_lut_packed, offset = 0), "write to qdr0_reg failed"
-            assert not self._fast_blindwrite(self.firmware_reg_list['qdr1_reg'], Q_lut_packed, offset = 0), "write to qdr1_reg failed"
+            assert not self._fast_blindwrite(self.FIRMWARE_REG_DICT['qdr0_reg'], I_lut_packed, offset = 0), "write to qdr0_reg failed"
+            assert not self._fast_blindwrite(self.FIRMWARE_REG_DICT['qdr1_reg'], Q_lut_packed, offset = 0), "write to qdr1_reg failed"
         # blindwrites takes around 8-9 seconds each
         else:
-            self.fpga.blindwrite(self.firmware_reg_list['qdr0_reg'], I_lut_packed, offset = 0)
-            self.fpga.blindwrite(self.firmware_reg_list['qdr1_reg'], Q_lut_packed, offset = 0)
+            self.fpga.blindwrite(self.FIRMWARE_REG_DICT['qdr0_reg'], I_lut_packed, offset = 0)
+            self.fpga.blindwrite(self.FIRMWARE_REG_DICT['qdr1_reg'], Q_lut_packed, offset = 0)
 
         write_to_fpga_register(self.fpga, { "start_dac_reg"  : 1, \
-                                            "accum_reset_reg": 0 }, self.firmware_reg_list, sleep_time = 0. )
+                                            "accum_reset_reg": 0 }, self.FIRMWARE_REG_DICT, sleep_time = 0. )
 
         write_to_fpga_register(self.fpga, { "accum_reset_reg": 1, \
-                                            "write_comb_len_reg": len(freqs) }, self.firmware_reg_list, sleep_time = 0. )
+                                            "write_comb_len_reg": len(freqs) }, self.FIRMWARE_REG_DICT, sleep_time = 0. )
         print cm.OKGREEN + 'Tones written.' + cm.ENDC
 
     def make_freq_comb(self, nfreq = 101):
@@ -793,10 +795,10 @@ class roachInterface(object):
     #Active PPS
     def active_pps(self, active=True):
         if active:
-            write_to_fpga_register(self.fpga,{'pps_start_reg':1}, self.firmware_reg_list)
+            write_to_fpga_register(self.fpga,{'pps_start_reg':1}, self.FIRMWARE_REG_DICT)
             print cm.OKGREEN + "PPS Registers Enabled" + cm.ENDC
         else:
-            write_to_fpga_register(self.fpga,{'pps_start_reg':0}, self.firmware_reg_list)
+            write_to_fpga_register(self.fpga,{'pps_start_reg':0}, self.FIRMWARE_REG_DICT)
             print cm.OKGREEN + "PPS Registers Disabled" + cm.ENDC
 
     # KidPy functions
@@ -805,14 +807,14 @@ class roachInterface(object):
     # 3. Digital Down Converter Time Domain
     # 4. Downsampled Channel Magnitudes
     def read_ADC(self,n=2**11):
-        write_to_fpga_register(self.fpga, { 'adc_snap_ctrl_reg': 0 }, self.firmware_reg_list )
-        write_to_fpga_register(self.fpga, { 'adc_snap_ctrl_reg': 1 }, self.firmware_reg_list )
-        write_to_fpga_register(self.fpga, { 'adc_snap_ctrl_reg': 0 }, self.firmware_reg_list )
-        write_to_fpga_register(self.fpga, { 'adc_snap_trig_reg': 1 }, self.firmware_reg_list )
-        write_to_fpga_register(self.fpga, { 'adc_snap_trig_reg': 0 }, self.firmware_reg_list )
+        write_to_fpga_register(self.fpga, { 'adc_snap_ctrl_reg': 0 }, self.FIRMWARE_REG_DICT )
+        write_to_fpga_register(self.fpga, { 'adc_snap_ctrl_reg': 1 }, self.FIRMWARE_REG_DICT )
+        write_to_fpga_register(self.fpga, { 'adc_snap_ctrl_reg': 0 }, self.FIRMWARE_REG_DICT )
+        write_to_fpga_register(self.fpga, { 'adc_snap_trig_reg': 1 }, self.FIRMWARE_REG_DICT )
+        write_to_fpga_register(self.fpga, { 'adc_snap_trig_reg': 0 }, self.FIRMWARE_REG_DICT )
 
         # Read I and Q signals from ADC
-        adc = (_np.fromstring(read_from_fpga_register(self.fpga, { 'adc_snap_bram_reg': (n/2)*8 }, self.firmware_reg_list)['adc_snap_bram_reg'] ,dtype='>i2')).astype('float')
+        adc = (_np.fromstring(read_from_fpga_register(self.fpga, { 'adc_snap_bram_reg': (n/2)*8 }, self.FIRMWARE_REG_DICT)['adc_snap_bram_reg'] ,dtype='>i2')).astype('float')
 
         adc /= 2.0**15
         # ADC full scale is 2.2 V
@@ -824,11 +826,11 @@ class roachInterface(object):
         return I,Q
 
     def read_FFT(self):
-        write_to_fpga_register(self.fpga, { 'fft_snap_ctrl_reg': 0 }, self.firmware_reg_list )
-        write_to_fpga_register(self.fpga, { 'fft_snap_ctrl_reg': 1 }, self.firmware_reg_list )
+        write_to_fpga_register(self.fpga, { 'fft_snap_ctrl_reg': 0 }, self.FIRMWARE_REG_DICT )
+        write_to_fpga_register(self.fpga, { 'fft_snap_ctrl_reg': 1 }, self.FIRMWARE_REG_DICT )
 
         # Read the FFT
-        fft_snap = (_np.fromstring(read_from_fpga_register(self.fpga, {'fft_snap_bram_reg':(2**9)*8}, self.firmware_reg_list)['fft_snap_bram_reg'], dtype='>i2')).astype('float')
+        fft_snap = (_np.fromstring(read_from_fpga_register(self.fpga, {'fft_snap_bram_reg':(2**9)*8}, self.FIRMWARE_REG_DICT)['fft_snap_bram_reg'], dtype='>i2')).astype('float')
 
         I0 = fft_snap[0::4]
         Q0 = fft_snap[1::4]
@@ -845,26 +847,26 @@ class roachInterface(object):
 
     def read_mixer_snaps(self, chan, mixer_out = True, fir = True):
         if (chan % 2) > 0: # if chan is odd
-            write_to_fpga_register(self.fpga, { 'DDC_chan_sel_reg': (chan - 1) / 2 }, self.firmware_reg_list )
+            write_to_fpga_register(self.fpga, { 'DDC_chan_sel_reg': (chan - 1) / 2 }, self.FIRMWARE_REG_DICT )
         else:
-            write_to_fpga_register(self.fpga, { 'DDC_chan_sel_reg': chan/ 2 }, self.firmware_reg_list )
+            write_to_fpga_register(self.fpga, { 'DDC_chan_sel_reg': chan/ 2 }, self.FIRMWARE_REG_DICT )
 
-        write_to_fpga_register(self.fpga, { 'DDC_fftbin_ctrl_reg': 0}, self.firmware_reg_list )
-        write_to_fpga_register(self.fpga, { 'DDC_mixerout_ctrl_reg': 0 }, self.firmware_reg_list )
+        write_to_fpga_register(self.fpga, { 'DDC_fftbin_ctrl_reg': 0}, self.FIRMWARE_REG_DICT )
+        write_to_fpga_register(self.fpga, { 'DDC_mixerout_ctrl_reg': 0 }, self.FIRMWARE_REG_DICT )
 
         if fir:
-            write_to_fpga_register(self.fpga, { 'fir_snap_ctrl_reg': 0}, self.firmware_reg_list )
-            write_to_fpga_register(self.fpga, { 'fir_snap_ctrl_reg': 1}, self.firmware_reg_list )
+            write_to_fpga_register(self.fpga, { 'fir_snap_ctrl_reg': 0}, self.FIRMWARE_REG_DICT )
+            write_to_fpga_register(self.fpga, { 'fir_snap_ctrl_reg': 1}, self.FIRMWARE_REG_DICT )
 
-        write_to_fpga_register(self.fpga, { 'DDC_fftbin_ctrl_reg': 1}, self.firmware_reg_list )
-        write_to_fpga_register(self.fpga, { 'DDC_mixerout_ctrl_reg': 1}, self.firmware_reg_list )
+        write_to_fpga_register(self.fpga, { 'DDC_fftbin_ctrl_reg': 1}, self.FIRMWARE_REG_DICT )
+        write_to_fpga_register(self.fpga, { 'DDC_mixerout_ctrl_reg': 1}, self.FIRMWARE_REG_DICT )
 
-        mixer_in = (_np.fromstring(read_from_fpga_register(self.fpga, {'DDC_fftbin_bram_reg': 16*2**14}, self.firmware_reg_list)['DDC_fftbin_bram_reg'],dtype='>i2')).astype('float')
+        mixer_in = (_np.fromstring(read_from_fpga_register(self.fpga, {'DDC_fftbin_bram_reg': 16*2**14}, self.FIRMWARE_REG_DICT)['DDC_fftbin_bram_reg'],dtype='>i2')).astype('float')
 
         if mixer_out:
-            mixer_out = (_np.fromstring(read_from_fpga_register(self.fpga, {'DDC_mixerout_bram_reg': 8*2**14}, self.firmware_reg_list)['DDC_mixerout_bram_reg'],dtype='>i2')).astype('float')
+            mixer_out = (_np.fromstring(read_from_fpga_register(self.fpga, {'DDC_mixerout_bram_reg': 8*2**14}, self.FIRMWARE_REG_DICT)['DDC_mixerout_bram_reg'],dtype='>i2')).astype('float')
             if fir:
-                lpf_out = (_np.fromstring(read_from_fpga_register(self.fpga, {'DDC_fftbin_bram_reg': 8*2**14}, self.firmware_reg_list)['DDC_fftbin_bram_reg'],dtype='>i2')).astype('float')
+                lpf_out = (_np.fromstring(read_from_fpga_register(self.fpga, {'DDC_fftbin_bram_reg': 8*2**14}, self.FIRMWARE_REG_DICT)['DDC_fftbin_bram_reg'],dtype='>i2')).astype('float')
             else:
                 lpf_out = []
             return mixer_in, mixer_out, lpf_out
@@ -873,27 +875,27 @@ class roachInterface(object):
 
     def read_chan_snaps(self):
         # Reads the snap blocks at the bin select RAM and channelizer mux
-        write_to_fpga_register(self.fpga, { 'buffer_out_ctrl': 0}, self.firmware_reg_list )
-        write_to_fpga_register(self.fpga, { 'buffer_out_ctrl': 1}, self.firmware_reg_list )
+        write_to_fpga_register(self.fpga, { 'buffer_out_ctrl': 0}, self.FIRMWARE_REG_DICT )
+        write_to_fpga_register(self.fpga, { 'buffer_out_ctrl': 1}, self.FIRMWARE_REG_DICT )
 
-        self.chan_data = _np.fromstring(read_from_fpga_register(self.fpga, {'buffer_out_bram': 8*2**9}, self.firmware_reg_list)['buffer_out_bram'],dtype = '>H')
+        self.chan_data = _np.fromstring(read_from_fpga_register(self.fpga, {'buffer_out_bram': 8*2**9}, self.FIRMWARE_REG_DICT)['buffer_out_bram'],dtype = '>H')
 
-        write_to_fpga_register(self.fpga, { 'chan_bins_ctrl': 0}, self.firmware_reg_list )
-        write_to_fpga_register(self.fpga, { 'chan_bins_ctrl': 1}, self.firmware_reg_list )
+        write_to_fpga_register(self.fpga, { 'chan_bins_ctrl': 0}, self.FIRMWARE_REG_DICT )
+        write_to_fpga_register(self.fpga, { 'chan_bins_ctrl': 1}, self.FIRMWARE_REG_DICT )
 
-        self.chan_bins = _np.fromstring(read_from_fpga_register(self.fpga, {'chan_bins_bram':4*2**14}, self.firmware_reg_list)['chan_bins_bram'],dtype = '>H')
+        self.chan_bins = _np.fromstring(read_from_fpga_register(self.fpga, {'chan_bins_bram':4*2**14}, self.FIRMWARE_REG_DICT)['chan_bins_bram'],dtype = '>H')
 
         return
 
     def read_accum_snap(self):
         # Reads the avgIQ buffer. Returns I and Q as 32-b signed integers
-        write_to_fpga_register(self.fpga, { 'accum_snap_ctrl_reg': 0}, self.firmware_reg_list )
-        write_to_fpga_register(self.fpga, { 'accum_snap_ctrl_reg': 1}, self.firmware_reg_list )
+        write_to_fpga_register(self.fpga, { 'accum_snap_ctrl_reg': 0}, self.FIRMWARE_REG_DICT )
+        write_to_fpga_register(self.fpga, { 'accum_snap_ctrl_reg': 1}, self.FIRMWARE_REG_DICT )
 
-        accum_data = (_np.fromstring(read_from_fpga_register(self.fpga, {'accum_snap_bram_reg': 16*2**9}, self.firmware_reg_list)['accum_snap_bram_reg'],dtype='>i')).astype('float')
+        accum_data = (_np.fromstring(read_from_fpga_register(self.fpga, {'accum_snap_bram_reg': 16*2**9}, self.FIRMWARE_REG_DICT)['accum_snap_bram_reg'],dtype='>i')).astype('float')
 
         accum_data /= 2.0**17
-        accum_data /= ((self.roach_config['roach_accum_len'])/512.)
+        accum_data /= ((self.ROACH_CFG['roach_accum_len'])/512.)
 
         I0 = accum_data[0::4]
         Q0 = accum_data[1::4]

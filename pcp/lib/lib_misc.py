@@ -21,5 +21,14 @@ def reload_all_packages():
 
 
 def help_screen():
-    print "this is a printed message "
-    _logger.info("this is a logged message ")
+    print (
+    """
+    Welcome to the Roach 2 Python Control Program for readout of superconducting microsresonators .
+
+    For help, use the pcp.help() at anytime to print available top-level options. Alternatively, use
+    pcp.<SUBMODULE>.help() to get detailed help for a given <SUBMODULE>.
+
+    """
+    )
+
+    #_logger.info("this is a logged message ")

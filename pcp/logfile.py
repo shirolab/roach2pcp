@@ -17,7 +17,6 @@ Provides
 Helper functions to control basic logging features;
 
     - pcp.logfile.set_log_level() - simple function to set the logging level of all defined loggers
-    - pcp.logfile.configure_logging() - configure logging according to the dictionary defined in configuration.logging_config
 
 The pcpFormatter class that is used to format the log records, and add some small funcitonality above that
 available in the python logging package.
@@ -43,20 +42,21 @@ General
 #------------------------------------------------------------------------------------------------------------
 
 # general stdlib imports
-import os as _os
+#import os as os
 import logging, logging.config
-import multiprocessing_logging as _multiprocessing_logging
+import multiprocessing_logging as mplogging
+
+import pcp
 
 # Load configuration files
-from .configuration import filesys_config, logging_config, LOGFILEDIR
+# from .configuration import filesys_config, logging_config, LOGFILEDIR
 
 # Create local level logger
 _logger = logging.getLogger(__name__)
 
 # modify the filename (this happens on initial import before logging.dictConfig happens)
-logfilename = logging_config['handlers']['filelog']['filename']
-logging_config['handlers']['filelog']['filename'] = _os.path.join(LOGFILEDIR, logfilename)
-
+# logfilename = logging_config['handlers']['filelog']['filename']
+# logging_config['handlers']['filelog']['filename'] = os.path.join(LOGFILEDIR, logfilename)
 
 #------------------------------------------------------------------------------------------------------------
 #  ------  Class definitions ------
@@ -65,6 +65,9 @@ logging_config['handlers']['filelog']['filename'] = _os.path.join(LOGFILEDIR, lo
 # https://stackoverflow.com/questions/1343227/can-pythons-logging-format-be-modified-depending-on-the-message-log-level
 
 class pcpFormatter(logging.Formatter):
+
+    logging_config = pcp.configuration.lib_config.load_config('logging_config')
+
     FORMATS = {logging.DEBUG : logging_config['formatters']['debugformat'].get('format', None),
                'DEFAULT'     : logging_config['formatters']['fileformat'].get('format', None)}
                #logging.INFO  : logging_config['formatters']['screenformat'].get('format', None),
@@ -93,20 +96,20 @@ def _get_logging_handlers(logger, get_all = True):
         handler_dict[logger.root.name] = logger.root.handlers
 
     return handler_dict
-
-def configure_logging():
-    """
-    Reinitialise the logging configuration using dictConfig() and the current dictionary
-    defined by pcp.configuration.logging_config. Use pcp.configuration.reload_configfiles() to refresh
-    changes to configuration dictionaries, then run this function.
-
-    """
-
-    _logconfig.dictConfig(logging_config)
-
-    logger = logging.getLogger(__name__)
-    logger.info('Logging configuration (re)initialised as {logname}'.format(logname=logger.name))
-
+#
+# def configure_logging():
+#     """
+#     Reinitialise the logging configuration using dictConfig() and the current dictionary
+#     defined by pcp.configuration.logging_config. Use pcp.configuration.reload_configfiles() to refresh
+#     changes to configuration dictionaries, then run this function.
+#
+#     """
+#
+#     _logconfig.dictConfig(logging_config)
+#
+#     logger = logging.getLogger(__name__)
+#     logger.info('Logging configuration (re)initialised as {logname}'.format(logname=logger.name))
+#
 
 def set_log_level(level, which = 'screen'):
     """
@@ -131,7 +134,7 @@ def set_log_level(level, which = 'screen'):
         _logger.warning("No handlers available for {0}".format(logger.name))
 
     for handler in logger.handlers:
-        assert isinstance(handler, _multiprocessing_logging.MultiProcessingHandler), "only multiprocessing logging currently implemented"
+        assert isinstance(handler, mplogging.MultiProcessingHandler), "only multiprocessing logging currently implemented"
         #    handler = handler.sub_handler
         print handler.sub_handler
         if which == "all":

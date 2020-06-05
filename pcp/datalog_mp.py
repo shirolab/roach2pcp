@@ -53,33 +53,25 @@ Useful notes:
 #from memory_profiler import profile
 
 # test of multiprocessing
-import os, sys, time, signal, select, threading, ctypes
+import os, sys, time, signal, select, threading, ctypes, logging as _logging
 from collections import deque
 import numpy as np
+import setproctitle, pygetdata as _gd
 
-# configure a deque shared memory object that can be used to
-import multiprocessing as mp; from multiprocessing.managers import SyncManager as _syncmanager
+import multiprocessing as mp
+from multiprocessing.managers import SyncManager as _syncmanager
+
+#access module wide variables
+import pcp
+from .lib import lib_dirfiles, lib_datapackets, lib_network
+
+#create logger
+_logger = _logging.getLogger(__name__)
+
+# configure a deque shared memory object that will be used for the queue
 _syncmanager.register('deque', deque, exposed = [d for d in dir(deque) if not d.startswith("__") or d == "__len__"] )
-
 _deque_manager = _syncmanager(); _deque_manager.start(signal.signal, (signal.SIGINT, signal.SIG_IGN) )
 
-import setproctitle
-import logging as _logging
-_logger = _logging.getLogger(__name__)
-import pygetdata as _gd
-
-from .lib import lib_dirfiles, lib_datapackets, lib_network
-from . import logfile
-from .configuration import ROOTDIR, filesys_config, network_config, roach_config
-
-# globally define filesystem
-DIRFILE_SAVEDIR = os.path.join(ROOTDIR, filesys_config['savedatadir'])
-
-# paranoia - this should all have been handled in the setup of the configuration parameters
-if not os.path.exists(DIRFILE_SAVEDIR): os.mkdir(DIRFILE_SAVEDIR)
-
-#BaseManager.register('dataLogger', dataLogger)
-#manager = BaseManager()
 
 class dataLogger(object):
     """
@@ -133,37 +125,36 @@ class dataLogger(object):
 
     def __init__(self, roachid):
 
-        # get logger instance
-        self.logger = _logging.getLogger("logging.daemon.{name}".format(name = roachid))
         self.roachid = roachid
 
         # make sure roachid is a string
         assert isinstance(roachid, str), "identifier is not a string, but {0}".format(type(roachid))
+
+        # create logger instance
+        self.logger = _logging.getLogger("logging.daemon.{name}".format(name = roachid))
         self.process_name = roachid
+
+        # assign local configuration variables
+        self.FILESYS_CFG = pcp.FILESYS_CONFIG
+        self.NETWORK_CFG = pcp.NETWORK_CONFIG[roachid]
+        self.ROACH_CFG   = pcp.ROACH_CONFIG[roachid]
 
         # container for datapacket_dict. Used by the writer process to parse and save packet data
         self._datapacket_dict = None
-        #self._toneslist       = None
 
         # setup up attribute for dirfiles
-        self.DIRFILE_SAVEDIR  = os.path.join(DIRFILE_SAVEDIR, roachid) # <- (this might not be needed )
+        self.DIRFILE_SAVEDIR  = os.path.join(pcp.SAVEDATADIR, roachid) # <- (this might not be needed )
         self.current_filename = None
         self.current_dirfile  = None
-
-        # moved to muxChannel
-        #self._last_closed_dirfile  = None
-        #self._last_closed_filename = None
 
         # setup up network handles
         self._sockethandle = None
 
         #self._writer_queue = deque(maxlen = roach_config[roachid]["max_queue_len"])
-        self._writer_queue = _deque_manager.deque(maxlen = roach_config[roachid]["max_queue_len"])
+        self._writer_queue = _deque_manager.deque(maxlen = self.ROACH_CFG["max_queue_len"])
 
         # check that the roachid is in the configuration files
         try:
-            # get the network configuration file and store it
-            self.network_config = network_config[roachid]
             # initialise the multiprocessing.Process
             self._initialise_data_logger_process( roachid )#, self._datapipe_in )
             # initialise the socket
@@ -242,11 +233,11 @@ class dataLogger(object):
             communicate with the process.
 
         """
-        self._sockethandle = lib_network.generate_socket(self.network_config["socket_type"])
+        self._sockethandle = lib_network.generate_socket(self.NETWORK_CFG["socket_type"])
 
-        udp_dest_ip   = self.network_config["udp_dest_ip"]
-        udp_dest_port = self.network_config["udp_dest_port"]
-        buffer_len    = self.network_config["buf_size"]
+        udp_dest_ip   = self.NETWORK_CFG["udp_dest_ip"]
+        udp_dest_port = self.NETWORK_CFG["udp_dest_port"]
+        buffer_len    = self.NETWORK_CFG["buf_size"]
 
         lib_network.configure_socket_and_bind(self._sockethandle, udp_dest_ip, udp_dest_port, buffer_len)
 
@@ -412,7 +403,7 @@ class dataLogger(object):
         datatowrite = []
 
         # BUFFER SIZE REQUIRED BEFORE WRITING TO DISK (# TODO: be able to change on the fly?)
-        sizetowrite = roach_config[self.roachid]["buffer_len_to_write"]
+        sizetowrite = self.ROACH_CFG["buffer_len_to_write"]
 
         while not self._exitevent.is_set():
 
@@ -930,7 +921,7 @@ class dataLogger(object):
 
         elif command == "SET_LOGLEVEL":
             level = args if isinstance(args, int) else 0
-            logfile.set_log_level(level = level)
+            pcp.set_log_level(level = level)
 
         elif command == "TERMINATE":
             print "Terminating datalogger. Goodbye."

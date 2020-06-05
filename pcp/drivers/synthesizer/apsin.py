@@ -62,9 +62,7 @@ class apsinSynthDevice(object):
 
 class apsinSynthSource(object):
     """
-    Dummy synthesizer class for testing. Includes only basic synthesizer functionality, which will be the minimum
-    required a synth object in this package. Other functionality can be used interactively and in custom scripts, but the
-    code will not rely on additional functionality to operate.
+    Driver for the apsin20g microwave synthesizer.
 
     """
     def __init__(self,device,source):

@@ -9,10 +9,11 @@ import os, sys, socket, time, string, struct # stdlib imports
 from random import choice
 import numpy as np, pygetdata as _gd
 
-from .. import toneslist
+# import pcp to get access to module variables
+import pcp
 
-# read in relevant config files
-from ..configuration import roach_config, firmware_registers
+# import submodule references
+from .. import toneslist
 from ..configuration.lib_config import get_firmware_register_dict
 
 def generate_datapacket_dict( roachid, tones ):
@@ -30,13 +31,13 @@ def generate_datapacket_dict( roachid, tones ):
     -----------
 
     """
-    assert isinstance(roachid, str) and roachid in roach_config.keys(), "roachid is string {0}, roachid in config.keys() {1}".format(isinstance(roachid, str), roachid in roach_config.keys())
+    assert isinstance(roachid, str) and roachid in pcp.ROACH_CONFIG.keys(), "roachid is string {0}, roachid in config.keys() {1}".format(isinstance(roachid, str), roachid in pcp.ROACH_CONFIG.keys())
 
     if not isinstance(tones, toneslist.Toneslist):
         raise TypeError("Input toneslist does not appear to be a pcp.tonelist.Tonelist object. To ensure that data is correctly mapped to disk, a Tonelist is required.")
 
     # get firmware registers for the given roachid
-    firmware_dict = get_firmware_register_dict( firmware_registers, roach_config[roachid]["firmware_file"] )
+    firmware_dict = get_firmware_register_dict( pcp.FIRMWARE_REGS, pcp.ROACH_CONFIG[roachid]["firmware_file"] )
 
     # number of tones in tonelist
     ntones = len(tones.data)

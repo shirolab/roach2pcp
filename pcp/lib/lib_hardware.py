@@ -1,21 +1,24 @@
 #
 #stdlib imports
 import logging as _logging, time as _time, threading as _threading
-_logger = _logging.getLogger(__name__)
+from collections import namedtuple
+import pcp, pcp.configuration
 
-from collections import namedtuple as _namedtuple
-_synthObj = _namedtuple("synthObj", ["config", "synthobj"])
-_attenObj = _namedtuple("attenObj", ["config", "attenobj"])
+
+logger = _logging.getLogger(__name__)
+
+_synthObj = namedtuple("synthObj", ["config", "synthobj"])
+_attenObj = namedtuple("attenObj", ["config", "attenobj"])
 
 # relative pcp imports
-from ..configuration import hardware_config, roach_config, color_msg as cm
+#from ..configuration import hardware_config, roach_config, color_msg as cm
 #from pcp.configuration import hardware_config, roach_config
 
-from ..drivers.synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT
-_logger.debug("synth dict : {0}".format( _SYNTH_HW_DICT ) )
-
-from ..drivers.attenuator import ATTEN_HW_DICT as _ATTEN_HW_DICT
-_logger.debug("atten dict : {0}".format( _ATTEN_HW_DICT ) )
+# from ..drivers.synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT
+# logger.debug("synth dict : {0}".format( _SYNTH_HW_DICT ) )
+#
+# from ..drivers.attenuator import ATTEN_HW_DICT as _ATTEN_HW_DICT
+# logger.debug("atten dict : {0}".format( _ATTEN_HW_DICT ) )
 
 #from pcp.synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT
 #from ..synthesizer import synth_class_dict
@@ -59,6 +62,7 @@ def initialise_connected_synths():
     Does a number of checks to ensure that the synths are initialised correctly, and are working
 
     """
+    hardware_config, roach_config  = pcp.configuration.lib_config.load_config(['hardware_config', 'roach_config'])
 
     # read in synth configuration (make copies here to not alter the live configuration dict, may not be a bad thing?)
     synth_config = hardware_config["synth_config"].copy()
@@ -72,7 +76,7 @@ def initialise_connected_synths():
 
     # should only be left with active - check that its not empty, and is the number
     # defined in roach_config
-    _logger.debug("synth_config: {0}".format( synth_config ) )
+    logger.debug("synth_config: {0}".format( synth_config ) )
     # get the unique synthids defined in the roach_config for both lo and clocks (clocks can be None, and will be discarded)
     synthids = set([roach[key] for roach in roach_params.values() \
                                 for key in roach.keys() if key.startswith("synthid") if roach[key] is not None])
@@ -91,7 +95,7 @@ def initialise_connected_synths():
     #print synth_config
 
     #identify physical synth devices, not repeating entries for multi-port devices
-    _logger.debug("identifying physical synthesier devices..." )
+    logger.debug("identifying physical synthesier devices..." )
 
     psynth_dict = {}
     for synthid, synthcfg in synth_config.items():
@@ -106,7 +110,7 @@ def initialise_connected_synths():
         psynth_dict[physical_id]['class_key'] = vendor + '_' + model
         synth_config[synthid]['physical_id'] = physical_id
 
-    _logger.debug("instantiating synth classes..." )
+    logger.debug("instantiating synth classes..." )
 
     #instantiate the synth base classes for each physical device
     psynth_device_instances = {}
@@ -115,10 +119,10 @@ def initialise_connected_synths():
         synth_dict_serial = psynth_dict[psynth]['serial']
 
         if synth_dict_serial.lower() == 'none':
-            synth_dict_class = _SYNTH_HW_DICT[synth_dict_key]
+            synth_dict_class = pcp.SYNTH_HW_DICT[synth_dict_key]
             psynth_device_instances[psynth] = synth_dict_class()
         else:
-            synth_dict_class = _SYNTH_HW_DICT[synth_dict_key](synth_dict_serial)
+            synth_dict_class = pcp.SYNTH_HW_DICT[synth_dict_key](synth_dict_serial)
             psynth_device_instances[psynth] = synth_dict_class
 
     # return a dictionary with initilased synth device objects
@@ -127,7 +131,7 @@ def initialise_connected_synths():
     #print '\n\n _SYNTH_HW_DICT',_SYNTH_HW_DICT
     #print '\n\n _synth_object_dict',synth_object_dict
 
-    _logger.debug("creating synth objects..." )
+    logger.debug("creating synth objects..." )
 
     for synthid, synthcfg in synth_config.items():
 
@@ -137,11 +141,11 @@ def initialise_connected_synths():
         #print ('\n',synthid,synthcfg,synth_dict_key)
 
         #add the synth device object to a dict
-        _logger.debug("adding device object {0}".format(synthid) )
+        logger.debug("adding device object {0}".format(synthid) )
         synth_device_object_dict[synthid] = _synthObj(config = synthcfg, synthobj = psynth_device_instances[physical_id])
 
         #add the synth source object to a dict
-        _logger.debug("adding source object {0}".format(synthid) )
+        logger.debug("adding source object {0}".format(synthid) )
         synth_source_object_dict[synthid] = _synthObj(config = synthcfg, synthobj = psynth_device_instances[physical_id].getSourceObj(channel=synthcfg['channel']))
 
         #NOTE: the synth object is currently a device-like object, but could be source-like to match the valon/windfreak drivers.
@@ -162,15 +166,16 @@ def initialise_connected_attens():
 
     Returns
     -------
-    synth_dict : dict
+    atten_dict : dict
         Dictionary containing all the attenuator objects that are defined and active in the
         hardware configuration file.
 
     """
 
     # read in attenuators configuration (make copies here to not alter the live configuration dict, may not be a bad thing?)
+    hardware_config, roach_config  = pcp.configuration.lib_config.load_config(['hardware_config', 'roach_config'])
+
     atten_config = hardware_config["atten_config"].copy()
-    #roach_params = roach_config["roach_params"].copy()
     roach_params = roach_config.copy()
 
     # for each entry, return the key, if active is true
@@ -218,11 +223,11 @@ entry in the configuration files and try again.".format(attenids=list(atten_chec
 
         #dummy attenuators
         if atten_dict_serial.lower() == 'none':
-            atten_dict_class = _ATTEN_HW_DICT[atten_dict_key]
+            atten_dict_class = pcp.ATTEN_HW_DICT[atten_dict_key]
             patten_device_instances[patten] = atten_dict_class()
         #other attenuators
         else:
-            atten_dict_class = _ATTEN_HW_DICT[atten_dict_key](atten_dict_serial)
+            atten_dict_class = pcp.ATTEN_HW_DICT[atten_dict_key](atten_dict_serial)
             patten_device_instances[patten] = atten_dict_class
 
     atten_device_object_dict = dict.fromkeys(atten_config, None)

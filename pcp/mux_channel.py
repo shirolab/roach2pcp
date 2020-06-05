@@ -17,10 +17,12 @@
 
 #from memory_profiler import profile
 
-import os, sys, time, logging as _logging, numpy as np, dateutil as _dateutil
+import os, sys, time, logging as _logging, numpy as np, dateutil as _dateutil, warnings
 
 import multiprocessing as _multiprocessing
 import multiprocessing.pool as _multiprocessing_pool
+
+import pcp, pcp.configuration.color_msg as cm
 
 import atexit
 from functools import wraps as _wraps
@@ -36,26 +38,26 @@ except ImportError:
     casperfpga = None
     pass
 
-from . import ROACH_LIST
-from .configuration import ROOTDIR, filesys_config, roach_config, network_config, hardware_config, general_config
+
+# from .configuration import ROOTDIR, filesys_config, roach_config, network_config, hardware_config, general_config
 
 # import the synth dictionary from
-from .drivers.synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT # note that we might need to be careful of import order here
+# from .drivers.synthesizer import SYNTH_HW_DICT as _SYNTH_HW_DICT # note that we might need to be careful of import order here
 
 from . import toneslist, datalog_mp, sweep
 from .lib import lib_dirfiles as _lib_dirfiles, lib_fpga as _lib_fpga
 
-from .configuration import color_msg as cm
-
-#from .lib.lib_hardware import usb_detector
-
-from .lib.lib_hardware import initialise_connected_synths as _initialise_connected_synths
-SYNTHS_IN_USE = _initialise_connected_synths()
-
-from .lib.lib_hardware import initialise_connected_attens as _initialise_connected_attens
-ATTENS_IN_USE = _initialise_connected_attens()
-
-import kid.resonator_routines as _resonator_routines
+#from .configuration import color_msg as cm
+#
+# #from .lib.lib_hardware import usb_detector
+#
+# from .lib.lib_hardware import initialise_connected_synths as _initialise_connected_synths
+# SYNTHS_IN_USE = _initialise_connected_synths()
+#
+# from .lib.lib_hardware import initialise_connected_attens as _initialise_connected_attens
+# ATTENS_IN_USE = _initialise_connected_attens()
+#
+#import kid.resonator_routines as _resonator_routines
 
 class muxChannel(object):
     def __init__(self, roachid):
@@ -63,6 +65,11 @@ class muxChannel(object):
         atexit.register(self.shutdown)
 
         self.roachid  = roachid
+        # grab the root directory from
+
+        assert pcp.ROOTDIR, "ROOTDIR not found. Run pcp initialisation script to set up configuration correctly"
+        self.ROOTDIR = pcp.ROOTDIR
+        self.GENERAL_CFG = pcp.GENERAL_CONFIG
 
         # initialise/create the file structure for data saving + the sourcefile
         self._initialise_folders()
@@ -94,7 +101,7 @@ class muxChannel(object):
         self.current_dirfile = None
 
         # get configuration for specific roach
-        self.ROACH_CFG = roach_config[self.roachid]
+        self.ROACH_CFG = pcp.ROACH_CONFIG[self.roachid]
         self.sample_rate = self.ROACH_CFG["dac_bandwidth"] / ( 2**self.ROACH_CFG["roach_accum_len"] + 1 )
 
         self.initialise_hardware()
@@ -111,38 +118,39 @@ class muxChannel(object):
 
     def _initialise_folders(self):
         """Function to initialise the file structure for data saving for the mux channel"""
-        # generate directory path for data saving and tonehistory
-        self.DIRFILE_SAVEDIR  = os.path.join(ROOTDIR, filesys_config['savedatadir'], self.roachid)
-        self.TONEHISTDIR      = os.path.join(ROOTDIR, filesys_config['tonehistdir'], self.roachid)
-        self.AMPCORRDIR       = os.path.join(ROOTDIR, filesys_config['ampcorrdir'],  self.roachid)
 
-        # create if doesn't exist already
+        # generate directory path for data saving and tonehistory
+        self.DIRFILE_SAVEDIR  = os.path.join(self.ROOTDIR, pcp.FILESYS_CONFIG['savedatadir'], self.roachid)
+        self.TONEHISTDIR      = os.path.join(self.ROOTDIR, pcp.FILESYS_CONFIG['tonehistdir'], self.roachid)
+        self.AMPCORRDIR       = os.path.join(self.ROOTDIR, pcp.FILESYS_CONFIG['ampcorrdir'],  self.roachid)
+
+        # create dirs if doesn't exist already
         os.makedirs(self.DIRFILE_SAVEDIR) if not os.path.exists(self.DIRFILE_SAVEDIR) else None
         os.makedirs(self.TONEHISTDIR)     if not os.path.exists(self.TONEHISTDIR)     else None
         os.makedirs(self.AMPCORRDIR)      if not os.path.exists(self.AMPCORRDIR)      else None
 
         # create kst sourcefile in directory if it already doesn't exist
         self._srcfile = open( os.path.join(self.DIRFILE_SAVEDIR, 'sf.txt'), 'r+')
-        self._timespan = general_config["srcfile_timespan"]
+        self._timespan = pcp.GENERAL_CONFIG["srcfile_timespan"]
 
     def _initialise_daemon_writer(self):
         writer_daemon = datalog_mp.dataLogger( self.roachid )
         writer_daemon.start_daemon()
         return writer_daemon
 
-    def refresh_connections(self):
-        global SYNTHS_IN_USE
-        global ATTENS_IN_USE
+    def _refresh_connections(self):
+        # global SYNTHS_IN_USE
+        # global ATTENS_IN_USE
 
-        SYNTHS_IN_USE = _initialise_connected_synths()
-        ATTENS_IN_USE = _initialise_connected_attens()
+        pcp.SYNTHS_IN_USE = pcp.configuration.lib_config._initialise_connected_synths()
+        pcp.ATTENS_IN_USE = pcp.configuration.lib_config._initialise_connected_attens()
 
         self.initialise_hardware()
 
     def _check_connections(self):
         # Check Connection status
-        for synth in SYNTHS_IN_USE:
-            dev = SYNTHS_IN_USE[synth].synthobj
+        for synth in pcp.SYNTHS_IN_USE:
+            dev = pcp.SYNTHS_IN_USE[synth].synthobj
             # Try to get the frequency
             try:
                 get_freq = dev.frequency
@@ -150,8 +158,8 @@ class muxChannel(object):
             except:
                 print "[ " + cm.FAIL + "fail" + cm.ENDC +" ] {synth} Not connected :)".format(synth = synth)
 
-        for atten in ATTENS_IN_USE:
-            dev = ATTENS_IN_USE[atten].attenobj
+        for atten in pcp.ATTENS_IN_USE:
+            dev = pcp.ATTENS_IN_USE[atten].attenobj
             # Try to get the frequency
             try:
                 get_atten = dev.attenuation
@@ -160,6 +168,7 @@ class muxChannel(object):
                 print "[ " + cm.FAIL + "fail" + cm.ENDC +" ] {atten} Not connected :)".format(atten = atten)
 
     def initialise_hardware(self):
+
         # initialise the synthesisers
         self._initialise_synth_clk()
         self._initialise_synth_lo()
@@ -181,11 +190,10 @@ class muxChannel(object):
         synthid_lo = self.ROACH_CFG["synthid_lo"]
 
         try:
-            self.synth_lo = SYNTHS_IN_USE[synthid_lo].synthobj
+            self.synth_lo = pcp.SYNTHS_IN_USE[synthid_lo].synthobj
             self.synth_lo.frequency = self.toneslist.lo_freq
         except KeyError:
-            print "synthid not recognised. Check configuration file"
-
+            logger.warning("synthid = {0} not recognised. Check configuration file".format(synthid_lo))
 
     def _initialise_synth_clk(self):
 
@@ -193,7 +201,7 @@ class muxChannel(object):
 
         if synthid_clk is not None:
             # get the dictionary of live synths and initialise
-            self.synth_clk = SYNTHS_IN_USE[synthid_clk].synthobj
+            self.synth_clk = pcp.SYNTHS_IN_USE[synthid_clk].synthobj
 
             #set the clk frequency
             self.synth_clk.clk_or_lo = 'clk'
@@ -208,7 +216,7 @@ class muxChannel(object):
 
         if att_in is not None:
             # get the dictionary of live attenuators and initialise
-            self.input_atten = ATTENS_IN_USE[att_in].attenobj
+            self.input_atten = pcp.ATTENS_IN_USE[att_in].attenobj
             #set the input attenuation
             self.input_atten.attenuation = 15
 
@@ -221,7 +229,7 @@ class muxChannel(object):
 
         if att_out is not None:
             # get the dictionary of live attenuators and initialise
-            self.output_atten = ATTENS_IN_USE[att_out].attenobj
+            self.output_atten = pcp.ATTENS_IN_USE[att_out].attenobj
             #set the input attenuation
             self.output_atten.attenuation = 15
 
@@ -278,8 +286,9 @@ class muxChannel(object):
         # if an empty string is given (default), then we pass the DIRFILE_SAVEDIR as the filename to lib_dirfile.create_dirfile,
         # which generates a new filename with the filename format given general_config['default_datafilename_format']).
         # This is likely to be the most used case
+        timestr_fmt = self.GENERAL_CFG['default_datafilename_format']
         if not dirfile_name:
-            dirfile_name = os.path.join( self.DIRFILE_SAVEDIR, time.strftime(general_config['default_datafilename_format']) )
+            dirfile_name = os.path.join( self.DIRFILE_SAVEDIR, time.strftime( timestr_fmt ) )
 
         # store last open filename for convenience
         self._last_closed_dirfile  = self.current_dirfile
@@ -514,9 +523,10 @@ class muxChannel(object):
         # align LO steps with python timestreams
         idxs = np.searchsorted(ptimes, lotimes)[1:] # miss out the first point (should always be 0)
 
+        timestr_fmt = self.GENERAL_CFG['default_datafilename_format']
         # get the filename and extract the datetime string to match the raw sweep file
         dt = _dateutil.parser.parse(os.path.basename(rawsweep_dirfile.name), fuzzy=True)
-        swpdfname = os.path.join( os.path.dirname(rawsweep_dirfile.name), dt.strftime(general_config["default_datafilename_format"]) )
+        swpdfname = os.path.join( os.path.dirname(rawsweep_dirfile.name), dt.strftime( timestr_fmt ) )
 
         # create new sweep dirfile and keep hold of it
         swpdf = _lib_dirfiles.generate_sweep_dirfile( self.roachid, swpdfname, self.toneslist.tonenames, numpoints = len(lotimes))
@@ -704,9 +714,11 @@ class muxChannel(object):
 
         except AttributeError:
             pass
-
+        # close hardware connections
         if self.ri.fpga:
             self.ri.fpga._disconnect()
+
+
 
 class muxChannelList(object):
 
@@ -850,7 +862,6 @@ class muxChannelList(object):
     def plot_sweeps(self):
         pass
         # function to call visualisation to plot all the sweeps in a single sindow?
-
 
 
 def _worker(arg):

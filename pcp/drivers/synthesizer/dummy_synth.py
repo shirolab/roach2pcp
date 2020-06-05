@@ -17,6 +17,9 @@ class dummySynthDevice(object):
 
         # for dummy synth, assume it is always connected
         return True
+    def close(self):
+        """Dummy function to 'close' connection to the device."""
+        return
 
 class dummySynthSource(object):
     """

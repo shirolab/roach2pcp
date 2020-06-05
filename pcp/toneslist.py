@@ -9,7 +9,8 @@ import numpy as _np, pandas as _pd, matplotlib.pyplot as _plt
 
 _logger = _logging.getLogger(__name__)
 
-from .configuration import ROOTDIR, AMPCORRDIR, TONELISTDIR, TONEHISTDIR, filesys_config, roach_config
+import pcp
+#from .configuration import ROOTDIR, AMPCORRDIR, TONELISTDIR, TONEHISTDIR, filesys_config, roach_config
 
 def load_pcp_tonelist(tonelist_file):
 	"""
@@ -173,7 +174,9 @@ class Toneslist(object):
 
 		# load config for given roachid
 		self.roachid   = roachid
-		self.ROACH_CFG = roach_config[self.roachid]
+		self.ROACH_CFG = pcp.ROACH_CONFIG[self.roachid]
+
+		self.TONELISTDIR = pcp.TONELISTDIR
 
 		# set usable bandwidth
 		self._bandwidth = self.ROACH_CFG["max_pos_freq"] - self.ROACH_CFG["min_neg_freq"]
@@ -181,15 +184,15 @@ class Toneslist(object):
 		self.synth_resolution = synth_res # resolution of the synthesizer in Hz
 
 		# load the tonelist given in
-		self.tonelistfile = _os.path.join(TONELISTDIR, self.ROACH_CFG["tonelist_file"])
+		self.tonelistfile = _os.path.join(self.TONELISTDIR, self.ROACH_CFG["tonelist_file"])
 
 		# get a handle to the tonehistdir
-		self.tonehistdir = _os.path.join(TONEHISTDIR, self.roachid)
+		self.TONEHISTDIR = _os.path.join(pcp.TONEHISTDIR, self.roachid)
 		self.tonehistory = {}
 		self._load_tonehistdir()
 
 		# get a handle to the ampcorr directory
-		self.ampcorrdir = _os.path.join(AMPCORRDIR, self.roachid)
+		self.AMPCORRDIR = _os.path.join(pcp.AMPCORRDIR, self.roachid)
 		# dictionary to store amplitude corrections (total points to the class method to calculate the product)
 		self.ampcorr    = {"total": self._calcampcorr }
 		self.ampcorrfiles = {}
@@ -228,10 +231,10 @@ class Toneslist(object):
 
 	def _load_tonehistdir(self):
 		""" Function to load and return the tonehistory """
-		if self.tonehistdir:
-			for tonefile in [f for f in _os.listdir(self.tonehistdir) if not f.startswith(".")]:
+		if self.TONEHISTDIR:
+			for tonefile in [f for f in _os.listdir(self.TONEHISTDIR) if not f.startswith(".")]:
 				name, ext = _os.path.splitext(tonefile)
-				self.tonehistory[name] = _os.path.join(self.tonehistdir, tonefile)
+				self.tonehistory[name] = _os.path.join(self.TONEHISTDIR, tonefile)
 		else:
 			_logger.warning("no tonehistory directory given. limited functionality")
 
@@ -284,7 +287,7 @@ class Toneslist(object):
 				'amps'  : self.amps.tolist(),\
 				'phases': self.phases.tolist() }
 
-		outfname = _os.path.join( self.tonehistdir, datetag )
+		outfname = _os.path.join( self.TONEHISTDIR, datetag )
 		with open(outfname, 'w') as outfile:
 			_yaml.dump(data, outfile, default_flow_style=False)
 
@@ -335,10 +338,10 @@ class Toneslist(object):
 
 	def _load_ampcorrdir(self):
 		""" Function to load and return the tonehistory """
-		if self.ampcorrdir:
-			for acfile in [f for f in _os.listdir(self.ampcorrdir) if not f.startswith(".")]:
+		if self.AMPCORRDIR:
+			for acfile in [f for f in _os.listdir(self.AMPCORRDIR) if not f.startswith(".")]:
 				name, ext = _os.path.splitext(acfile)
-				self.ampcorrfiles[name.split("_")[0]] = _os.path.join(self.ampcorrdir, acfile)
+				self.ampcorrfiles[name.split("_")[0]] = _os.path.join(self.AMPCORRDIR, acfile)
 		else:
 			_logger.warning("no ampcorr directory given. limited functionality")
 
@@ -375,7 +378,7 @@ class Toneslist(object):
 		# file format? human readable?
 		data = dict( ( k, v.tolist() ) for (k, v) in self.ampcorr.items() if k not in ['total'] )
 
-		with open( _os.path.join(self.ampcorrdir, fname), 'w') as outfile:
+		with open( _os.path.join(self.AMPCORRDIR, fname), 'w') as outfile:
 			_yaml.dump(data, outfile, default_flow_style=False)
 
 		#update the current directory to include the new file
@@ -410,10 +413,10 @@ class Toneslist(object):
 		Utility function to return a list of all the files contained in a directory.
 		Optionally allow full path to be returned (default).
 		"""
-		assert _os.path.exists(TONELISTDIR)
-		tonefilelist = _os.listdir(TONELISTDIR)
+		assert _os.path.exists(self.TONELISTDIR)
+		tonefilelist = _os.listdir(self.TONELISTDIR)
 
-		return map( lambda x: _os.path.join(TONELISTDIR, x), tonefilelist ) if full_path else tonefilelist
+		return map( lambda x: _os.path.join(self.TONELISTDIR, x), tonefilelist ) if full_path else tonefilelist
 
 	def set_phases(self, how = 'random'):
 		"""Function to calculate a set of set of phases to be used for the writing of the tones"""

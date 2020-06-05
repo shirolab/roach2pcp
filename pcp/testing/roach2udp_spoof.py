@@ -18,7 +18,7 @@ parser.add_argument('--sleep_time', type=float, default = 1,
 
 args = parser.parse_args()
 
-pcppath = '/Users/pbarry/Documents/projects/python/multitone' # replace with local multitone directory
+pcppath = '/Users/pbarry/Documents/projects/python/roach2pcp' # replace with local multitone directory
 print os.path.exists(pcppath)
 sys.path.append(pcppath)
 

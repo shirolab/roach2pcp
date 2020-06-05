@@ -1,8 +1,11 @@
 import os as _os, numpy as _np, time as _time, shutil as _shutil
 
+# access module variables
+import pcp
+#from .configuration import general_config, roach_config
+
 from .lib import lib_dirfiles as _lib_dirfiles
 from .kid import resonator_routines as _resonator_routines
-from .configuration import general_config, roach_config
 
 from copy import deepcopy
 
@@ -178,10 +181,11 @@ class pcpSweep(object):
 
         _, cal_frag_idx = _lib_dirfiles.check_fragment_valid(self.dirfile, "calparam")
 
+        timestr_fmt = pcp.GENERAL_CONFIG["default_datafilename_format"]
         if not overwrite:
             # copy the calibration fragment file and append a unique datetime stamp
             _shutil.copy( self.dirfile.fragment(cal_frag_idx).name, \
-                        "_".join( (self.dirfile.fragment(cal_frag_idx).name, _time.strftime(general_config["default_datafilename_format"]))) \
+                        "_".join( (self.dirfile.fragment(cal_frag_idx).name, _time.strftime(timestr_fmt))) \
                         )
 
         self.write_sweep_cal_params_todisk(self.dirfile, self.calparams, dict(zip(self.caldata_fields, self.caldata)) )

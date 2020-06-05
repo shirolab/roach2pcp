@@ -42,14 +42,15 @@ pcp_yaml_loader.add_implicit_resolver(  u'tag:yaml.org,2002:float', _re.compile(
                                     list(u'-+0123456789.')
                                     )
 
-def load_config_file(config_file):
+def load_config_file(config_file, silent = True):
     with open(config_file, "r") as f:
         msg = "Loaded {0}".format(config_file)
         # if logging hasn't been configured yet, print to screen
-        if not _logger.root.handlers or _logger.manager.emittedNoHandlerWarning:
-            print( msg )
-        else:
-            _logger.info( msg )
+        if not silent:
+            if not _logger.root.handlers or _logger.manager.emittedNoHandlerWarning:
+                print( msg )
+            else:
+                _logger.info( msg )
 
         return _yaml.load(f, Loader=pcp_yaml_loader)
 
@@ -78,6 +79,94 @@ def save_current_config():
     """
     Save the current parameters of the configuration files
     """
+
+def load_config(which = ['all']):
+    """Loads data from the current set of configuration files and returns a list
+    of dicts for each configuration file.
+
+    Parameters
+    ----------
+
+    which : list of str, optional
+        Flag to allow selection of a given subset of the full configuration files. Can be any of a subset of
+        the following:
+
+        ['all',
+        'general_config',
+        'hardware_config',
+        'filesys_config',
+        'logging_config',
+        'network_config',
+        'roach_config',
+        'firmware_registers']
+
+        Default is `which` = 'all'.
+
+    Returns
+    -------
+    config : tuple of dict
+        tuple containing the configuration dictionaries
+    """
+
+    valid_which = ['all', 'general_config', 'hardware_config', 'filesys_config',
+                    'logging_config', 'network_config', 'roach_config', 'firmware_registers']
+
+    # make sure which is a list (to catch instances of only a single )
+    which = [which] if isinstance(which, str) else which
+
+    assert set(which).issubset(valid_which), 'invalid configuration requested. must be some combination of {0}'.format(valid_which)
+
+    which = valid_which[1:] if 'all' in which else which
+
+    configdict = {k: [] for k in which}
+
+    ############# General configuration #############
+    general_config_file = _os.path.join(config_dir, 'general_config.cfg')
+
+    assert _os.path.exists(general_config_file)
+    #general_config = roachConfig(general_config_file)
+    configdict['general_config'] = load_config_file(general_config_file)
+
+    ############# Hardware configuration #############
+    hardware_config_file = _os.path.join(config_dir, 'hardware_config.cfg')
+
+    assert _os.path.exists(hardware_config_file)
+    configdict['hardware_config'] = load_config_file(hardware_config_file)
+
+    ############# Filesystem configuration #############
+    filesys_config_file = _os.path.join(config_dir, 'filesys_config.cfg')
+
+    assert _os.path.exists(filesys_config_file)
+    configdict['filesys_config'] = load_config_file(filesys_config_file)
+
+    ############# Logging configuration #############
+    logging_config_file = _os.path.join(config_dir, 'logging_config.cfg')
+
+    assert _os.path.exists(logging_config_file)
+    configdict['logging_config'] = load_config_file(logging_config_file)
+
+    ############# Network configuration #############
+    network_config_file = _os.path.join(config_dir, 'network_config.cfg')
+
+    assert _os.path.exists(network_config_file)
+    configdict['network_config'] = load_config_file(network_config_file)
+
+    ############## Roach configuration ##############
+    roach_config_file = _os.path.join(config_dir, 'roach_config.cfg')
+
+    assert _os.path.exists(roach_config_file)
+    configdict['roach_config'] = load_config_file(roach_config_file)
+
+    ############## Roach firmware registers ##############
+    firmware_registers = _os.path.join(config_dir, 'firmware_registers.cfg')
+
+    assert _os.path.exists(firmware_registers)
+    configdict['firmware_registers'] = load_config_file(firmware_registers)
+
+    if len(which) == 1:
+        return configdict[which[0]]
+    else:
+        return [configdict[k] for k in which]
 
 # Funtions to verify one by one the consistency of the configuration files
 
@@ -407,48 +496,7 @@ def verify_all_config(general_config, hardware_config, filesys_config, network_c
     verify_network_config(network_config)
     verify_config_consistency(roach_config, network_config, hardware_config)
 
-############# General configuration #############
-general_config_file = _os.path.join(config_dir, 'general_config.cfg')
 
-assert _os.path.exists(general_config_file)
-#general_config = roachConfig(general_config_file)
-general_config = load_config_file(general_config_file)
-
-############# Hardware configuration #############
-hardware_config_file = _os.path.join(config_dir, 'hardware_config.cfg')
-
-assert _os.path.exists(hardware_config_file)
-hardware_config = load_config_file(hardware_config_file)
-
-############# Filesystem configuration #############
-filesys_config_file = _os.path.join(config_dir, 'filesys_config.cfg')
-
-assert _os.path.exists(filesys_config_file)
-filesys_config = load_config_file(filesys_config_file)
-
-############# Logging configuration #############
-logging_config_file = _os.path.join(config_dir, 'logging_config.cfg')
-
-assert _os.path.exists(logging_config_file)
-logging_config = load_config_file(logging_config_file)
-
-############# Network configuration #############
-network_config_file = _os.path.join(config_dir, 'network_config.cfg')
-
-assert _os.path.exists(network_config_file)
-network_config = load_config_file(network_config_file)
-
-############## Roach configuration ##############
-roach_config_file = _os.path.join(config_dir, 'roach_config.cfg')
-
-assert _os.path.exists(roach_config_file)
-roach_config = load_config_file(roach_config_file)
-
-############## Roach firmware registers ##############
-firmware_registers = _os.path.join(config_dir, 'firmware_registers.cfg')
-
-assert _os.path.exists(firmware_registers)
-firmware_registers = load_config_file(firmware_registers)
 
 ############## e.g. to Run verification #####################
 # verify_all_config(general_config, hardware_config, filesys_config, network_config, roach_config)

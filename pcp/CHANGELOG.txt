@@ -3,13 +3,21 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
-2020-04-24
+2020-06-05 ================
 
-replaced type() check with isinstance
+MAJOR UPDATE:
+
+- reworked the mechanics of configuration of pcp. Now, the module configuration is not automatically
+run when pcp is imported, and is completed using the init_pcp() script contained in pcp.scripts.
+This reduced the amount of actions performed upon initial import of the pcp module, facilitating debugging
+when configuring for the first time. Furthermore, structuring this way allows sphinx documentation to be
+generated cleanly.
+
+- initial set of documentation generated through sphinx and readthedocs.
 
 --------------------------------------------------------------------------------
 
-2019-12-17
+2019-12-17 ================
 
 TODO
   - fix shutting down of synth hardware on exit
