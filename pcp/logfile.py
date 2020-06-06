@@ -2,7 +2,7 @@
 # 20171230 - PB
 """
 logfile
-=====
+-------
 
 Provides an interface to the pcp logging framework. This is a vastly simplified implementation based on
 the external multiprocessing_logging module (sudo pip install multiprocessing_logging).
@@ -11,30 +11,20 @@ IMPORTANT: note that when a muxChannel has been defined, it will adopt the curre
 can not be changed. This means that once debugging has finished, shut down the muxChannel, change the log level, and
 reinitialise the muxChannel.
 
-Provides
-----------------------------
-
-Helper functions to control basic logging features;
-
-    - pcp.logfile.set_log_level() - simple function to set the logging level of all defined loggers
+Helper function pcp.logfile.set_log_level(); a simple function to set the logging level of all defined loggers
 
 The pcpFormatter class that is used to format the log records, and add some small funcitonality above that
 available in the python logging package.
-
-General
-----------------------------
-
-    - When running normally, the functions contained in this module will be rarely used.
-
-    - Upon first import of pcp, the logging configuration is set up and a top level logger is defined
-    as pcp.logger for manual logging from the command line.
-
-    - The default settings configure both logging to a file, and logging to the screen. The level/severity of displayed
-    messages can be tuned by using pcp.logfile.set_log_level(level)
-
-    -
-
 """
+#
+# General
+# -------
+# - When running normally, the functions contained in this module will be rarely used.
+# - Upon first import of pcp, the logging configuration is set up and a top level logger is defined
+# as pcp.logger for manual logging from the command line
+# - The default settings configure both logging to a file, and logging to the screen. The level/severity of displayed
+# messages can be tuned by using pcp.logfile.set_log_level(level)
+
 #    - To test this module, you can run it as a standalone program by calling it from the mutltitone directory with
 #    "python -m readout_new.logfile" which will run the script with __name__ = __main__ .
 

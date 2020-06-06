@@ -12,6 +12,7 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
                  kpsh=False, valley=False, show=False, ax=None):
 
     """Detect peaks in data based on their amplitude and other features.
+
     Parameters
     ----------
     x : 1D array_like
@@ -35,20 +36,24 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     show : bool, optional (default = False)
         if True (1), plot data in matplotlib figure.
     ax : a matplotlib.axes.Axes instance, optional (default = None).
+
     Returns
     -------
     ind : 1D array_like
         indeces of the peaks in `x`.
+
     Notes
     -----
     The detection of valleys instead of peaks is performed internally by simply
     negating the data: `ind_valleys = detect_peaks(-x)`
-    
-    The function can handle NaN's 
+
+    The function can handle NaN's
     See this IPython Notebook [1]_.
+
     References
     ----------
     .. [1] http://nbviewer.ipython.org/github/demotu/BMC/blob/master/notebooks/DetectPeaks.ipynb
+
     Examples
     --------
     >>> from detect_peaks import detect_peaks
@@ -72,6 +77,7 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     >>> x = [-2, 1, -2, 2, 1, 1, 3, 0]
     >>> # set threshold = 2
     >>> detect_peaks(x, threshold = 2, show=True)
+    
     """
 
     x = np.atleast_1d(x).astype('float64')

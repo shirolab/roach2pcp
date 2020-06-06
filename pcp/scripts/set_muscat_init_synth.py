@@ -9,10 +9,10 @@ _logger = _logging.getLogger(__name__)
 
 #TODO. It has to be in other place. Script directory. Move to this directory and only use it here
 from ..configuration import color_msg as cm
-from ..configuration import hardware_config as hc
 from ..drivers.synthesizer import windfreaksynth_v2 as w2
 
-from .. import ROACH_LIST, mux_channel
+# import to get access to module-wide variables
+import pcp
 
 def _set_MUSCAT_default_values(serial_number, ref=0, ref_freq=10e6, clk_freq=512e6, clk_pow=0, lo_pow=15.75):
     # Synthesizer device
@@ -70,11 +70,12 @@ def _set_MUSCAT_default_values(serial_number, ref=0, ref_freq=10e6, clk_freq=512
 	_logger.info('Fail settig the MUSCAT LO parameters')
 
 def main(muxchannel, ref=0, ref_freq=10e6, clk_freq=512e6, clk_pow=0, lo_pow=15.75):
+
     _logger.info( "setting MUSCAT synthesizer default parameters" )
     _logger.info("Channel: {roachid}".format(roachid = muxchannel.roachid))
 
     # get the synthesizer serial number of the channel
-    serial_number = hc['synth_config'][muxchannel.ROACH_CFG['synthid_clk']]['serial']
+    serial_number = pcp.HARDWARE_CONFIG['synth_config'][muxchannel.ROACH_CFG['synthid_clk']]['serial']
 
     _set_MUSCAT_default_values(serial_number, ref, ref_freq, clk_freq, clk_pow, lo_pow)
 

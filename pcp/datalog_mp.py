@@ -26,9 +26,9 @@
 
 # commands
 #    - send a tuple (str, any_required_data)
-
 """
-Datalogger.
+Datalogger
+----------
 
 Usage:
     dl = pcp.datalog_mp.dataLogger(roachid)
@@ -46,7 +46,6 @@ Useful notes:
     dirfile methods
         - set active dirfile
         - get active dirfile
-
 
 """
 
@@ -83,14 +82,6 @@ class dataLogger(object):
         String used as an index the configuration files, as well as identify the datalogger daemon. Therefore, "roachid"
         should be an entry in the configuration files. In addition, the same string is used to name the logger.
 
-    Returns
-    -------
-    out : dataLogger instance
-        Fully initialised datalogger instance ready to start the daemon process, with dataLogger.start()
-
-    Provides
-    --------
-
     Notes
     -----
     Due to the parallel process nature, this class is a little complicated, and requires some care when programming. Within the class
@@ -103,17 +94,16 @@ class dataLogger(object):
 
     There are three Events used to maintain synchronisation between the main and daemon processes, and a Queue (_eventqueue) to pass data
     between processes;
-        1. _ctrlevent
-        2. _cmdevent
-        3. _exitevent
+    1. _ctrlevent
+    2. _cmdevent
+    3. _exitevent
 
     Communication between processes follows a simple producer - consumer design;
-        - the main process puts a command into the
-        - the main process sets _ctrlevent which breaks out of the inner loop in the daemon process (_data_logger_main) and allows
-        the daemon to read the queue and parse the command (_process_command)
-        - in the case of functions that expect a response, _read_response_from_eventqueue is used
-        - _read_response_from_eventqueue waits for a _cmdevent to be set before reading the event queue
-
+    - the main process puts a command into the
+    - the main process sets _ctrlevent which breaks out of the inner loop in the daemon process (_data_logger_main) and allows
+    the daemon to read the queue and parse the command (_process_command)
+    - in the case of functions that expect a response, _read_response_from_eventqueue is used
+    - _read_response_from_eventqueue waits for a _cmdevent to be set before reading the event queue
 
     # TODO:
     -x implement a check to see whether packets are being collected
@@ -121,6 +111,7 @@ class dataLogger(object):
     - move socket initialisation into daemon process (remove duplicate socket defs)
     - implement a close dirfile option
     - implement a more robust method to check if _eventqueue has been read
+    
     """
 
     def __init__(self, roachid):

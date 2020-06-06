@@ -6,15 +6,17 @@ _logger = _logging.getLogger(__name__)
 import numpy as _np, os as _os, scipy as _scipy, matplotlib.pyplot as _plt, time as _time
 
 from .. import sweep
-from .. import ROACH_LIST, mux_channel
 from ..kid import resonator_routines
 from ..lib import lib_dirfiles
-from ..configuration import filesys_config, logging_config
+
+# import pcp to get access to module-wide variables
+import pcp
+
 '''
 workflow
-1. We start given a logfile that contains the result of a power sweep. 
+1. We start given a logfile that contains the result of a power sweep.
 Several sweeps as function of input attenuation are in this file with dirfile names.
-2. Load logfile. Loop over sweeps. Do fit on each KID for each sweep. 
+2. Load logfile. Loop over sweeps. Do fit on each KID for each sweep.
 4. save fit results in a dictionary
 3. Calculate optimal power setting
 4. Rewrite tones amplitude'''
@@ -29,9 +31,10 @@ def main(muxch,logfname, bif_target = 0.5, save_ampcorr=True, write_tones=False,
     dirfnames = dirfnames[sortargs]; att_in = att_in[sortargs]; att_out = att_out[sortargs]
     #construct paths to dirfiles
     #this needs to change for multi roach use
-    dirfpaths = _np.array([_os.path.join(filesys_config['rootdir'], filesys_config['savedatadir'],'roach0', dp) for dp in dirfnames]) 
+    dirfpaths = _np.array([_os.path.join(pcp.FILESYS_CONFIG['rootdir'],\
+                                        pcp.FILESYS_CONFIG['savedatadir'],'roach0', dp) for dp in dirfnames])
     Nsweep = len(dirfpaths)
-    fitfunc = resonator_routines.nonlinear_mag_sq 
+    fitfunc = resonator_routines.nonlinear_mag_sq
     fit_result_dicts = []
     for ii in range(Nsweep):
         print 'analyzing sweep {}'.format(dirfnames[ii])
@@ -62,12 +65,12 @@ def main(muxch,logfname, bif_target = 0.5, save_ampcorr=True, write_tones=False,
             fit_dict = {'fit_params': fitparams,'fit_cov':fitcov, 'fit_chisq':fit_chisq, 'fit_result': fit_result, 'x0_result': x0_result, 'x0':x0, 'S21mag':_np.sqrt(S21_mag_sq)}
             fit_results_single_pow[jj] = fit_dict
         fit_result_dicts.append(fit_results_single_pow)
-     
+
     fit_result_dicts = _np.array(fit_result_dicts)
-     
-     
+
+
     ###Done with fitting, now we analyze the result
-    #from each kid in each sweep, we extract parameter 'a' asymmetry parameter. As function of 
+    #from each kid in each sweep, we extract parameter 'a' asymmetry parameter. As function of
     _plt.ioff()
     optimal_att_in = _np.empty(Nkid)
     basetuningdir = '/data/tuning/roach0/'
@@ -88,7 +91,7 @@ def main(muxch,logfname, bif_target = 0.5, save_ampcorr=True, write_tones=False,
         optimal_att_in[kk] = optatten
         interpyy = afun(interpxx)
 
-        
+
         if plot_bifpar==True:
             _plt.figure()
             _plt.scatter(att_in, kidbifparam)
@@ -97,15 +100,15 @@ def main(muxch,logfname, bif_target = 0.5, save_ampcorr=True, write_tones=False,
             _plt.ylabel('Bifurcation parameter')
             _plt.axvline(optatten, color='r', label='optimal atten')
             _plt.legend()
-            _plt.savefig(_os.path.join(tuningdir,'K{:03d}'.format(kk)+'bifplot' )) 
+            _plt.savefig(_os.path.join(tuningdir,'K{:03d}'.format(kk)+'bifplot' ))
             _plt.close()
-                        
+
             #_plt.figure()
             #_plt.scatter(att_in, kidchisq)
             #_plt.xlabel('input_attenuation [dB]')
             #_plt.ylabel('Sum square diff fit vs. data')
-            
-    
+
+
     ### We've calculated the optimal input attenuation for each KID
     # Use this to calculate optimal amplitude correction
     #This minimum optimal attenuation will is the highest power tone. Set amp = 1 for this tone
@@ -137,7 +140,7 @@ def load_sweep_log(logpath):
 
 def set_x0_mag(freq, S21_mag_sq):
     '''
-    This is a function to generate an initial guess for fit parameters for the function 
+    This is a function to generate an initial guess for fit parameters for the function
     kid.resonator_routines.nonlinear_mag_sq()
     with parameter [fr,Qr,amp,phi,a,b0,b1,flin]
     Can be improved, particularly guess for amp, phi. a. Could use history from previous fit?'''

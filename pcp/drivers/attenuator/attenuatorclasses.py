@@ -85,9 +85,6 @@ class pcp_dummyAttenSource(_dummy_atten.dummyAttenSource):
 
 import rudat6000usb as _rudat6000usb
 
-#perform initial scan to find usb device handles for connected rudats
-_rudats_connected = _rudat6000usb.get_attenuators()
-
 class pcp_rudat6000Device(_rudat6000usb.rudat6000Device):
     # pass vendor and model nums as class attributes for checking
     VENDOR = _rudat6000usb.VENDOR
@@ -95,8 +92,9 @@ class pcp_rudat6000Device(_rudat6000usb.rudat6000Device):
 
     def __init__(self,serial,attmax=60.0,attmin=0.0,attres=0.25):
         #Get usb device handle from initial usb scan
-        dev = _rudats_connected[int(serial)]
-
+        #perform initial scan to find usb device handles for connected rudats
+        rudats_connected = _rudat6000usb.get_attenuators()
+        dev = rudats_connected[int(serial)]
 
         # instantiate class to get all of the factory provided methods
         super(pcp_rudat6000Device, self).__init__(dev,attmax,attmin,attres)

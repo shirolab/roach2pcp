@@ -8,10 +8,9 @@ import logging as _logging
 _logger = _logging.getLogger(__name__)
 
 from .. import sweep
-from .. import ROACH_LIST, mux_channel
+from .. import mux_channel
 import numpy as np, time as _time, os as _os
 from ..lib import lib_dirfiles
-from ..configuration import filesys_config, logging_config
 
 def main(muxch, interactive = False, df_hot = None, df_cold = None,
          T_hot = 300., T_cold = 77., tuningdir = '/data/tuning/roach0/cal/'):
@@ -21,7 +20,7 @@ def main(muxch, interactive = False, df_hot = None, df_cold = None,
     if interactive == True:
         _logger.info("Taking hot sweep")
         _logger.info("Taking cold sweep")
-    
+
     # Grab hot sweep data
     dfobj_h = lib_dirfiles.open_dirfile(df_hot)
     sweepobj_h = sweep.pcpSweep(dfobj_h)
@@ -39,18 +38,18 @@ def main(muxch, interactive = False, df_hot = None, df_cold = None,
     # Check that KID name arrays are identical between two sweeps
     assert np.array_equal(sweepobj_h.tonenames, sweepobj_c.tonenames),\
         "Sweeps don't have identical tonelists"
-    
+
     dx = (cold_f0 - hot_f0)/hot_f0
     dx_per_K = dx / (T_hot - T_cold)
 
     # Save to human-readable text file
     save_textcalfile(hot_f0, cold_f0, dx_per_K,
                      tuningdir, sweepobj_h, sweepobj_c, T_hot, T_cold)
-    
-    
+
+
 def save_textcalfile(hot_f0, cold_f0, dx_per_K,
                      tuningdir, sweepobj_h, sweepobj_c, T_hot, T_cold):
-    
+
     tstamp = str(_time.strftime("%Y%m%d_%H%M%S",_time.gmtime()))
     filename = _os.path.join(tuningdir, tstamp + '_hotcold')
     _logger.info("Saving cal data to " + filename)
@@ -65,4 +64,3 @@ def save_textcalfile(hot_f0, cold_f0, dx_per_K,
     # probably more elegant way...
     mytable = np.array([sweepobj_h.tonenames, hot_f0, cold_f0, dx_per_K])
     np.savetxt(filename, mytable.T, fmt='%s', header=tothead)
-    

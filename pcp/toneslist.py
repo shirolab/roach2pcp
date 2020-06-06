@@ -1,4 +1,4 @@
-"""
+"""\
 toneslist class for handling everything to do with tones
 """
 
@@ -546,8 +546,7 @@ class Toneslist(object):
 		return
 
 	def calc_sweep_lo_freqs(self, sweep_span, sweep_step):
-		"""
-		Function to get a set of LO frequencies from a given span and step size (in Hz). This function will ensure that
+		""" Function to get a set of LO frequencies from a given span and step size (in Hz). This function will ensure that
 	    the number of points is odd to include the centre frequency.
 
 		"""

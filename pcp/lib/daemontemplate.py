@@ -2,7 +2,7 @@
 # 20171230 - PB
 """
 Daemon template
-=====
+===============
 
 Provides
     1. A template daemon class that is used for all other sub-programs that are intended to be daemonised.
@@ -32,8 +32,8 @@ import os, sys, psutil, types, time, select, signal, struct, logging, logging.ha
 # imports for daemon creation
 import daemon, daemon.pidfile
 
-from ..configuration import ROOTDIR, filesys_config
-PIDFILEDIR = os.path.join(ROOTDIR, filesys_config['pidfiledir'])
+# from ..configuration import ROOTDIR, filesys_config
+# PIDFILEDIR = os.path.join(ROOTDIR, filesys_config['pidfiledir'])
 
 #  ------  Class definitions ------
 
