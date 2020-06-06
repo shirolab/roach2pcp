@@ -17,7 +17,7 @@ import sys
 sys.path.insert(0, os.path.abspath('../..'))
 
 # set up mock modules to build the docs that rely on external packages
-autodoc_mock_imports = ['pyusb', 'katcp', 'multiprocessing_logging', 'casperfpga', 'pygetdata', 'matplotlib', 'pandas' ]
+autodoc_mock_imports = ['usb', 'usb.core.Device', 'numpy', 'scipy', 'scipy.signal', 'katcp', 'multiprocessing_logging', 'casperfpga', 'pygetdata', 'matplotlib', 'pandas' ]
 # autodoc_mock_imports = [ 'setproctitle',
 #                         'tqdm',
 #                         'psutil',
