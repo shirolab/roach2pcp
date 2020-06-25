@@ -1,14 +1,17 @@
 # Standard initialization for SuperSpec
 #
 # Run this to import pcp and initialize ROACHes
+#
+# Updated 20200625 for new roach2pcp
 
 import time
 import numpy as np
-import pcp
 import matplotlib.pyplot as plt
 import pcp.visualisation as vis
-
 plt.ion()
+
+import pcp
+pcp.scripts.__init_pcp()
 
 log = pcp.logger
 
