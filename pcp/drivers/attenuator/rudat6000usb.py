@@ -17,8 +17,11 @@ $ udevadm trigger
 TBD: measure frequency response and power levels as functions of attenuation
 
 """
-
-import usb.core
+try:
+	import usb.core
+	USE_USB=True
+except ImportError:
+	USE_USB=False
 
 VENDOR      = "minicircuits" #Mini-Circuits
 MODELNUMS = ["rudat6000"]   #Programmable Attenuator
@@ -71,7 +74,6 @@ def get_attenuators():
 	return dict(zip(names,devs))
 
 class rudat6000Device(object):
-
 
 	def __init__(self,dev,attmax=60.0,attmin=0.0,attres=0.25):
 
