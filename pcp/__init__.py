@@ -67,7 +67,7 @@ ATTENS_IN_USE = []
 
 # import lib submodules
 # import all sub-modules to top namespace
-import scripts, configuration, logfile, kid, unittests, mux_channel, datalog_mp, toneslist
+import scripts, configuration, logfile, kid, unittests, mux_channel, datalog_mp, toneslist, visualisation
 
 
 # import aliases for convenience functions to top level

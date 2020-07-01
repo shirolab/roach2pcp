@@ -86,7 +86,7 @@ class muxChannel(object):
         self.toneslist.load_tonelist = self._decorate_tonelist_loader( self.toneslist.load_tonelist )
 
         # set up the sweep object (used for storing saved data)
-        self.sweep = sweep.pcpSweep()
+        self.sweep = sweep.pcpSweep(outputdir = os.path.join( self.TUNINGDIR, 'sweeps') )
 
         self._last_written_bb_freqs = None
 

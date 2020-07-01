@@ -628,7 +628,6 @@ class pcpInteractivePlot(object):
     """Simple interactive plotting interface based on matplotlib for convenient visualisation
     of the sweep data. """
 
-
     # TODO
     #   - make this compatible with the pcp.sweep object
     #   - plot everything else...
@@ -647,7 +646,14 @@ class pcpInteractivePlot(object):
         self.sweeplist = pcpsweeps
 
         # check that sweep names are different and set to be different if true
+        names = [si.name for si in pcpsweeps]
 
+        if len(set(names)) < len(names):
+            # need to append some strings
+            for i, si in enumerate(pcpsweeps[1:]):
+                si.name = si.name + "_" + str(i+1)
+
+        self.names = [si.name for si in pcpsweeps]
 
         # check all the sweeps have the same number of tones as a preliminary check
         assert len(set([len(s.tonenames) for s in pcpsweeps]))==1, "the given sweeps appear to have a different number of tones"
@@ -684,15 +690,21 @@ class pcpInteractivePlot(object):
         self._configure_axes()
         self._configure_plots()
 
-    def save_plots_to_file(self, savedir, all_in_one = False, overwrite=False):
+    def save_plots_to_file(self, savedir = None, all_in_one = False, overwrite=False):
         """Function to save the latest version of the plots to a file. Note that it takes a while. """
 
+        # allow user to set a custom savedir, otherwise get the savedir sweep directory name
+        lastsweep = self.sweeplist[0]
+        savedir = savedir if savedir else _os.path.join( lastsweep.outputdir, lastsweep.name )
+
+        # add check to see if the save directory already exists
         if not _os.path.exists(savedir):
             _logger.info ( "creating directory - {0}".format(savedir) )
             _os.makedirs(savedir)
+
         else :
-            _logger.warning ("directory exists - potential to overwrite existing plots.")
-            _time.sleep(0.1)
+            _logger.warning ("directory - {0} - exists - potential to overwrite existing plots.".format(savedir))
+            _time.sleep(0.01)
 
             if overwrite or raw_input("overwrite? [y/[n] : ") == 'y':
                 pass
@@ -701,7 +713,7 @@ class pcpInteractivePlot(object):
                 return
 
         plt.ioff()
-
+        # use pdfpages to create a single page if desired
         if all_in_one:
             from matplotlib.backends.backend_pdf import PdfPages
             pp = PdfPages(_os.path.join(savedir+'plots.pdf'))
@@ -715,7 +727,7 @@ class pcpInteractivePlot(object):
             fout   = _os.path.join(savedir, resname + suffix )
             self.refresh_plot()
 
-            # save the figure
+            # save the figures
             if all_in_one:
                 pp.savefig(self.fig.canvas)
             else:

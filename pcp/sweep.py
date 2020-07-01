@@ -24,7 +24,7 @@ histdictkeys = [ 'filename', \
 
 class pcpSweep(object):
 
-    def __init__(self, dirfile = None):
+    def __init__(self, dirfile = None, outputdir = None):
         """
         A pcpSweepdata object. Used to contain and manipulate the current sweep data.
 
@@ -32,7 +32,10 @@ class pcpSweep(object):
         # set up class attributes
 
         self.name = None
-        self.dirfile = dirfile
+        self.dirfile   = dirfile
+        self.outputdir = outputdir
+
+        self.ip = None # interactive plotting object
 
         self._bb_freqs = None
         self.lo_freqs  = None
@@ -117,9 +120,23 @@ class pcpSweep(object):
 
         # anything else?
 
+    def clear_history(self):
+        self.history = []
+
     def store_sweep(self):
         """Function to store a copy """
+        # want to store sweep, but before doing so, need to delete existing stored sweeps to avoid recursion
+        sweeplist = self.history
+        self.clear_history()
+
+        # interactive plot objects can't be copied, so delete
+        ip = self.ip
+        self.ip = None
+
         self.history.append( deepcopy(self) )
+
+        self.history.extend(sweeplist)
+        self.ip = ip
 
     def despike(data, threshold):
         """ Identify indices that are likely to be erroneous, by some rms threshold """
@@ -248,10 +265,10 @@ class pcpSweep(object):
     def calc_new_frequencies(self):
         pass
 
-    def plot_sweep(self, sweeplist, sortfreqs = False):
+    def plot_sweep(self, sortfreqs = False):
         from . import visualisation as vis
-
-        #self.ip = vis.pcpInteractivePlot( sweeplist, sortfreqs=False)
+        sweeplist = [self].extend(self.history)
+        self.ip = vis.pcpInteractivePlot( [self] + self.history , sortfreqs=sortfreqs)
 
 
 
