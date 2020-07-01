@@ -37,6 +37,8 @@ def _config_filesystem():
                                                 else os.path.join(ROOTDIR, filesys_config['firmwaredir'])
     SAVEDATADIR = filesys_config['savedatadir'] if os.path.isabs(filesys_config['savedatadir']) \
                                                 else os.path.join(ROOTDIR, filesys_config['savedatadir'])
+    TUNINGDIR   = filesys_config['tuningdir']   if os.path.isabs(filesys_config['tuningdir']) \
+                                                else os.path.join(ROOTDIR, filesys_config['tuningdir'])
     TONELISTDIR = filesys_config['tonelistdir'] if os.path.isabs(filesys_config['tonelistdir']) \
                                                 else os.path.join(ROOTDIR, filesys_config['tonelistdir'])
     TONEHISTDIR = filesys_config['tonehistdir'] if os.path.isabs(filesys_config['tonehistdir']) \
@@ -50,11 +52,14 @@ def _config_filesystem():
     LOGFILEDIR  = logging_config['logfiledir'] if os.path.isabs(logging_config['logfiledir']) \
                                                 else os.path.join(ROOTDIR, logging_config['logfiledir'])
 
+
+
     # set up file system according to the configuration files - no checks on permissions...
     if not os.path.exists(ROOTDIR)    : os.makedirs(ROOTDIR)
     if not os.path.exists(PIDFILEDIR) : os.makedirs(PIDFILEDIR)
     if not os.path.exists(LOGFILEDIR) : os.makedirs(LOGFILEDIR)
     if not os.path.exists(SAVEDATADIR): os.makedirs(SAVEDATADIR)
+    if not os.path.exists(TUNINGDIR)  : os.makedirs(TUNINGDIR)
     if not os.path.exists(TONELISTDIR): os.makedirs(TONELISTDIR)
     if not os.path.exists(TONEHISTDIR): os.makedirs(TONEHISTDIR)
     if not os.path.exists(AMPCORRDIR) : os.makedirs(AMPCORRDIR)
@@ -79,6 +84,7 @@ def _config_filesystem():
     pcp.FIRMWAREDIR = FIRMWAREDIR
     pcp.LOGFILEDIR  = LOGFILEDIR
     pcp.SAVEDATADIR = SAVEDATADIR
+    pcp.TUNINGDIR   = TUNINGDIR
     pcp.TONELISTDIR = TONELISTDIR
     pcp.TONEHISTDIR = TONEHISTDIR
     pcp.AMPCORRDIR  = AMPCORRDIR
@@ -147,6 +153,7 @@ def main(interactive=False, force_log_restart = False):
     _config_filesystem()
     _config_logging(logger.root, force=force_log_restart)
     _config_hardware()
+
 
 
 

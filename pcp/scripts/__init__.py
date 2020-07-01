@@ -12,12 +12,10 @@
 # dynamically import the main() function from each file contained in this directory and
 import sys as _sys, time as _time, pkgutil as _pkgutil, logging as _logging
 
-import pcp
-
 _logger = _logging.getLogger(__name__)
 
 # get a list of all scripts, filtering out files beginning with double underscore
-_allmods = [p for p in _pkgutil.iter_modules(__path__) if p[1].startswith('__') ]
+_allmods = [p for p in _pkgutil.iter_modules(__path__) if not p[1].startswith('__') ]
 del(p)
 
 for _importer, _modname, _ispkg in _allmods:

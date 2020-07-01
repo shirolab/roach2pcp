@@ -24,7 +24,7 @@ import multiprocessing.pool as _multiprocessing_pool
 
 import pcp, pcp.configuration.color_msg as cm
 
-import atexit
+import atexit as _atexit
 from functools import wraps as _wraps
 from tqdm import tqdm as _tqdm
 import pandas as _pd, pygetdata as _gd
@@ -62,7 +62,7 @@ from .lib import lib_dirfiles as _lib_dirfiles, lib_fpga as _lib_fpga
 class muxChannel(object):
     def __init__(self, roachid):
 
-        atexit.register(self.shutdown)
+        _atexit.register(self.shutdown)
 
         self.roachid  = roachid
         # grab the root directory from
@@ -95,8 +95,8 @@ class muxChannel(object):
 
         self.loswitch        = True # used to turn off LO swtiching during sweep
 
-        self.input_atten     = None
-        self.output_atten    = None
+        self.atten_in     = None
+        self.atten_out    = None
 
         self.current_dirfile = None
 
@@ -104,6 +104,7 @@ class muxChannel(object):
         self.ROACH_CFG = pcp.ROACH_CONFIG[self.roachid]
         self.sample_rate = self.ROACH_CFG["dac_bandwidth"] / ( 2**self.ROACH_CFG["roach_accum_len"] + 1 )
 
+        # initialise the various pieces of hardware
         self.initialise_hardware()
 
 ################################################################################
@@ -121,11 +122,13 @@ class muxChannel(object):
 
         # generate directory path for data saving and tonehistory
         self.DIRFILE_SAVEDIR  = os.path.join(self.ROOTDIR, pcp.FILESYS_CONFIG['savedatadir'], self.roachid)
+        self.TUNINGDIR        = os.path.join(self.ROOTDIR, pcp.FILESYS_CONFIG['tuningdir'],   self.roachid)
         self.TONEHISTDIR      = os.path.join(self.ROOTDIR, pcp.FILESYS_CONFIG['tonehistdir'], self.roachid)
         self.AMPCORRDIR       = os.path.join(self.ROOTDIR, pcp.FILESYS_CONFIG['ampcorrdir'],  self.roachid)
 
         # create dirs if doesn't exist already
         os.makedirs(self.DIRFILE_SAVEDIR) if not os.path.exists(self.DIRFILE_SAVEDIR) else None
+        os.makedirs(self.TUNINGDIR)       if not os.path.exists(self.TUNINGDIR)       else None
         os.makedirs(self.TONEHISTDIR)     if not os.path.exists(self.TONEHISTDIR)     else None
         os.makedirs(self.AMPCORRDIR)      if not os.path.exists(self.AMPCORRDIR)      else None
 
@@ -216,12 +219,12 @@ class muxChannel(object):
 
         if att_in is not None:
             # get the dictionary of live attenuators and initialise
-            self.input_atten = pcp.ATTENS_IN_USE[att_in].attenobj
+            self.atten_in = pcp.ATTENS_IN_USE[att_in].attenobj
             #set the input attenuation
-            self.input_atten.attenuation = 15
+            self.atten_in.attenuation = 15
 
         else:
-            self.input_atten = None
+            self.atten_in = None
 
     def _initialise_atten_out(self):
         # get configuration for attenuators
@@ -229,12 +232,12 @@ class muxChannel(object):
 
         if att_out is not None:
             # get the dictionary of live attenuators and initialise
-            self.output_atten = pcp.ATTENS_IN_USE[att_out].attenobj
+            self.atten_out = pcp.ATTENS_IN_USE[att_out].attenobj
             #set the input attenuation
-            self.output_atten.attenuation = 15
+            self.atten_out.attenuation = 15
 
         else:
-            self.output_atten = None
+            self.atten_out = None
 
     def write_int(self, register, int):
         """ Write to FPGA register - e.g. to indicate status
@@ -279,8 +282,14 @@ class muxChannel(object):
 
         # write newly written tones to hidden variable for future checks
         self._last_written_bb_freqs = self.toneslist.bb_freqs
-        # add to tone history
-        self.toneslist.write_tonehistfile()
+
+        # lofreq, atten_in, atten_out, amps, phases, bb_freqs
+        self.toneslist.write_tonehistfile(self.synth_lo.frequency,  \
+                                        self.atten_in.attenuation,  \
+                                        self.atten_out.attenuation, \
+                                        self.toneslist.bb_freqs.tolist(),\
+                                        self.toneslist.amps.tolist(),\
+                                        self.toneslist.phases.tolist() )
 
     def set_active_dirfile(self, dirfile_name = "", filename_suffix = "", inc_derived_fields = False, **kwargs ):
         # if an empty string is given (default), then we pass the DIRFILE_SAVEDIR as the filename to lib_dirfile.create_dirfile,
@@ -385,7 +394,9 @@ class muxChannel(object):
         # acutally do the sweep - loop over LO frequencies, while saving time at lo_step
         try:
             sweepdirection = np.sign( np.diff(self.toneslist.sweep_lo_freqs) )[0] # +/- 1 for forward/backward - not used right now
-            _logger.info('Sweeping LO %3.1f kHz around %3.3f MHz in %1.1f kHz steps' % (np.ptp(self.toneslist.sweep_lo_freqs/1.e3), np.mean(self.toneslist.sweep_lo_freqs/1.e6), np.median(np.diff(self.toneslist.sweep_lo_freqs))/1.e3))
+            _logger.info('Sweeping LO %3.1f kHz around %3.3f MHz in %1.1f kHz steps' % (np.ptp(self.toneslist.sweep_lo_freqs/1.e3),
+                                                                                        np.mean(self.toneslist.sweep_lo_freqs/1.e6),
+                                                                                        np.median(np.diff(self.toneslist.sweep_lo_freqs)) / 1.e3))
             for ix, lo_freq in enumerate(self.toneslist.sweep_lo_freqs):
 
                 if self.loswitch == True: # only switch if the muxchannel is configured to do so
@@ -774,6 +785,7 @@ class muxChannelList(object):
 
         # Currently implemented modes - aboslute or incremental
         assert mode in ["increment", "absolute"], "given mode unknown {0}".format(mode)
+
         # Accepts either a single value, or a list of same length as the channel list
         assert (len(new_vals) == len(channels_to_change)) or (len(new_vals) == 1 ), "length of new_vals is confusing"
 
@@ -781,7 +793,7 @@ class muxChannelList(object):
 
         for att_val, roachid in zip(new_vals, channels_to_change):
 
-            handle_to_atten = getattr( getattr( self, roachid  ), "input_atten")
+            handle_to_atten = getattr( getattr( self, roachid  ), "atten_in")
 
             if mode == "absolute":
                 handle_to_atten.attenuation = att_val

@@ -27,7 +27,6 @@ def help():
 
 # import logging modules (preceding _ hides variable)
 import logging as _logging
-
 # # create a top level logger (used for interactive logging)
 logger = _logging.getLogger(__name__)
 
@@ -51,6 +50,7 @@ AMPCORRDIR  = None
 PIDFILEDIR  = None
 LIVEFILEDIR = None
 LOGFILEDIR  = None
+TUNINGEDIR  = None
 
 # lists of important information defined at the top level for convenience (i.e. pcp.ROACH_LIST)
 # will show the list of roaches defined in the confiruation files
@@ -68,7 +68,6 @@ ATTENS_IN_USE = []
 # import lib submodules
 # import all sub-modules to top namespace
 import scripts, configuration, logfile, kid, unittests, mux_channel, datalog_mp, toneslist
-
 
 
 # import aliases for convenience functions to top level

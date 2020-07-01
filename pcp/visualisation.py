@@ -18,9 +18,10 @@
 # from plotly.offline import plot, init_notebook_mode
 # import plotly.graph_objs as go
 
-import os as _os
+import os as _os, sys as _sys, time as _time
 import numpy as _np
-
+import logging as _logging
+_logger = _logging.getLogger(__name__)
 import cmath as _cmath
 import pygetdata as _gd
 
@@ -642,7 +643,7 @@ class pcpInteractivePlot(object):
         self.block = block
 
         pcpsweeps = _np.atleast_1d(pcpsweeps).tolist() # numpy atleast_1d is easy way to ensure list/array input
-        assert all([isinstance(pcpsweep, pcpSweep) for pcpsweep in pcpsweeps]), "input type don't appear to be pcpSweeps"
+        assert all([isinstance(pcpsweep, pcpSweep) for pcpsweep in pcpsweeps]), "input doesn't appear to be a set of pcpSweeps"
         self.sweeplist = pcpsweeps
 
         # check that sweep names are different and set to be different if true
@@ -670,11 +671,11 @@ class pcpInteractivePlot(object):
         self.print_help()
 
     def print_help(self):
-        print """
+        print ("""
         Simple sweep visualizer.
             - Use left/right arrow keys to browse through tones.
             - Shift + click to add a tone to the re-analyze list.
-        """
+        """)
     @property
     def exclude_idxs(self):
         return _np.array( list(set(_np.arange(self.ntones)).difference(self._picked)))
@@ -682,6 +683,47 @@ class pcpInteractivePlot(object):
     def reshow(self):
         self._configure_axes()
         self._configure_plots()
+
+    def save_plots_to_file(self, savedir, all_in_one = False, overwrite=False):
+        """Function to save the latest version of the plots to a file. Note that it takes a while. """
+
+        if not _os.path.exists(savedir):
+            _logger.info ( "creating directory - {0}".format(savedir) )
+            _os.makedirs(savedir)
+        else :
+            _logger.warning ("directory exists - potential to overwrite existing plots.")
+            _time.sleep(0.1)
+
+            if overwrite or raw_input("overwrite? [y/[n] : ") == 'y':
+                pass
+            else:
+                _logger.info("returning - nothing done")
+                return
+
+        plt.ioff()
+
+        if all_in_one:
+            from matplotlib.backends.backend_pdf import PdfPages
+            pp = PdfPages(_os.path.join(savedir+'plots.pdf'))
+        else:
+            pp = None
+
+        for idx in range(self.ntones):
+            self.idx = idx
+            resname = _np.roll( self.tonenames, -self.idx )[0]
+            suffix = _os.extsep + 'pdf'
+            fout   = _os.path.join(savedir, resname + suffix )
+            self.refresh_plot()
+
+            # save the figure
+            if all_in_one:
+                pp.savefig(self.fig.canvas)
+            else:
+                self.fig.savefig(fout)
+            _sys.stdout.write( "saving figure {0}/{1} : {2}\r".format(idx, self.ntones, _os.path.basename(fout)) )
+            _sys.stdout.flush( )
+
+        plt.ion()
 
     def _configure_axes(self):
 
@@ -704,7 +746,7 @@ class pcpInteractivePlot(object):
         axcal.set_xlabel("Frequency [MHz]"); axcal.set_ylabel("Speed")
         axcal.xaxis.set_major_formatter(FormatStrFormatter('%3.2f'))
         axiq.grid(); axmag.grid(); axphi.grid(); axcal.grid()
-        
+
         fig.canvas.mpl_connect('key_press_event',   self._on_key_press)
         fig.canvas.mpl_connect('key_release_event', self._on_key_release)
         fig.canvas.mpl_connect('button_press_event', self._on_mouse_click)
@@ -743,7 +785,7 @@ class pcpInteractivePlot(object):
             self._linedict[sweep.name]['speedre'].set_label('Re(Speed)')
             self._linedict[sweep.name]['speedim'].set_label('Im(Speed)')
             self._linedict[sweep.name]['speedab'].set_label('|Speed|')
-            
+
         self.refresh_plot()
 
     def refresh_plot(self):
@@ -777,10 +819,10 @@ class pcpInteractivePlot(object):
             #self._linedict[sweep.name]['magmain'].set_label('Sweep')
             self._linedict[sweep.name]['magtone'].set_label('Set tone: %3.3f' % (sweep.tonefreqs[self.sortidxs][self.idx]/1.e6) )
             self._linedict[sweep.name]['magf0'].set_label('Calc f0: %3.3f' % (sweep.calparams['f0s'][self.sortidxs][self.idx]/1.e6) )
-            
+
             self.axmag.legend(loc='lower left', bbox_to_anchor= (0.0, 1.01), ncol=3, borderaxespad=0, frameon=False)
             self.axcal.legend(loc='upper left', ncol=1, borderaxespad=0, frameon=False)
-            
+
         # self._linedict['iqmain'].set_data(self.iqdata[ self.idx ].real, self.iqdata[ self.idx ].imag)
         # self._linedict['magmain'].set_data(self.freqs[ self.idx ]/1.e6, 20*_np.log10( _np.abs(self.iqdata[ self.idx ]) ) )
         # self._linedict['phimain'].set_data(self.freqs[ self.idx ]/1.e6, _np.angle(self.iqdata[ self.idx ] ) )
@@ -788,7 +830,7 @@ class pcpInteractivePlot(object):
         # self._linedict['speedim'].set_data(self.freqs[ self.idx ]/1.e6, self.caldata[ self.idx ].imag )
         # self._linedict['speedab'].set_data(self.freqs[ self.idx ]/1.e6, abs(self.caldata[ self.idx ]) )
 
-        self.axiq.relim(); self.axiq.autoscale()
+        self.axiq.relim();  self.axiq.autoscale()
         self.axmag.relim(); self.axmag.autoscale()
         self.axphi.relim(); self.axphi.autoscale()
         self.axcal.relim(); self.axcal.autoscale()

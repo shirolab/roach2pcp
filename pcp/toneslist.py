@@ -246,10 +246,18 @@ class Toneslist(object):
 
 		# open and read the file
 		with open(self.tonehistory[datetime_tag]) as fin:
-			tonedict = _yaml.safe_load(fin)
-			amps     = _np.array(tonedict['amps'])
-			phases   = _np.array(tonedict['phases'])
-			bb_freqs = _np.array(tonedict['freqs'])
+			tonedict  = _yaml.safe_load(fin)
+			amps      = _np.array(tonedict['amps'])
+			phases    = _np.array(tonedict['phases'])
+			bb_freqs  = _np.array(tonedict['freqs'])
+
+			# maintain backward comptability
+			try:
+				atten_in  = _np.float32(tonedict['atten_in'])
+				atten_out = _np.float32(tonedict['atten_out'])
+				lofreq    = _np.float32(tonedict['lofreq'])
+			except KeyError:
+				atten_in = atten_out = lofreq = None
 
 		ask = False
 		# check to see if current tonelist matches new tones by comparing number of tones and fractional shift in bb_freqs
@@ -266,11 +274,12 @@ class Toneslist(object):
 		    if response == "n":
 		        return
 
-		self.amps = amps; self.phases = phases; self.bb_freqs = bb_freqs
-		_logger.info("new tones loaded from {0}".format( _os.path.basename( self.tonehistory[datetime_tag])) )
-		_time.sleep(0.1)
+		#self.amps = amps; self.phases = phases; self.bb_freqs = bb_freqs
+		_logger.info("tones loaded {0}".format( _os.path.basename( self.tonehistory[datetime_tag])) )
+		#_time.sleep(0.1)
+		return lofreq, atten_in, atten_out, bb_freqs, amps, phases
 
-	def write_tonehistfile(self):
+	def write_tonehistfile(self, lofreq, atten_in, atten_out, bb_freqs, amps, phases):
 		""" Write the current tone parameters to a timestamped .tone file in the tonehistdir for the given
 		roachid. """
 
@@ -281,11 +290,14 @@ class Toneslist(object):
 		timenow = _dt.datetime.now()
 		datetag = _dt.datetime.strftime(timenow, self._DTFMT) + ".tone"
 
-		data = {'date'  : _dt.datetime.strftime(timenow, '%Y%m%d'),\
-				'time'  : _dt.datetime.strftime(timenow, '%H%m%S'),\
-				'freqs' : self.bb_freqs.tolist(),\
-				'amps'  : self.amps.tolist(),\
-				'phases': self.phases.tolist() }
+		data = {'date'     : _dt.datetime.strftime(timenow, '%Y%m%d'),\
+				'time'     : _dt.datetime.strftime(timenow, '%H%m%S'),\
+				'freqs'    : bb_freqs,\
+				'amps'     : amps,\
+				'phases'   : phases, \
+				'atten_in' : atten_in,\
+				'atten_out': atten_out,\
+				'lofreq'   : lofreq	}
 
 		outfname = _os.path.join( self.TONEHISTDIR, datetag )
 		with open(outfname, 'w') as outfile:

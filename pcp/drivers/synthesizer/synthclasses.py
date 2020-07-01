@@ -35,12 +35,10 @@ Unit conventions:
 
 Currently supported models (as of 2nd Sep 2018):
     - Dummy (for testing purposes)
-    -x Valon 5008, 5009
-    -x APSIN 20G
-    -x Rhode and Schwartz, SGS100a, SMA100a
-    -x Windfreak Tech. SynthHD
-
-    "x denotes that the required code hasn't been implemented and tested in this script yet"
+    - Valon 5008, 5009
+    - APSIN 20G
+    - Rhode and Schwartz, SGS100a, SMA100a
+    - Windfreak Tech. SynthHD
 
 TODO:
     - add "fast" frequency functionality to increase speed when sweeping
@@ -54,7 +52,6 @@ import time as _time, pprint as _pprint
 # ===========================================================================================
 import dummy_synth as _dummy_synth # hide the base class from the user by prepending "_"
 
-
 class pcp_dummySynthDevice(_dummy_synth.dummySynthDevice):
 
     VENDOR = _dummy_synth.VENDOR
@@ -66,7 +63,6 @@ class pcp_dummySynthDevice(_dummy_synth.dummySynthDevice):
     # make sure all methods are defined in the same way, and return the same item
     def getSourceObj(self,channel):
         return pcp_dummySynthSource(self,channel)
-
 
 class pcp_dummySynthSource(_dummy_synth.dummySynthSource):
 
@@ -85,7 +81,6 @@ class pcp_dummySynthSource(_dummy_synth.dummySynthSource):
     @frequency.setter
     def frequency(self, frequency):
         self._frequency = frequency
-        _time.sleep(0.001) # emulate time to switch frequency
         print ("frequency set to {f}".format(f=frequency))
 
     # Power getter

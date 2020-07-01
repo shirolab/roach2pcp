@@ -3,9 +3,13 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
+2020-06-30 ================
+- added input and output attenuations and lofreq to tonehistory files 
+
 2020-06-06 ================
 - went through and fixed issues with building documentation. Now the docs are built whenever a new
- 
+change is pushed to the github.
+
 
 2020-06-05 ================
 
