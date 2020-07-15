@@ -602,7 +602,7 @@ class muxChannel(object):
 
     def retune_kids(self, force_first_sweep = False, findf0_method = "maxspeed", **swpkwargs):
         """
-        Function to retune resonators.  FOR NOW USE SCRIPT
+        Function to retune resonators.  UNDER DEVELOPMENT - USE SCRIPT FOR NOW
         """
         _logger.info('starting resonator tuning process on {0}'.format(self.roachid) )
         # if we haven't already swept, do the first sweep
@@ -610,21 +610,28 @@ class muxChannel(object):
             # sweep
             self.sweep_lo(**swpkwargs)
 
-        # remove blind tones/ don't retune blind tones
-
         # analyse sweep - tone_freqs = None returns parameters at that F0, and can be used to find F0s
-        self.sweep.calc_sweep_cal_params( tonefreqs = None, method = findf0_method )
+        self.sweep.calc_sweep_cal_params( tonefreqs      = None, \
+                                            method       = findf0_method, \
+                                            exclude_idxs = self.toneslist.blindidxs )
+        # write the cal parameters to file - is this ever used? 
         self.sweep.write_sweep_cal_params(overwrite = True)
         # use method to find F0s from KID rountines
         _logger.debug( "new f0s found- {0}".format(self.sweep.calparams['f0s']) )
+
         # change frequencies in self.toneslist
         self.toneslist.bb_freqs = self.sweep.calparams['f0s'] - self.toneslist.lo_freq
+
         # write to qdr (optional)
         self.write_freqs_to_fpga( auto_write = True )
+
         # resweep with new tones
         self.sweep_lo(**swpkwargs)
+
         # recalculate sweep cal params, this time with the written tones
-        self.sweep.calc_sweep_cal_params( tonefreqs = self.toneslist.rf_freqs, method = findf0_method )
+        self.sweep.calc_sweep_cal_params( tonefreqs      = self.toneslist.rf_freqs, \
+                                            method       = findf0_method, \
+                                            exclude_idxs = self.toneslist.blindidxs )
         # write these to the new sweep file
         self.sweep.write_sweep_cal_params(overwrite = True)
 
