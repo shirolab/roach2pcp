@@ -349,7 +349,7 @@ def check_dirfile_is_empty(dirfile):
     # get the size of the INDEX field
     return len( dirfile.getdata("INDEX") ) == 0
 
-def add_subdirfile_to_existing_dirfile(subdirfile, dirfile, namespace = "", overwrite=False,field_suffix = ""):
+def add_subdirfile_to_existing_dirfile(subdirfile, dirfile, namespace = "", overwrite=False):
     """
     Function to add a subdirfile to an existing dirfile and include the subdirfile as a new fragment
     of the main dirfile - i.e. all of the fields of the subdirfile will be avaialble to the main dirfile.
@@ -392,7 +392,7 @@ def add_subdirfile_to_existing_dirfile(subdirfile, dirfile, namespace = "", over
 
     # add a the subdrifile as a new fragment
     ## TODO: this should probably be in a try - except statement
-    newfrag = dirfile.include(os.path.join(os.path.basename(subdirfile.name), "format"), namespace = namespace, flags = _gd.EXCL|_gd.RDWR,suffix    = field_suffix,)
+    newfrag = dirfile.include(os.path.join(os.path.basename(subdirfile.name), "format"), namespace = namespace, flags = _gd.EXCL|_gd.RDWR)
     # could change above to df.fragment(0).name
 
     # flush the changes and update the format file

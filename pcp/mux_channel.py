@@ -196,6 +196,7 @@ class muxChannel(object):
             #set the clk frequency
             self.synth_clk.clk_or_lo = 'clk'
             self.synth_clk.frequency = 512.0e6
+            self.synth_clk.power = 12.5
 
         else:
             self.synth_clk = None
@@ -565,13 +566,12 @@ class muxChannel(object):
         stream_time     = stream_kwargs.pop("stream_time", None)
         save_data       = stream_kwargs.pop("save_data", True) # currently not used
         dont_ask        = stream_kwargs.pop("dont_ask", False)
-
-        dirfile_name = stream_kwargs.pop("dirfilename", "") # allow the user to pass in and append to an existing dirfile
+        dirfile_name    = stream_kwargs.pop("dirfilename", "") # allow the user to pass in and append to an existing dirfile
         print cl.FAIL,' parsed kwargs:',time.time(),cl.ENDC
         
 
         # check that sweep exists - warn if not and give option to proceed
-        if self.current_sweep_dirfile is None:
+        if self.sweep.dirfile is None:
             _logger.warning( "no sweep file available - limited functionality available" )
             if dont_ask==False:
                 response = raw_input("Proceed? [y/n] ")
@@ -592,8 +592,8 @@ class muxChannel(object):
         print cl.FAIL,'set active dirfile:',time.time(),cl.ENDC
 
         # add sweepdirfile as a new fragment to the new dirfile
-        if isinstance( self.current_sweep_dirfile , _gd.dirfile ):
-            _lib_dirfiles.add_subdirfile_to_existing_dirfile(self.current_sweep_dirfile, self.current_dirfile)
+        if isinstance( self.sweep.dirfile , _gd.dirfile ):
+            _lib_dirfiles.add_subdirfile_to_existing_dirfile(self.sweep.dirfile, self.current_dirfile,namespace='sweep')
         print cl.FAIL,'added sweepdirfile as a new fragment:',time.time(),cl.ENDC
 
 
@@ -668,7 +668,8 @@ class muxChannel(object):
         
         name = ['phantom','clones','sith','hope','empire','jedi']
         chidx = name.index(self.roachid)
-        lo_freqs = np.loadtxt('/home/muscat/toneslists/20191105-150mk/lo_freqs.txt')
+        #lo_freqs = np.loadtxt('/home/muscat/toneslists/20191105-150mk/lo_freqs.txt')
+        lo_freqs = np.loadtxt('/home/muscat/live_lo_freqs.txt')
         inatts = np.loadtxt('/home/muscat/live_attens_in.txt')
         outatts = np.loadtxt('/home/muscat/live_attens_out.txt')
         
@@ -694,7 +695,7 @@ class muxChannel(object):
         toneslist_tools.write_muscat_toneslist('/home/muscat/live_toneslist_ch%d.toneslist'%(chidx+1),self.freqs,amps=self.amps,phases=self.phases)
         
         
-        self.toneslist.tonelistfile = '/home/muscat/toneslists/20191105-150mk/Tonelist_muscat_ch%d_20191105.toneslist'%(chidx+1)
+        #self.toneslist.tonelistfile = '/home/muscat/toneslists/20191105-150mk/Tonelist_muscat_ch%d_20191105.toneslist'%(chidx+1)
         self.toneslist.tonelistfile = '/home/muscat/live_toneslist_ch%d.toneslist'%(chidx+1)
         self.toneslist._bandwidth=512e6
         self.toneslist.load_tonelist()
@@ -729,13 +730,15 @@ class muxChannel(object):
         return adcmax
     
     def rescale_output_attens(self,adcmax = 0.7071, n_adc_reads=10):
-        adcnow = self.adc_levels(n_adc_reads)
+        adcnow = max(self.adc_levels(n_adc_reads))
         da = 20*np.log10(adcnow/adcmax)
         da = round(da*4)/4.
         att = self.output_atten.att
-        self.output_atten.att = att + da
+        newatt = max([0,att + da])
+        newatt = min([60,newatt])
+        self.output_atten.att = newatt
         newadc = self.adc_levels(n_adc_reads)
-        print 'Ch%d: New output atten = %.2f, ADC (I,Q)= %s'%(self.chidx+1,newadc),
+        print 'Ch%d: New output atten = %.2f, ADC (I,Q)= %s'%(self.chidx+1,newatt,newadc)
     
     
     def retune_from_fit(self):
@@ -799,7 +802,7 @@ class muxChannel(object):
         # close all local file descriptors
         try:
             self.current_dirfile.close()
-            self.current_sweep_dirfile.close()
+            self.sweep.dirfile.close()
         except AttributeError:
             pass
 
@@ -1056,13 +1059,39 @@ class muxChannelList(object):
         
         #return res
 
-    def start_stream_multi(self, channels, **stream_kwargs):
-        channel_obj_list = [getattr(self, instance) for instance in np.atleast_1d(channels)]
+    def start_stream_multi(self, channels, common_filename='',**stream_kwargs):
         
+        channel_obj_list = [getattr(self, instance) for instance in np.atleast_1d(channels)]
         mp_pool = _multiprocessing_pool.ThreadPool( processes = len(channels) )
         #mp_pool = _multiprocessing.Pool( processes = len(channels_to_init) )
         
-        res = [mp_pool.apply_async(obj.start_stream, (), stream_kwargs)  for obj in channel_obj_list ]
+        res = []
+        
+        if common_filename is '':
+            res = [mp_pool.apply_async(obj.start_stream, (), stream_kwargs)  for obj in channel_obj_list ]
+            
+        else:
+            for ch in channel_obj_list:
+                DIRFILE_SAVEDIR  = os.path.join(ROOTDIR, 
+                                                filesys_config['savedatadir'], 
+                                                common_filename,
+                                                ch.roachid)
+                
+                # create if doesn't exist already
+                os.makedirs(DIRFILE_SAVEDIR) if not os.path.exists(DIRFILE_SAVEDIR) else None
+                
+                
+                
+            for ch in channel_obj_list:
+                DIRFILE_SAVEDIR  = os.path.join(ROOTDIR, 
+                                                filesys_config['savedatadir'], 
+                                                common_filename,
+                                                ch.roachid)
+                
+                stream_kwargs['dirfilename']=DIRFILE_SAVEDIR
+                ret = mp_pool.apply_async(ch.start_stream, (), stream_kwargs)
+                res.append(ret)
+        
 
         # wait for processing to finish 
         while not all([r.ready() for r in res]):
