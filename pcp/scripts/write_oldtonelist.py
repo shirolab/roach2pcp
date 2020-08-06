@@ -17,7 +17,7 @@ def main(muxch, timestamp):
     assert timestamp in valid_ts, "not a valid timestamp - must be one of {0}".format(valid_ts)
 
     # load the tone history file
-    lofreq, atten_in, atten_out, amps, phases, bb_freqs = muxch.toneslist.load_tonehistfile(timestamp)
+    lofreq, atten_in, atten_out, bb_freqs, amps, phases = muxch.toneslist.load_tonehistfile(timestamp)
 
     # modify the toneslist with the parameters from the loaded tone history file
     muxch.toneslist.amps     = amps
