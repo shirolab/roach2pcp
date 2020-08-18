@@ -1,5 +1,6 @@
 import os as _os, numpy as _np, time as _time, shutil as _shutil
 
+import scipy.signal as _sig
 # access module variables
 import pcp
 #from .configuration import general_config, roach_config
@@ -156,6 +157,7 @@ class pcpSweep(object):
                     "Use self.write_sweep_cal_params to write the new calibration parameters to file to be used in streaming.")
 
         assert self.data is not None, "there doesn't appear to be any sweep data available. Do a sweep, or load an existing file and rerun"
+
         # Precondition the sweep data to make finding f0s easier/more reliable
         # Stupid-simple: Generate a mask of indices to NaN out so the max didq2 doesn't choose those indices
         nan_mask = _np.zeros_like(self.rf_freqs, dtype='bool')  # Must be a bool for this to work
@@ -185,11 +187,21 @@ class pcpSweep(object):
             for key, val in self.calparams.items():
                 self.calparams[key][ idxstoanalyse ]  = calparams[key][ idxstoanalyse ]
         else:
+            # first calculation, include all indexes ( usually run first with tonefreqs set )
             self.caldata   = caldata
             self.calparams = calparams
 
-    def set_filter_params(self):
-        pass
+    def find_res_peaks(self, data, pm = None):
+        """
+        Function to calculate the number of peaks in a sweep. Based on scipy.signal.find_peaks(), this function
+        calaculates derivative of the phase as a metric
+
+        """
+        data = _np.gradient(_np.unwrap(_np.angle(self.data)), axis=-1) # calculates the gradient for all resonators
+        pm = pm if pm and len(pm) == 2 else _np.std(data), _np.ptp(data)
+        peakidxs, pdict = _sig.find_peaks(data, height = 0, width = 4, prominence = pm )
+
+
 
     def write_sweep_cal_params(self, overwrite = False):
         """ Writes a new set of calibration parameters to the current dirfile. The overwrite switch allows the user to overwrite
@@ -266,7 +278,7 @@ class pcpSweep(object):
         pass
 
     def plot_sweep(self, sortfreqs = False):
-        from . import visualisation as vis
+        from pcp import visualisation as vis
         sweeplist = [self].extend(self.history)
         self.ip = vis.pcpInteractivePlot( [self] + self.history , sortfreqs=sortfreqs)
 

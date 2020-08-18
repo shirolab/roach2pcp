@@ -665,7 +665,9 @@ class pcpInteractivePlot(object):
 
         #
         self.idx = 0
-        self._picked = [] # empty list used to store which resonators have been picked
+        self._picked    = [] # empty list used to store which resonators have been picked
+        #self._isvisible = _np.zeros(self.ntones, dtype='bool') # empty list used to store which resonators have manual picked frequencies
+        self._pkdidxs   = _np.zeros(self.ntones, dtype=_np.int32)
 
         self._linedict = {s.name: {} for s in self.sweeplist}
         self._color_dict = { 'default' : (1,1,1,1), 'picked' : (0.5, 0.8, 0.9, 1.0) }
@@ -678,9 +680,11 @@ class pcpInteractivePlot(object):
 
     def print_help(self):
         print ("""
-        Simple sweep visualizer.
+        Simple sweep visualizer. Possible options:
             - Use left/right arrow keys to browse through tones.
             - Shift + click to add a tone to the re-analyze list.
+            - Double click on the IQ plot to manually reposition the tone.
+
         """)
     @property
     def exclude_idxs(self):
@@ -742,9 +746,13 @@ class pcpInteractivePlot(object):
         if self.usepyplot == False:
             fig = matplotlib.figure.Figure(figsize=(13.5,  7))
             canvas = matplotlib.backends.backend_qt5agg.FigureCanvasQTAgg(fig)
+            figsum = matplotlib.figure.Figure(figsize=(13.5,  7))
+            cansum = matplotlib.backends.backend_qt5agg.FigureCanvasQTAgg(figsum)
         else:
             fig = plt.figure(figsize=(13.5,  7))
             canvas = fig.canvas
+            figsum = plt.figure(figsize=(13.5,  7))
+            cansum = figsum.canvas
 
         axiq  = fig.add_subplot(122)
         axmag = fig.add_subplot(321)
@@ -763,26 +771,35 @@ class pcpInteractivePlot(object):
         fig.canvas.mpl_connect('key_release_event', self._on_key_release)
         fig.canvas.mpl_connect('button_press_event', self._on_mouse_click)
 
+        fig.canvas.mpl_connect('pick_event', self._onpick)
+
         # set figure and axes to class attributes
         self.fig = fig
         self.axiq = axiq; self.axmag = axmag; self.axphi = axphi; self.axcal = axcal
 
-        #canvas.show()
+        # --- do stuff with summary figure here ---
+        ax1  = figsum.add_subplot(122)
+        ax2  = figsum.add_subplot(222)
+
+        self.figsum = figsum
+        self.ax1 = ax1; self.ax2 = ax2
+
 
     def _configure_plots(self):
 
         for sweep in self.sweeplist:
 
-            self._linedict[sweep.name]['iqmain'], = self.axiq.plot(sweep.data[self.sortidxs][self.idx].real, sweep.data[self.sortidxs][self.idx].imag,'-o',c='C0')
+            self._linedict[sweep.name]['iqmain'], = self.axiq.plot(sweep.data[self.sortidxs][self.idx].real, sweep.data[self.sortidxs][self.idx].imag, '-o', c='C0', picker=5)
             #self._linedict[sweep.name]['iqmain_freq'] = self.axiq.scatter(sweep.data[self.sortidxs][self.idx].real, sweep.data[self.sortidxs][self.idx].imag, c=sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, edgecolors='none');
-            self._linedict[sweep.name]['iqtone'], = self.axiq.plot(1,1, 'rD', ms=10, label = 'tone')
-            self._linedict[sweep.name]['iqf0'],   = self.axiq.plot(1,1, 'gD', ms=10, label = 'calcf0')
+            self._linedict[sweep.name]['iqtone'],    = self.axiq.plot(1,1, 'rD', ms=10, label = 'tone')
+            self._linedict[sweep.name]['iqf0'],      = self.axiq.plot(1,1, 'gD', ms=10, label = 'calcf0')
+            self._linedict[sweep.name]['iqf0man'],   = self.axiq.plot(1,1, 'mD', ms=10, label = 'manf0')
 
             self._linedict[sweep.name]['magmain'], = self.axmag.plot(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, 20*_np.log10(_np.abs(sweep.data[self.sortidxs][self.idx])), c='C0')
             self._linedict[sweep.name]['magtone']  = self.axmag.axvline(sweep.tonefreqs[self.sortidxs][self.idx]/1.e6, c='r', ls='dashed')
             self._linedict[sweep.name]['magf0']    = self.axmag.axvline(sweep.calparams['f0s'][self.sortidxs][self.idx]/1.e6, c='g', ls='dashed')
 
-            self._linedict[sweep.name]['phimain'], = self.axphi.plot(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6,_np.angle(sweep.data[self.sortidxs][self.idx]), c='C0' )
+            self._linedict[sweep.name]['phimain'], = self.axphi.plot(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6,_np.unwrap(_np.angle(sweep.data[self.sortidxs][self.idx])), c='C0' )
             self._linedict[sweep.name]['phitone']  = self.axphi.axvline(sweep.tonefreqs[self.sortidxs][self.idx]/1.e6, c='r', ls='dashed')
             self._linedict[sweep.name]['phif0']    = self.axphi.axvline(sweep.calparams['f0s'][self.sortidxs][self.idx]/1.e6, c='g', ls='dashed')
 
@@ -798,6 +815,9 @@ class pcpInteractivePlot(object):
             self._linedict[sweep.name]['speedim'].set_label('Im(Speed)')
             self._linedict[sweep.name]['speedab'].set_label('|Speed|')
 
+            # unset manf0idx visibility
+            self._linedict[sweep.name]['iqf0man'].set_visible(False)
+
         self.refresh_plot()
 
     def refresh_plot(self):
@@ -808,17 +828,20 @@ class pcpInteractivePlot(object):
 
             toneidx = _np.where(sweep.lo_freqs==sweep._lo_freq)
             f0idx   = f0idxs[self.idx]
+            pkdidx = self._pkdidxs[self.idx]
 
             self._linedict[sweep.name]['iqmain'].set_data(sweep.data[self.sortidxs][self.idx].real, sweep.data[self.sortidxs][self.idx].imag)
             #self._linedict[sweep.name]['iqmain_freq'].set_data(sweep.data[self.sortidxs][self.idx].real, sweep.data[self.sortidxs][self.idx].imag)
             self._linedict[sweep.name]['iqtone'].set_data(sweep.data[self.sortidxs][self.idx].real[toneidx], sweep.data[self.sortidxs][self.idx].imag[toneidx])
             self._linedict[sweep.name]['iqf0'  ].set_data(sweep.data[self.sortidxs][self.idx].real[f0idx],   sweep.data[self.sortidxs][self.idx].imag[f0idx])
+            self._linedict[sweep.name]['iqf0man'].set_data(sweep.data[self.sortidxs][self.idx].real[pkdidx], sweep.data[self.sortidxs][self.idx].imag[pkdidx])
+            self._linedict[sweep.name]['iqf0man'].set_visible(pkdidx) # <-- if not zero, shows the index, otherwise remains unset
 
             self._linedict[sweep.name]['magmain'].set_data(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, 20*_np.log10( _np.abs(sweep.data[self.sortidxs][self.idx]) ) )
             self._linedict[sweep.name]['magtone'].set_data(sweep.tonefreqs[      self.sortidxs][self.idx]/1.e6, [0,1] )
             self._linedict[sweep.name]['magf0'  ].set_data(sweep.calparams['f0s'][self.sortidxs][self.idx]/1.e6, [0,1] )
 
-            self._linedict[sweep.name]['phimain'].set_data(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, _np.angle(sweep.data[self.sortidxs][self.idx] ) )
+            self._linedict[sweep.name]['phimain'].set_data(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, _np.unwrap(_np.angle(sweep.data[self.sortidxs][self.idx])) )
             self._linedict[sweep.name]['phitone'].set_data(sweep.tonefreqs[      self.sortidxs][self.idx]/1.e6, [0,1] )
             self._linedict[sweep.name]['phif0'  ].set_data(sweep.calparams['f0s'][self.sortidxs][self.idx]/1.e6, [0,1] )
 
@@ -857,6 +880,23 @@ class pcpInteractivePlot(object):
 
         #plt.show(block=self.block)
 
+    def get_picked_f0s(self):
+        """Get the current list of resonant frequencies, including any manually modified ones. If none are modified,
+        it returns calparams['f0s']. """
+
+        #for sweep in self.sweeplist:
+        sweep = self.sweeplist[0]
+        # generate an index and bool mask to set only the frequencies that have been manually picked
+        idxmask  = range(len(self._pkdidxs)), self._pkdidxs
+        boolmask = self._pkdidxs.astype('bool')
+
+        # create copy of the existing F0s, and change only the ones that were modified
+        newf0s = _np.copy(sweep.calparams['f0s'])
+        _np.putmask(newf0s, boolmask, sweep.rf_freqs[idxmask])
+
+        return newf0s
+
+
     def _on_key_press(self, event):
         if event.key == 'right':
             self.idx = (self.idx + 1) % self.ntones
@@ -876,9 +916,27 @@ class pcpInteractivePlot(object):
     def _on_mouse_click(self, event):
 
         if self._shift_is_held:
-            # add index to a _picked
-            self._picked.remove(self.idx) if self.idx in self._picked else self._picked.append(self.idx)            # check if self.idx already exists in self._picked and remove
+            # add index to a _picked + check if self.idx already exists in self._picked and remove
+            self._picked.remove(self.idx) if self.idx in self._picked else self._picked.append(self.idx)
+            # redraw plot
             self.refresh_plot()
+
+    def _onpick(self, event):
+        self.event = event
+        if event.mouseevent.dblclick:
+
+            # handle multiple indicies returned by picked event correctly
+            idx = _np.atleast_1d(event.ind).mean()
+
+            # if a particular idx already exists, then set back to zero to clear
+            self._pkdidxs[self.idx] = idx if self._pkdidxs[self.idx] != idx else 0
+            # redraw plot
+            self.refresh_plot()
+
+
+
+
+
 
 #------------------------------------------------------------------------------------
 # playing aorund with embedding mpl figures into simple qt application

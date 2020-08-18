@@ -217,6 +217,8 @@ class Toneslist(object):
 		self.amps   = None
 		self.phases = None
 
+		self.blindidxs = None
+
 		self.sweep_lo_freqs = None
 
 		# load automatically if auto_load flag is set (default behaviour)
@@ -334,7 +336,7 @@ class Toneslist(object):
 
 			valid_idxs = self._get_valid_tone_idxs( bb_freqs )
 			if len(valid_idxs) != len( bb_freqs ) :
-				clipped_idxs = set( _np.arange( len(bb_freqs) ) ).difference(valid_idxs)
+				clipped_idxs = list( set( _np.arange( len(bb_freqs) ) ).difference(valid_idxs) )
 				_logger.warning( " some bb_freqs don't appear to fit into the bandwidth. The following have been clipped from bb_freqs:\n{0}".format(bb_freqs[clipped_idxs]) )
 
 			# set only valid indices as bb_freqs
@@ -413,12 +415,16 @@ class Toneslist(object):
 			_logger.warning( 'LO frequency must be set when loading RF frequencies.' )
 
 	def _get_valid_tone_idxs(self, bb_freqs ):
-		"""Check that a list of bb_freqs fits in the given bandwidth.
+		"""Check that a list of bb_freqs fits in the given bandwidth. Also checks for nan tones,
+		and those are removed.
 
 		Returns list of valid indexes
 		"""
+
 		if bb_freqs is not None:
- 			return _np.argwhere( _np.abs( bb_freqs ) <= self._bandwidth/2. ).flatten()
+			# temporarily ignore the invalid warning if nans exist
+			with _np.errstate(invalid='ignore'):
+ 				return _np.argwhere( _np.abs( bb_freqs ) <= self._bandwidth/2. ).flatten()
 
 	def list_tonelistdir(self, full_path = True):
 		"""
@@ -470,15 +476,16 @@ class Toneslist(object):
 
 		# try to inspect the output type (ideally it should be a pandas data frame, with at least Name, Freq, Power)
 		if type(data) == _pd.DataFrame:
-			# if its a data frame, then great. ensure that labels are all lower case, and that name and power exist
+			# if its a data frame, then great. ensure that labels are all lower case, and that name, blind, and power exist
 			data.rename({x:x.lower() for x in data.columns}, axis='columns', inplace=True)
 			assert 'freq' in data.columns, "there doesn't appear to be a frequency axis - {0}".format( data.columns )
 
 			if 'name' not in data.columns:
 				data.insert(0, 'name', _pd.Series( ['K{0:03d}'.format(v) for v in _np.arange(len(data))] , index=data.index))
+			if 'blind' not in data.columns:
+				data.insert(2, 'blind', _pd.Series( _np.zeros_like(data.index) , index=data.index))
 			if 'power' not in data.columns:
-				data.insert(2, 'power', _pd.Series( _np.zeros_like(data.index) , index=data.index))
-
+				data.insert(3, 'power', _pd.Series( _np.zeros_like(data.index) , index=data.index))
 			self.data = data
 
 		elif type(data) in [np.ndarray, list, tuple]:
@@ -503,6 +510,7 @@ class Toneslist(object):
 
 		# get an array of the tonenames for convenience
 		self.tonenames = self.data['name'].get_values()
+		self.blindidxs = self.data['blind'].get_values()
 
 		# if successful, try to find the optimum LO frequency automatically
 		self.lo_freq = self.find_optimum_lo() # this will trigger the frequency lists to be updated
@@ -513,7 +521,7 @@ class Toneslist(object):
 		self.ampcorr.update({'default': _np.ones(self.tonenames.shape)})
 
 		_logger.info("Successfully loaded toneslist file {0}".format(file_to_read) )
-		_time.sleep(0.1)
+		_time.sleep(0.01)
 
 	def find_optimum_lo(self):
 		"""For a given set of tones, this function will find the optimum LO frequency to
@@ -554,7 +562,36 @@ class Toneslist(object):
 
 		return lo_freqs[lo_optimum_idx] * 1.e6
 
-	def place_blind_tones(self):
+	def set_blind_idxs(self, idxlist, reset=False):
+		"""
+		Given a  a list of indicies (ints), set the blindidx flags in the toneslist at those indicies. To reset,
+		use reset=True to switch back, or alternatively, reload the toneslist file with tl.load_tonelist().
+
+		Parameters
+		----------
+		idxlist : array_like
+			input list of indicies to set blindidxs = 1
+
+		reset : bool
+			switch to reset and remove from blindidx list
+
+		Examples
+		--------
+		>>> tl.blindidxs
+		array([0, 0, 0, 0, 0])
+		>>> tl.set_blind_idxs([0,1,3])
+		>>> tl.blindidxs
+		array([1, 1, 0, 1, 0])
+
+		"""
+		# preliminary checks on data
+		assert isinstance( self.blindidxs, (list, _np.ndarray) ), "blindidxs doesn't appear to be the correct type - {0}".format( type(self.blinidxs) )
+		idxlist = _np.atleast_1d(idxlist).astype(_np.int32)
+
+		# set the correct indexes to 1
+		self.blindidxs[idxlist] = 0 if reset==True else 1
+
+	def place_blind_tones(self, nblinds):
 		return
 
 	def calc_sweep_lo_freqs(self, sweep_span, sweep_step):

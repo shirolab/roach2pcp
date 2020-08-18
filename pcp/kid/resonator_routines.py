@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 
 # any code related to KID/resonator functions should be included here
@@ -11,8 +12,8 @@ _logger = _logging.getLogger(__name__)
 def calc_sweep_cal_params(sweep_f, sweep_i, sweep_q, tone_freqs = None , nanmask = None, **kwargs):
 
     """
-    Given a sweep dataset, this function will return  I,Q,dI/df,dQ/df at f0. If a list of tone_freqs is specified, then the function returns calibration parameters at that
-    frequency, otherwise the maximum values are calculated.
+    Given a sweep dataset, this function will return  I,Q,dI/df,dQ/df at f0. If a list of tone_freqs is specified,
+    then the function returns calibration parameters at that frequency, otherwise the maximum values are calculated.
 
     """
 
@@ -39,6 +40,10 @@ def calc_sweep_cal_params(sweep_f, sweep_i, sweep_q, tone_freqs = None , nanmask
         idxs = _np.argmin( _np.abs(sweep_f - tone_freqs[:, _np.newaxis]), axis=1 )
     else:
         # return the maximum values
+        # nanmask = nanmask if nanmask else _np.ones_like(didq2, dtype='bool')
+        # didq2[nanmask] = _np.nan
+        # idxs = _np.nanargmax( didq2, axis=1 )
+
         if nanmask is not None:
             dum = didq2
             dum[nanmask] = _np.nan
@@ -82,8 +87,8 @@ def nonlinear_mag_sq(x,fr,Qr,amp,phi,a,b0,b1,flin):
     # where the nonlineaity of y is described by the following eqution taken from Response of superconducting microresonators
     # with nonlinear kinetic inductance
     #                                     yg = y+ a/(1+y^2)  where yg = Qr*xg and xg = (f-fr)/fr
-    #    
-    
+    #
+
     xlin = (x - flin)/flin
     xg = (x-fr)/fr
     yg = Qr*xg
@@ -93,7 +98,7 @@ def nonlinear_mag_sq(x,fr,Qr,amp,phi,a,b0,b1,flin):
         # 4y^3+ -4yg*y^2+ y -(yg+a)
         coeff = (4.0,-4.0*yg[i],1.0,-(yg[i]+a))
         roots = solve_cubic(coeff)
-        #roots = np.roots((16.,-16.*yg[i],8.,-8.*yg[i]+4*a*yg[i]/Qr-4*a,1.,-yg[i]+a*yg[i]/Qr-a+a**2/Qr))   #more accurate version that doesn't seem to change the fit at al     
+        #roots = np.roots((16.,-16.*yg[i],8.,-8.*yg[i]+4*a*yg[i]/Qr-4*a,1.,-yg[i]+a*yg[i]/Qr-a+a**2/Qr))   #more accurate version that doesn't seem to change the fit at al
         # only care about real roots
         where_real = _np.where(_np.imag(roots) == 0)
         y[i] = _np.max(_np.real(roots[where_real]))
@@ -117,12 +122,12 @@ def solve_cubic(coeff):
             D = _np.sqrt(-D)
             x1 = (-c + D * 1j) / (2.0 * b)
             x2 = (-c - D * 1j) / (2.0 * b)
-            
+
         return _np.array([x1, x2])               # Returning Quadratic Roots as numpy array.
 
     f = ((3.0 * c / a) - ((b ** 2.0) / (a ** 2.0))) / 3.
-    g = (((2.0 * (b ** 3.0)) / (a ** 3.0)) - ((9.0 * b * c) / (a **2.0)) + (27.0 * d / a)) /27.0                      
-    h = ((g ** 2.0) / 4.0 + (f ** 3.0) / 27.0)                            
+    g = (((2.0 * (b ** 3.0)) / (a ** 3.0)) - ((9.0 * b * c) / (a **2.0)) + (27.0 * d / a)) /27.0
+    h = ((g ** 2.0) / 4.0 + (f ** 3.0) / 27.0)
 
     if f == 0 and g == 0 and h == 0:            # All 3 Roots are Real and Equal
         if (d / a) >= 0:
