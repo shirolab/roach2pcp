@@ -283,9 +283,10 @@ class roachInterface(object):
                     return False
 
         print cm.OKBLUE + "uploading firmware file \'{0}\' to roach".format(firmware_file) + cm.ENDC
-        success = self.fpga.upload_to_ram_and_program(firmware_file, timeout = 10.)
+        #success = self.fpga.upload_to_ram_and_program(firmware_file, timeout = 10.)
+        success = self.fpga.upload_to_ram_and_program(firmware_file)
         _time.sleep(0.5)
-        if success == None:
+        if success == True:
             print cm.OKGREEN + 'Successfully uploaded:', firmware_file, cm.ENDC
             self.firmware_file = firmware_file
             self.fpg_uploaded = True
