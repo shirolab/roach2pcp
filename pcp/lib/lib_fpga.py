@@ -126,8 +126,12 @@ def progress_bar(function, estimated_time, description, tstep=0.2, tqdm_kwargs={
         function(*args, **kwargs)
     """
     ret = [None]  # Mutable var so the function can store its return value
+    exc = [None]
     def myrunner(function, ret, *args, **kwargs):
-        ret[0] = function(*args, **kwargs)
+        try:
+            ret[0] = function(*args, **kwargs)
+        except Exception as e:
+            exc[0] = e
 
     thread = _threading.Thread(target=myrunner, args=(function, ret) + tuple(args), kwargs=kwargs)
     pbar = _tqdm.tqdm(total=estimated_time, ncols=75, desc=description ,**tqdm_kwargs)
@@ -138,7 +142,11 @@ def progress_bar(function, estimated_time, description, tstep=0.2, tqdm_kwargs={
         pbar.update(tstep)
 
     pbar.close()
-    return ret[0]
+    
+    if exc[0] is None:
+        return ret[0]
+    else:
+        raise exc[0]
 
 def progress_wrapped(estimated_time, description, tstep=0.25, tqdm_kwargs={}):
     """Decorate a function to add a progress bar"""
