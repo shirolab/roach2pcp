@@ -93,7 +93,11 @@ def get_fpga_instance(ipaddress):
         return
 
     try:
-        return _casperfpga.katcp_fpga.KatcpFpga( ipaddress, timeout = 10. )
+        #return _casperfpga.katcp_fpga.KatcpFpga( ipaddress, timeout = 10. )
+        #This worked in casperfpga==0.0.1 but failed after pip upgrade to 0.1.1 
+        
+        #Replacing with up-to-date call from casperfpga==0.1.1
+        return _casperfpga.CasperFpga( ipaddress, timeout = 10. )
     except RuntimeError:
         # bad things have happened, and nothing else should proceed
         _logger.exception( "Error, fpga not connected." )
@@ -212,8 +216,9 @@ class roachInterface(object):
 
         # check that socket send buffer is larger (should be done outside of this function)
 
-        # change the socket capacitcty to larger than data (next highest power of 2 )
-        self.fpga._sock.setsockopt( _socket.SOL_SOCKET, _socket.SO_SNDBUF, int(2**_np.ceil(_np.log2(self.LUTBUF_LEN))) )
+        #Removed as fast_blindwrite is unused and _sock not available in casperfpga==0.1.1
+        ## change the socket capacitcty to larger than data (next highest power of 2 )
+        #self.fpga._sock.setsockopt( _socket.SOL_SOCKET, _socket.SO_SNDBUF, int(2**_np.ceil(_np.log2(self.LUTBUF_LEN))) )
 
         # configure downlink
         self.configure_downlink_registers()
@@ -262,7 +267,7 @@ class roachInterface(object):
 
             print "An existing firmware is already running. Checking versions..."
             # read info from new firmware file to compare?
-            running_devinfo = self.fpga._read_design_info_from_host()["77777"] # <-- dictionary of metadata from fpg
+            running_devinfo = self.fpga.transport._read_design_info_from_host()["77777"] # <-- dictionary of metadata from fpg
             new_devinfo     = _casperfpga.utils.parse_fpg(firmware_file)[0]["77777"] # parse firmware file and return devinfo only
 
             if running_devinfo['builddate'] == new_devinfo['builddate'] and running_devinfo['system'] == new_devinfo['system']:
@@ -483,56 +488,57 @@ class roachInterface(object):
             if which=='dac_lut':
                 print 'Waveform rescaled by fixed amount: waveMax:',waveMax,'New Ipp:',_np.ptp(i),'New Qpp:',_np.ptp(q)
             return i,q
+    
+    #removed as not used, and use of KatcpFpga._sock deprecated in casperfpga==0.1.1
+    #def _fast_blindwrite(self, device_name, data, offset=0, timeout=10):
+        #"""Stripped down copy of the blindwrite function, intended to be faster """
 
-    def _fast_blindwrite(self, device_name, data, offset=0, timeout=10):
-        """Stripped down copy of the blindwrite function, intended to be faster """
 
+        #assert _katcp, "katcp module not found."
+        #assert self.fpga.is_running(), "fpga firmware doesn't appear to be running "
+        #assert self.fpga.is_connected(), "connection to fpga doesn't appear to be alive"
 
-        assert _katcp, "katcp module not found."
-        assert self.fpga.is_running(), "fpga firmware doesn't appear to be running "
-        assert self.fpga.is_connected(), "connection to fpga doesn't appear to be alive"
+        #assert type(data) == str,    "You need to supply binary packed string data!"
+        #assert (len(data) % 4) == 0, "You must write 32-bit-bounded words!"
+        #assert (offset % 4)    == 0, "You must write 32-bit-bounded words!"
 
-        assert type(data) == str,    "You need to supply binary packed string data!"
-        assert (len(data) % 4) == 0, "You must write 32-bit-bounded words!"
-        assert (offset % 4)    == 0, "You must write 32-bit-bounded words!"
+        #sock = self.fpga._sock
 
-        sock = self.fpga._sock
+        #msgtosend = _katcp.Message.request("write", * (device_name, str(offset), data) )
 
-        msgtosend = _katcp.Message.request("write", * (device_name, str(offset), data) )
+        #data = str(msgtosend) + "\n" # <- takes ~ 1s? can we reduce this?
+        #datalen = len(data)
+        #print datalen
+        ## send the data (copy loop from katcp)
+        #send_failed = False
+        #totalsent = 0
+        #t0 = _time.time()
+        #print "socket send buffer", sock.getsockopt(_socket.SOL_SOCKET, _socket.SO_SNDBUF)
 
-        data = str(msgtosend) + "\n" # <- takes ~ 1s? can we reduce this?
-        datalen = len(data)
-        print datalen
-        # send the data (copy loop from katcp)
-        send_failed = False
-        totalsent = 0
-        t0 = _time.time()
-        print "socket send buffer", sock.getsockopt(_socket.SOL_SOCKET, _socket.SO_SNDBUF)
+        #while totalsent < datalen:
+            #if timeout is not None and _time.time() - t0 > timeout:
+                #_logger.warn('Timeout sending message')
+                #send_failed = True
+                #e = 'Could not send  message within timeout {0}'.format(timeout)
+                #break
+            #try:
+                #sent = sock.send(data[totalsent:])
+            #except _socket.error, e:
+                #if len(e.args) == 2 and e.args[0] == _errno.EAGAIN and sock is self.fpga._sock:
 
-        while totalsent < datalen:
-            if timeout is not None and _time.time() - t0 > timeout:
-                _logger.warn('Timeout sending message')
-                send_failed = True
-                e = 'Could not send  message within timeout {0}'.format(timeout)
-                break
-            try:
-                sent = sock.send(data[totalsent:])
-            except _socket.error, e:
-                if len(e.args) == 2 and e.args[0] == _errno.EAGAIN and sock is self.fpga._sock:
+                    #continue
+                #else:
+                    #send_failed = True
+                    #break
 
-                    continue
-                else:
-                    send_failed = True
-                    break
+            #if sent == 0:
+                #send_failed = True
+                #break
 
-            if sent == 0:
-                send_failed = True
-                break
+            #totalsent += sent
+            #print totalsent
 
-            totalsent += sent
-            print totalsent
-
-        return send_failed
+        #return send_failed
 
 
     def select_bins(self, freqs):

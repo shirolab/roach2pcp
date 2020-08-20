@@ -739,7 +739,11 @@ class muxChannel(object):
             pass
         # close hardware connections
         if self.ri.fpga:
-            self.ri.fpga._disconnect()
+            #self.ri.fpga._disconnect()
+            #updated for casperfpga==0.1.1
+            self.ri.fpga.transport._timeout = 0.0
+            self.ri.fpga.transport.disconnect()
+            
 
 
 
