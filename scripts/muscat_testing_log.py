@@ -62,8 +62,22 @@ AttributeError: 'module' object has no attribute 'katcp_fpga'
 #Tested: OK
 #COMMIT: updates to lib_fpga and mux_channel required after upgrade to casperfpga==0.1.1
 
+import pcp
+pcp.scripts.init_pcp() #ok
+name = ['phantom','clones','sith','hope','empire','jedi']
+mclist = pcp.mux_channel.muxChannelList(name)
+#Ok
+mc=mclist.phantom
+mc.ri.initialise_fpga(force_reupload=True)
+#Shitloads of firmware warnings about Meta fields are seperated by spaces, should be tabs
+#Error due to unexpected timeout parameter in upload_to_fpga_and_program
+#Error in upload_firmware_file due to upload_to_ram_and_program now returning True, not None
+#Error in fpga.write_int, udp_dest_mac value requires unsigned but casper is now returning signed values, fixed with cast to _np.int32 in write_to_fpga_register
+#Tested: OK
 
-
+mc.write_freqs_to_fpga()
+Write new tones to qdr? [y/n]y
+ValueError: operands could not be broadcast together with shapes (215,) (197,)
 
 
 

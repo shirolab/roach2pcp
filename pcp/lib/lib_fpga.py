@@ -59,7 +59,7 @@ def write_to_fpga_register(fpga, regs_to_write, firmware_reg_list, sleep_time = 
     if check_registers_are_valid( regs_to_write.keys(), firmware_reg_list.keys() ):
         # write the registers
         for firmware_key, register_value in regs_to_write.iteritems():
-            fpga.write_int( firmware_reg_list[firmware_key],  int(register_value) )
+            fpga.write_int( firmware_reg_list[firmware_key],  _np.int32(register_value) )
             _time.sleep(sleep_time)
 
 def read_from_fpga_register(fpga, regs_to_read, firmware_reg_list):
