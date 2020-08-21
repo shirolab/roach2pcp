@@ -133,8 +133,12 @@ class muxChannel(object):
         os.makedirs(self.AMPCORRDIR)      if not os.path.exists(self.AMPCORRDIR)      else None
 
         # create kst sourcefile in directory if it already doesn't exist
-        try: self._srcfile = open( os.path.join(self.DIRFILE_SAVEDIR, 'sf.txt'), 'r+')
-        except IOError:
+        sourcefilename = os.path.join(self.DIRFILE_SAVEDIR, 'sf.txt')
+        open(sourcefilename,'a').close()
+
+        # open kst source file for later writing. 'r+' needed for writing to top of file
+        self._srcfile = open( sourcefilename, 'r+')
+
         self._timespan = pcp.GENERAL_CONFIG["srcfile_timespan"]
 
     def _initialise_daemon_writer(self):
@@ -739,7 +743,11 @@ class muxChannel(object):
             pass
         # close hardware connections
         if self.ri.fpga:
-            self.ri.fpga._disconnect()
+            #self.ri.fpga._disconnect()
+            #updated for casperfpga==0.1.1
+            self.ri.fpga.transport._timeout = 0.0
+            self.ri.fpga.transport.disconnect()
+
 
 
 class muxChannelList(object):

@@ -59,7 +59,7 @@ def write_to_fpga_register(fpga, regs_to_write, firmware_reg_list, sleep_time = 
     if check_registers_are_valid( regs_to_write.keys(), firmware_reg_list.keys() ):
         # write the registers
         for firmware_key, register_value in regs_to_write.iteritems():
-            fpga.write_int( firmware_reg_list[firmware_key],  int(register_value) )
+            fpga.write_int( firmware_reg_list[firmware_key],  _np.int32(register_value) )
             _time.sleep(sleep_time)
 
 def read_from_fpga_register(fpga, regs_to_read, firmware_reg_list):
@@ -93,7 +93,11 @@ def get_fpga_instance(ipaddress):
         return
 
     try:
-        return _casperfpga.katcp_fpga.KatcpFpga( ipaddress, timeout = 10. )
+        #return _casperfpga.katcp_fpga.KatcpFpga( ipaddress, timeout = 10. )
+        #This worked in casperfpga==0.0.1 but failed after pip upgrade to 0.1.1 
+        
+        #Replacing with up-to-date call from casperfpga==0.1.1
+        return _casperfpga.CasperFpga( ipaddress, timeout = 10. )
     except RuntimeError:
         # bad things have happened, and nothing else should proceed
         _logger.exception( "Error, fpga not connected." )
@@ -122,8 +126,12 @@ def progress_bar(function, estimated_time, description, tstep=0.2, tqdm_kwargs={
         function(*args, **kwargs)
     """
     ret = [None]  # Mutable var so the function can store its return value
+    exc = [None]
     def myrunner(function, ret, *args, **kwargs):
-        ret[0] = function(*args, **kwargs)
+        try:
+            ret[0] = function(*args, **kwargs)
+        except Exception as e:
+            exc[0] = e
 
     thread = _threading.Thread(target=myrunner, args=(function, ret) + tuple(args), kwargs=kwargs)
     pbar = _tqdm.tqdm(total=estimated_time, ncols=75, desc=description ,**tqdm_kwargs)
@@ -134,7 +142,11 @@ def progress_bar(function, estimated_time, description, tstep=0.2, tqdm_kwargs={
         pbar.update(tstep)
 
     pbar.close()
-    return ret[0]
+    
+    if exc[0] is None:
+        return ret[0]
+    else:
+        raise exc[0]
 
 def progress_wrapped(estimated_time, description, tstep=0.25, tqdm_kwargs={}):
     """Decorate a function to add a progress bar"""
@@ -212,8 +224,9 @@ class roachInterface(object):
 
         # check that socket send buffer is larger (should be done outside of this function)
 
-        # change the socket capacitcty to larger than data (next highest power of 2 )
-        self.fpga._sock.setsockopt( _socket.SOL_SOCKET, _socket.SO_SNDBUF, int(2**_np.ceil(_np.log2(self.LUTBUF_LEN))) )
+        #Removed as fast_blindwrite is unused and _sock not available in casperfpga==0.1.1
+        ## change the socket capacitcty to larger than data (next highest power of 2 )
+        #self.fpga._sock.setsockopt( _socket.SOL_SOCKET, _socket.SO_SNDBUF, int(2**_np.ceil(_np.log2(self.LUTBUF_LEN))) )
 
         # configure downlink
         self.configure_downlink_registers()
@@ -262,7 +275,7 @@ class roachInterface(object):
 
             print "An existing firmware is already running. Checking versions..."
             # read info from new firmware file to compare?
-            running_devinfo = self.fpga._read_design_info_from_host()["77777"] # <-- dictionary of metadata from fpg
+            running_devinfo = self.fpga.transport._read_design_info_from_host()["77777"] # <-- dictionary of metadata from fpg
             new_devinfo     = _casperfpga.utils.parse_fpg(firmware_file)[0]["77777"] # parse firmware file and return devinfo only
 
             if running_devinfo['builddate'] == new_devinfo['builddate'] and running_devinfo['system'] == new_devinfo['system']:
@@ -278,9 +291,10 @@ class roachInterface(object):
                     return False
 
         print cm.OKBLUE + "uploading firmware file \'{0}\' to roach".format(firmware_file) + cm.ENDC
-        success = self.fpga.upload_to_ram_and_program(firmware_file, timeout = 10.)
+        #success = self.fpga.upload_to_ram_and_program(firmware_file, timeout = 10.)
+        success = self.fpga.upload_to_ram_and_program(firmware_file)
         _time.sleep(0.5)
-        if success == None:
+        if success == True:
             print cm.OKGREEN + 'Successfully uploaded:', firmware_file, cm.ENDC
             self.firmware_file = firmware_file
             self.fpg_uploaded = True
@@ -483,56 +497,57 @@ class roachInterface(object):
             if which=='dac_lut':
                 print 'Waveform rescaled by fixed amount: waveMax:',waveMax,'New Ipp:',_np.ptp(i),'New Qpp:',_np.ptp(q)
             return i,q
+    
+    #removed as not used, and use of KatcpFpga._sock deprecated in casperfpga==0.1.1
+    #def _fast_blindwrite(self, device_name, data, offset=0, timeout=10):
+        #"""Stripped down copy of the blindwrite function, intended to be faster """
 
-    def _fast_blindwrite(self, device_name, data, offset=0, timeout=10):
-        """Stripped down copy of the blindwrite function, intended to be faster """
 
+        #assert _katcp, "katcp module not found."
+        #assert self.fpga.is_running(), "fpga firmware doesn't appear to be running "
+        #assert self.fpga.is_connected(), "connection to fpga doesn't appear to be alive"
 
-        assert _katcp, "katcp module not found."
-        assert self.fpga.is_running(), "fpga firmware doesn't appear to be running "
-        assert self.fpga.is_connected(), "connection to fpga doesn't appear to be alive"
+        #assert type(data) == str,    "You need to supply binary packed string data!"
+        #assert (len(data) % 4) == 0, "You must write 32-bit-bounded words!"
+        #assert (offset % 4)    == 0, "You must write 32-bit-bounded words!"
 
-        assert type(data) == str,    "You need to supply binary packed string data!"
-        assert (len(data) % 4) == 0, "You must write 32-bit-bounded words!"
-        assert (offset % 4)    == 0, "You must write 32-bit-bounded words!"
+        #sock = self.fpga._sock
 
-        sock = self.fpga._sock
+        #msgtosend = _katcp.Message.request("write", * (device_name, str(offset), data) )
 
-        msgtosend = _katcp.Message.request("write", * (device_name, str(offset), data) )
+        #data = str(msgtosend) + "\n" # <- takes ~ 1s? can we reduce this?
+        #datalen = len(data)
+        #print datalen
+        ## send the data (copy loop from katcp)
+        #send_failed = False
+        #totalsent = 0
+        #t0 = _time.time()
+        #print "socket send buffer", sock.getsockopt(_socket.SOL_SOCKET, _socket.SO_SNDBUF)
 
-        data = str(msgtosend) + "\n" # <- takes ~ 1s? can we reduce this?
-        datalen = len(data)
-        print datalen
-        # send the data (copy loop from katcp)
-        send_failed = False
-        totalsent = 0
-        t0 = _time.time()
-        print "socket send buffer", sock.getsockopt(_socket.SOL_SOCKET, _socket.SO_SNDBUF)
+        #while totalsent < datalen:
+            #if timeout is not None and _time.time() - t0 > timeout:
+                #_logger.warn('Timeout sending message')
+                #send_failed = True
+                #e = 'Could not send  message within timeout {0}'.format(timeout)
+                #break
+            #try:
+                #sent = sock.send(data[totalsent:])
+            #except _socket.error, e:
+                #if len(e.args) == 2 and e.args[0] == _errno.EAGAIN and sock is self.fpga._sock:
 
-        while totalsent < datalen:
-            if timeout is not None and _time.time() - t0 > timeout:
-                _logger.warn('Timeout sending message')
-                send_failed = True
-                e = 'Could not send  message within timeout {0}'.format(timeout)
-                break
-            try:
-                sent = sock.send(data[totalsent:])
-            except _socket.error, e:
-                if len(e.args) == 2 and e.args[0] == _errno.EAGAIN and sock is self.fpga._sock:
+                    #continue
+                #else:
+                    #send_failed = True
+                    #break
 
-                    continue
-                else:
-                    send_failed = True
-                    break
+            #if sent == 0:
+                #send_failed = True
+                #break
 
-            if sent == 0:
-                send_failed = True
-                break
+            #totalsent += sent
+            #print totalsent
 
-            totalsent += sent
-            print totalsent
-
-        return send_failed
+        #return send_failed
 
 
     def select_bins(self, freqs):
