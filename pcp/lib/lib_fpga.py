@@ -1,7 +1,7 @@
 # functions for control and configuration of the fpga/ppc
 
 import time as _time, os as _os, errno as _errno, logging as _logging, struct as _struct, socket as _socket # inet_aton as _inet_aton
-import threading as _threading, tqdm as _tqdm, functools as _functools, time as _time
+import threading as _threading, tqdm as _tqdm, functools as _functools, time as _time, ctypes as _ctypes
 from ..configuration import color_msg as cm
 
 import numpy as _np
@@ -112,6 +112,7 @@ def get_fpga_instance(ipaddress):
 
 # Based in the code of duckythescientist:
 # https://gist.github.com/duckythescientist/c06d87617b5d6ac1e00a622df760709d
+# Hacked by sr to catch exeptions and handle keyboard interrupts
 
 def progress_bar(function, estimated_time, description, tstep=0.2, tqdm_kwargs={}, args=[], kwargs={}):
     """Tqdm wrapper for a function
@@ -125,11 +126,30 @@ def progress_bar(function, estimated_time, description, tstep=0.2, tqdm_kwargs={
     ret:
         function(*args, **kwargs)
     """
-    ret = [None]  # Mutable var so the function can store its return value
+    
+    def get_id(thread): 
+        # returns id of the respective thread 
+        if hasattr(thread, '_thread_id'): 
+            return thread._thread_id 
+        for id, t in _threading._active.items(): 
+            if t is thread: 
+                return id
+            
+    def raise_exception(thread,exception): 
+        thread_id = get_id(thread) 
+        res = _ctypes.pythonapi.PyThreadState_SetAsyncExc(_ctypes.c_long(thread_id), 
+              _ctypes.py_object(exception)) 
+        if res > 1: 
+            _ctypes.pythonapi.PyThreadState_SetAsyncExc(_ctypes.c_long(thread_id), 0) 
+            print('Exception raise failure') 
+    
     exc = [None]
+    ret = [None]  # Mutable var so the function can store its return value
     def myrunner(function, ret, *args, **kwargs):
         try:
             ret[0] = function(*args, **kwargs)
+        except KeyboardInterrupt:
+            raise KeyboardInterrupt
         except Exception as e:
             exc[0] = e
 
@@ -137,10 +157,14 @@ def progress_bar(function, estimated_time, description, tstep=0.2, tqdm_kwargs={
     pbar = _tqdm.tqdm(total=estimated_time, ncols=75, desc=description ,**tqdm_kwargs)
 
     thread.start()
-    while thread.is_alive():
-        thread.join(timeout=tstep)
-        pbar.update(tstep)
-
+    try:
+        while thread.is_alive():
+            thread.join(timeout=tstep)
+            pbar.update(tstep)
+    except KeyboardInterrupt:
+        raise_exception(thread,KeyboardInterrupt)
+        thread.join()
+        raise KeyboardInterrupt
     pbar.close()
     
     if exc[0] is None:
@@ -157,7 +181,9 @@ def progress_wrapped(estimated_time, description, tstep=0.25, tqdm_kwargs={}):
             return progress_bar(function, estimated_time=estimated_time, description=description, tstep=tstep, tqdm_kwargs=tqdm_kwargs, args=args, kwargs=kwargs)
         return wrapper
     return decorator
+
 # ----------------------------------------------------------------------------
+
 
 class roachInterface(object):
     """
