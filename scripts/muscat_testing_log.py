@@ -74,10 +74,25 @@ mc.ri.initialise_fpga(force_reupload=True)
 #Error in upload_firmware_file due to upload_to_ram_and_program now returning True, not None
 #Error in fpga.write_int, udp_dest_mac value requires unsigned but casper is now returning signed values, fixed with cast to _np.int32 in write_to_fpga_register
 #Tested: OK
+#COMMIT: casperfpga==0.1.1 broke lib_fpga: more fixes in lib_fpga
 
 mc.write_freqs_to_fpga()
 Write new tones to qdr? [y/n]y
+File "pcp/lib/lib_fpga.py", line 424, in gen_waveform_from_freqs
+    spec[fft_bin_index] = amps * _np.exp( 1j * phases )
 ValueError: operands could not be broadcast together with shapes (215,) (197,)
+
+mc.toneslist.amps = mc.toneslist.amps[:197]
+mc.write_freqs_to_fpga()
+2020-08-20 15:24:27,204 - pcp.mux_channel - INFO - It looks like this set of tones has already been uploaded. Nothing done.
+
+#This is a bug, the tones were not uploaded, possibly the progress bar thread not forwarding on exceptions, which allowed the write_freqs_to_qdr to continue even though it failed 
+#Fixed in lib_fpga.progress_bar
+#Commit: lib_fpga.progress_bar handle exceptions correctly in tqdm progress bar
+#Commit: lib_fpga.progress_bar handle keyboard interrupt correctly
+
+#Also, random USB disconnect again. Restarting.
+
 
 
 
