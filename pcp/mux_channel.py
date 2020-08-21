@@ -133,7 +133,8 @@ class muxChannel(object):
         os.makedirs(self.AMPCORRDIR)      if not os.path.exists(self.AMPCORRDIR)      else None
 
         # create kst sourcefile in directory if it already doesn't exist
-        self._srcfile = open( os.path.join(self.DIRFILE_SAVEDIR, 'sf.txt'), 'r+')
+        try: self._srcfile = open( os.path.join(self.DIRFILE_SAVEDIR, 'sf.txt'), 'r+')
+        except IOError:
         self._timespan = pcp.GENERAL_CONFIG["srcfile_timespan"]
 
     def _initialise_daemon_writer(self):
@@ -289,7 +290,8 @@ class muxChannel(object):
                                         self.atten_out.attenuation, \
                                         self.toneslist.bb_freqs.tolist(),\
                                         self.toneslist.amps.tolist(),\
-                                        self.toneslist.phases.tolist() )
+                                        self.toneslist.phases.tolist(),
+                                        self.toneslist.tonelistfile )
 
     def set_active_dirfile(self, dirfile_name = "", filename_suffix = "", inc_derived_fields = False, **kwargs ):
         # if an empty string is given (default), then we pass the DIRFILE_SAVEDIR as the filename to lib_dirfile.create_dirfile,
@@ -614,7 +616,7 @@ class muxChannel(object):
         self.sweep.calc_sweep_cal_params( tonefreqs      = None, \
                                             method       = findf0_method, \
                                             exclude_idxs = self.toneslist.blindidxs )
-        # write the cal parameters to file - is this ever used? 
+        # write the cal parameters to file - is this ever used?
         self.sweep.write_sweep_cal_params(overwrite = True)
         # use method to find F0s from KID rountines
         _logger.debug( "new f0s found- {0}".format(self.sweep.calparams['f0s']) )
@@ -652,6 +654,7 @@ class muxChannel(object):
         stream_time     = stream_kwargs.pop("stream_time", None)
         save_data       = stream_kwargs.pop("save_data", True) # currently not used
         dont_ask        = stream_kwargs.pop("dont_ask", False)
+        symlink         = stream_kwargs.pop("symlink_sweep", True)
 
         dirfile_name = stream_kwargs.pop("dirfilename", "") # allow the user to pass in and append to an existing dirfile
 
@@ -669,7 +672,9 @@ class muxChannel(object):
 
         if isinstance( self.sweep.dirfile , _gd.dirfile ):
             # add sweepdirfile as a new fragment to the new dirfile
-            _lib_dirfiles.add_subdirfile_to_existing_dirfile(self.sweep.dirfile, self.current_dirfile, namespace = "sweep")
+            _lib_dirfiles.add_subdirfile_to_existing_dirfile( self.sweep.dirfile, self.current_dirfile,
+                                                            namespace = "sweep",
+                                                            symlink=symlink )
             # update stream calibration parameters from sweep
             self.sweep.write_stream_cal( self.current_dirfile )
 
@@ -735,7 +740,6 @@ class muxChannel(object):
         # close hardware connections
         if self.ri.fpga:
             self.ri.fpga._disconnect()
-
 
 
 class muxChannelList(object):

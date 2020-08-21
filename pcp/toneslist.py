@@ -6,6 +6,7 @@ toneslist class for handling everything to do with tones
 
 import os as _os, csv as _csv, datetime as _dt, logging as _logging, time as _time, yaml as _yaml
 import numpy as _np, pandas as _pd, matplotlib.pyplot as _plt
+import scipy.interpolate as spint
 
 _logger = _logging.getLogger(__name__)
 
@@ -135,7 +136,7 @@ class Toneslist(object):
 			Any keyword arguments to be passed into the user defined loader function
 
 		Methods
-		----------
+		-------
 
 		self.list_tonelistdir - lists all files contained in the pcp.configuration.TONELISTDIR.
 
@@ -205,21 +206,24 @@ class Toneslist(object):
 		self._counts = None
 
 		# containers for tone data
-		self.data 		 = None # full tonelist data, not intended to be modified
+		self.tonedata 		 = None # full tonelist data, not intended to be modified
 		self.blind_freqs = None # container for blind tones (if present)
 
 		self.tonenames = None
 
-		self.lo_freq     = None #
+		self.lo_freq     = None
 		self.rf_freqs    = None
 		self.bb_freqs    = None
-
+		self._valid_idxs = None
 		self.amps   = None
 		self.phases = None
 
 		self.blindidxs = None
 
+		self._params = None
+
 		self.sweep_lo_freqs = None
+
 
 		# load automatically if auto_load flag is set (default behaviour)
 		if auto_load == True:
@@ -258,6 +262,7 @@ class Toneslist(object):
 				atten_in  = _np.float32(tonedict['atten_in'])
 				atten_out = _np.float32(tonedict['atten_out'])
 				lofreq    = _np.float32(tonedict['lofreq'])
+				tl_file   = tonedict['tl_file']
 			except KeyError:
 				atten_in = atten_out = lofreq = None
 
@@ -279,9 +284,9 @@ class Toneslist(object):
 		#self.amps = amps; self.phases = phases; self.bb_freqs = bb_freqs
 		_logger.info("tones loaded {0}".format( _os.path.basename( self.tonehistory[datetime_tag])) )
 		#_time.sleep(0.1)
-		return lofreq, atten_in, atten_out, bb_freqs, amps, phases
+		return lofreq, atten_in, atten_out, bb_freqs, amps, phases, tl_file
 
-	def write_tonehistfile(self, lofreq, atten_in, atten_out, bb_freqs, amps, phases):
+	def write_tonehistfile(self, lofreq, atten_in, atten_out, bb_freqs, amps, phases, tl_file):
 		""" Write the current tone parameters to a timestamped .tone file in the tonehistdir for the given
 		roachid. """
 
@@ -299,7 +304,8 @@ class Toneslist(object):
 				'phases'   : phases, \
 				'atten_in' : atten_in,\
 				'atten_out': atten_out,\
-				'lofreq'   : lofreq	}
+				'lofreq'   : lofreq,\
+				'tl_file'  : tl_file }
 
 		outfname = _os.path.join( self.TONEHISTDIR, datetag )
 		with open(outfname, 'w') as outfile:
@@ -314,24 +320,37 @@ class Toneslist(object):
 		return self._lo_freq
 
 	@lo_freq.setter
-	def lo_freq(self, lo_freq, reset_all = False):
+	def lo_freq(self, lo_freq):
+
 		# coerce new value to given resolution
 		lo_freq = self.synth_resolution * round( float(lo_freq) / self.synth_resolution) if lo_freq is not None else None
-		# set the lo frequency
+
+		# set the parameter
 		self._lo_freq = lo_freq
-		# recalculate bb_freqs
+
+		#recalculate baseband frequencies
 		self._update_frequencies(reset_all = False)
-		# check tones fit in bandwidth?
+
+	@property
+	def rf_freqs(self):
+		"""Get the rf frequencies. Units should all be in Hz."""
+		return self._rf_freqs
+
+	@rf_freqs.setter
+	def rf_freqs(self, rf_freqs):
+		self._rf_freqs = rf_freqs
+		# recalculate baseband frequencies
+		self._update_frequencies(reset_all = False)
 
 	@property
 	def bb_freqs(self):
-		"""Get or set the frequency of the synthesizer. Units should all be in Hz."""
+		"""Get or set the  baseband frequencies. Units should all be in Hz."""
 		return self._bb_freqs
 
 	@bb_freqs.setter
 	def bb_freqs(self, bb_freqs):
-		# before setting the bb_freqs, check that they fit within the available bandwidth
 
+		# before setting the bb_freqs, check that they fit within the available bandwidth
 		if isinstance(bb_freqs, (_np.ndarray, _pd.Series) ) :
 
 			valid_idxs = self._get_valid_tone_idxs( bb_freqs )
@@ -347,115 +366,48 @@ class Toneslist(object):
 			_logger.info ( "bb_freqs = {0}".format(bb_freqs) )
 			self._bb_freqs = bb_freqs
 
-	def _calcampcorr(self):
-		return  _np.prod([a for k, a in self.ampcorr.items() if k not in ['total']], axis = 0)
-
-	def _load_ampcorrdir(self):
-		""" Function to load and return the tonehistory """
-		if self.AMPCORRDIR:
-			for acfile in [f for f in _os.listdir(self.AMPCORRDIR) if not f.startswith(".")]:
-				name, ext = _os.path.splitext(acfile)
-				self.ampcorrfiles[name.split("_")[0]] = _os.path.join(self.AMPCORRDIR, acfile)
-		else:
-			_logger.warning("no ampcorr directory given. limited functionality")
-
-	def _read_ampcorrfile(self, datetag):
-		assert datetag in self.ampcorrfiles.keys(), "given datatime tag is not present. available keys are: {0}".format(self.ampcorrfiles.keys())
-		# open and read the file
-		with open(self.ampcorrfiles[datetag], 'r') as fin:
-			data = _yaml.safe_load(fin)
-
-		# turn all values into np.arrays
-		_ = [ data.update( {k: _np.array(v) }) for k,v in data.items()]
-
-		# update the ampcorr dict with the new values from the file
-		self.ampcorr.update( data )
-
-
-	def _write_ampcorrfile(self, ignore_dups = False):
-		"""Write the current ampcorr data to a numpy file. This is tied to the tonelist file..."""
-		# get the data
-
-		tonelistfname = _os.path.splitext (_os.path.basename(self.tonelistfile).lower())[0]
-
-		# check to see if toneslist file already exists in here and warn?
-		dups =  map( lambda x: tonelistfname in x, self.ampcorrfiles.values() )
-
-		if any( dups ) and not ignore_dups:
-			_logger.error ( "possible duplicate using same toneslist already exists. To continue, re-run with ignore_dups = True" )
-			_time.sleep(0.1)
-			return
-
-		# filename? date + toneslistname?
-		fname = _dt.datetime.strftime(_dt.datetime.now(), self._DTFMT) + "_" + tonelistfname + ".ac"
-
-		# file format? human readable?
-		data = dict( ( k, v.tolist() ) for (k, v) in self.ampcorr.items() if k not in ['total'] )
-
-		with open( _os.path.join(self.AMPCORRDIR, fname), 'w') as outfile:
-			_yaml.dump(data, outfile, default_flow_style=False)
-
-		#update the current directory to include the new file
-		self._load_ampcorrdir()
-
 	def _update_frequencies(self, reset_all = False):
 		"""
 		Function to update the class variables that store the frequency lists "rf_freqs", "bb_freqs"...etc
 		"""
+		# check that attributes exsist ( catches initialisation step )
+		if hasattr(self, '_lo_freq') and hasattr(self, '_rf_freqs'):
 
-		# fill in all the local variables for use later
-		if self._lo_freq is not None:
-			self.rf_freqs = _np.array( self.data['freq'] ) #if not baseband else data['freq'] + self.lo_freq
-			self.bb_freqs = _np.array( self.data['freq'] - self.lo_freq )#if     baseband else data['freq'] - self.lo_freq
-			if reset_all == True:
-				self.amps     = None
-				self.phases   = None
+			if self.lo_freq is not None and isinstance(self.rf_freqs, (_np.ndarray, _pd.Series)):
+				# set the bb_freqs according to the given rf and lo_freqs
+				self.bb_freqs = self.rf_freqs - self.lo_freq#if     baseband else data['freq'] - self.lo_freq
+				self.amps     = self.amps[self._valid_idxs] if self.amps is not None else None
+				self.phases   = self.phases[self._valid_idxs] if self.phases is not None else None
 
-		else:
-			_logger.warning( 'LO frequency must be set when loading RF frequencies.' )
+				if reset_all == True:
+					self.amps     = None
+					self.phases   = None
 
-	def _get_valid_tone_idxs(self, bb_freqs ):
-		"""Check that a list of bb_freqs fits in the given bandwidth. Also checks for nan tones,
-		and those are removed.
-
-		Returns list of valid indexes
-		"""
-
-		if bb_freqs is not None:
-			# temporarily ignore the invalid warning if nans exist
-			with _np.errstate(invalid='ignore'):
- 				return _np.argwhere( _np.abs( bb_freqs ) <= self._bandwidth/2. ).flatten()
-
-	def list_tonelistdir(self, full_path = True):
-		"""
-		Utility function to return a list of all the files contained in a directory.
-		Optionally allow full path to be returned (default).
-		"""
-		assert _os.path.exists(self.TONELISTDIR)
-		tonefilelist = _os.listdir(self.TONELISTDIR)
-
-		return map( lambda x: _os.path.join(self.TONELISTDIR, x), tonefilelist ) if full_path else tonefilelist
-
-	def set_phases(self, how = 'random'):
-		"""Function to calculate a set of set of phases to be used for the writing of the tones"""
-
-		valid_how =  ['random', 'opposite', 'none']
-
-		assert how in valid_how, "given 'which' parameter not recognised -- currently implemented = {0}".format(valid_how)
-		assert self.bb_freqs is not None, "no tonelist loaded. load and try again"
-
-		if how == "random":
-			_np.random.seed()
-			self.phases = _np.random.uniform(0., 2.*_np.pi, len(self.bb_freqs))
-
-		elif how == "none":
-			self.phases = _np.zeros_like(self.bb_freqs)
-
-		elif how == "opposite":
-			_logger.warning("opposite not currently implmented. defaulting to zeros")
-			self.phases = _np.zeros_like(self.bb_freqs) # <-- need to implement opposite phase for improved sideband leakage
+			else:
+				_logger.warning( 'LO or RF frequencies must be set when loading RF frequencies.' )
 
 	def load_tonelist(self, tonelistfile = "", **loaderkwargs):
+		"""
+		Method to load a tonelist file. Uses the loader_function as defined in the parent class.
+
+		Handles a few situations that depend on the output of loader_function:
+			- pandas.dataframe -> usual behaviour to read a multi-column toneslist
+			- numpy.ndarray, list (ndim = 1) -> handles single list of frequencies
+			- numpy.ndarray, list (ndim = 3) -> assumes 3 lists/arrays of name,freq,power
+
+		Parameters
+		----------
+		tonelistfile : str
+			Path to a tonelist file. Full path is recommended. Checks are done to ensure that the file exists.
+
+		loaderkwargs : tuple
+			Additional keyword  arguments to be passed to the loader function.
+
+		Examples
+		--------
+
+
+		"""
 		if not self.loader_function:
 			_logger.error( "no loader function available. set one and try again." )
 			return
@@ -486,7 +438,7 @@ class Toneslist(object):
 				data.insert(2, 'blind', _pd.Series( _np.zeros_like(data.index) , index=data.index))
 			if 'power' not in data.columns:
 				data.insert(3, 'power', _pd.Series( _np.zeros_like(data.index) , index=data.index))
-			self.data = data
+			self.tonedata = data
 
 		elif type(data) in [np.ndarray, list, tuple]:
 			# if the toneslist is an array, try to create a dataframe
@@ -500,18 +452,31 @@ class Toneslist(object):
 				# assume that data is an iterable with 3 cols, name, freq, power
 				data = {name: val for (name, val) in zip(['name', 'freq', 'power'], data) }
 
-			self.data = _pd.DataFrame(data = data)
+			self.tonedata = _pd.DataFrame(data = data)
 
 		else:
 			_logger.error( """Couldn't parse data into a sensible format. Data has been returned, but is likely not usable.
 			Check the output of the loader function""" )
-			self.data = data
+			self.tonedata = data
 			return
 
-		# get an array of the tonenames for convenience
-		self.tonenames = self.data['name'].get_values()
-		self.blindidxs = self.data['blind'].get_values()
+		# extract the frequency columns that contain a parameter in format freq [XXX]
+		self._freqcols = filter(lambda x: 'freq [' in x, self.tonedata.columns)
+		# create list of available parameters by extracting info with square brackets
+		self._params = _np.array( [fc[slice(1 + fc.index('['), fc.index(']') ) ] for fc in self._freqcols ], dtype=float)
+		# set the frequencies accordign to the tonedata
+		self._reset_freqs()
 
+		_logger.info("Successfully loaded toneslist file {0}".format(file_to_read) )
+		_time.sleep(0.01)
+
+	def _reset_freqs(self):
+		# create the rf_freqs (this will also set the lo_freq)
+		self.rf_freqs = _np.array(self.tonedata['freq'])
+
+		# get an array of the tonenames for convenience
+		self.tonenames = self.tonedata['name'].get_values()
+		self.blindidxs = self.tonedata['blind'].get_values()
 		# if successful, try to find the optimum LO frequency automatically
 		self.lo_freq = self.find_optimum_lo() # this will trigger the frequency lists to be updated
 
@@ -520,8 +485,201 @@ class Toneslist(object):
 		self.set_phases(how = "random")
 		self.ampcorr.update({'default': _np.ones(self.tonenames.shape)})
 
-		_logger.info("Successfully loaded toneslist file {0}".format(file_to_read) )
-		_time.sleep(0.01)
+	def _calcampcorr(self):
+		return  _np.prod([a for k, a in self.ampcorr.items() if k not in ['total']], axis = 0)
+
+	def _load_ampcorrdir(self):
+		""" Function to load and return the tonehistory """
+		if self.AMPCORRDIR:
+			for acfile in [f for f in _os.listdir(self.AMPCORRDIR) if not f.startswith(".")]:
+				name, ext = _os.path.splitext(acfile)
+				self.ampcorrfiles[name.split("_")[0]] = _os.path.join(self.AMPCORRDIR, acfile)
+		else:
+			_logger.warning("no ampcorr directory given. limited functionality")
+
+	def _read_ampcorrfile(self, datetag):
+		assert datetag in self.ampcorrfiles.keys(), "given datatime tag is not present. available keys are: {0}".format(self.ampcorrfiles.keys())
+		# open and read the file
+		with open(self.ampcorrfiles[datetag], 'r') as fin:
+			data = _yaml.safe_load(fin)
+
+		# turn all values into np.arrays
+		_ = [ data.update( {k: _np.array(v) }) for k,v in data.items()]
+
+		# update the ampcorr dict with the new values from the file
+		self.ampcorr.update( data )
+
+	def _write_ampcorrfile(self, ignore_dups = False):
+		"""Write the current ampcorr data to a numpy file. This is tied to the tonelist file..."""
+		# get the data
+
+		tonelistfname = _os.path.splitext (_os.path.basename(self.tonelistfile).lower())[0]
+
+		# check to see if toneslist file already exists in here and warn?
+		dups =  map( lambda x: tonelistfname in x, self.ampcorrfiles.values() )
+
+		if any( dups ) and not ignore_dups:
+			_logger.error ( "possible duplicate using same toneslist already exists. To continue, re-run with ignore_dups = True" )
+			_time.sleep(0.1)
+			return
+
+		# filename? date + toneslistname?
+		fname = _dt.datetime.strftime(_dt.datetime.now(), self._DTFMT) + "_" + tonelistfname + ".ac"
+
+		# file format? human readable?
+		data = dict( ( k, v.tolist() ) for (k, v) in self.ampcorr.items() if k not in ['total'] )
+
+		with open( _os.path.join(self.AMPCORRDIR, fname), 'w') as outfile:
+			_yaml.dump(data, outfile, default_flow_style=False)
+
+		#update the current directory to include the new file
+		self._load_ampcorrdir()
+
+	def _get_valid_tone_idxs(self, bb_freqs ):
+		"""Check that a list of bb_freqs fits in the given bandwidth. Also checks for nan tones,
+		and those are removed.
+
+		Returns list of valid indexes
+		"""
+
+		if bb_freqs is not None:
+			# temporarily ignore the invalid warning if nans exist
+			with _np.errstate(invalid='ignore'):
+ 				return _np.argwhere( _np.abs( bb_freqs ) <= self._bandwidth/2. ).flatten()
+
+
+	def load_freqs_from_param(self, param):
+
+		assert self._params is not None, 'no parameters found'
+		#assert param in self._params, 'given parameter {0} not found in '
+
+		if param not in self._params:
+			assert len(self._params) > 1, 'single param in list, interpolation not possible'
+
+			# set up interpolation table and define function
+			interpfun = spint.interp1d(self._params, self.tonedata[self._freqcols])
+			# set rf_freqs to the interpolated value
+			new_rf_freqs = interpfun(param).astype(_np.int64)
+		else:
+			# no interpolation, just return the exact values
+			key = [s for s in self.tonedata.columns if 'freq [' + str(param) in s][0]
+			new_rf_freqs = self.tonedata[key]
+
+		self.rf_freqs = _np.array(new_rf_freqs)
+		_logger.info("loaded new rf frequencies")
+
+	def addrem_rf_freqs(self, idxs, vals= None, amps=None, phases=None, tonenames=None):
+		"""
+		Function to insert or remove a set of rf_freqs to/from the existing frequency lists. Updates all lists appropriately.
+		If only idxs  is  given, then those indexes are removed.
+
+		Parameters
+		----------
+		idxs : int, array_like
+			Index or indicies of tones to add or remove.
+
+		vals : int, array_like
+			New frequency values.
+
+		amps : int, array_like
+			New amplitude values.
+
+		phases : int, array_like
+			New phases values.
+
+		tonenames : str, array_like
+			New tonenames.
+
+		Notes
+		-----
+		Fixes 'feature' of numpy.insert and numpy.delete to allow normal negative indexing.
+
+		"""
+		idxs = _np.atleast_1d(idxs)
+		vals = _np.atleast_1d(vals)
+
+		negidxs = idxs < 0
+
+		if vals == None: # remove indexes
+			idxs[negidxs] = self.rf_freqs.size + idxs[negidxs]
+
+			self.amps      = _np.delete(self.amps,      idxs)
+			self.phases    = _np.delete(self.phases,    idxs)
+			self.tonenames = _np.delete(self.tonenames, idxs)
+			self.rf_freqs  = _np.delete(self.rf_freqs,  idxs)
+
+		else: 	# add vals at corresponding indexes
+			# take care of negative indexes
+			idxs[negidxs] = 1 + self.rf_freqs.size + idxs[negidxs]
+
+			tonenames = tonenames  if tonenames is not None else ["M{0:03d}".format(i) for i in _np.arange( len(vals) )]
+			amps      = amps       if amps      is not None else 1
+			phases    = phases     if phases    is not None else _np.random.uniform(0., 2.*_np.pi, len(vals))
+
+			self.amps      = _np.insert(self.amps,      idxs, amps )
+			self.phases    = _np.insert(self.phases,    idxs, phases )
+			self.tonenames = _np.insert(self.tonenames, idxs, tonenames )
+			self.rf_freqs  = _np.insert(self.rf_freqs,  idxs, vals )
+
+
+	# def add_freqlist(self, label = "", newfreqs = None):
+	# 	pass
+	# 	# if newfreqs == None:
+	# 	# 	use the current bb_freqs
+	# 	# else
+	# 	# 	ensure that the new freqs have same shape as current toneslist ?
+	#
+	# 	# get the index of the last 'freq' column
+	#
+	# 	# how to handle
+	# 	# pass the de
+
+	def create_dataframe(self):
+		"""Function to create a new tonedata dataframe from existing arrays. """
+		# create dictionary of all
+		newdf = {}
+		newdf["name"]= self.tonenames
+		newdf["freq"]= self.rf_freqs
+		newdf["blind"]= self.blindidxs
+		newdf["power"]= _np.zeros_like(self.blindidxs)
+		self._oldtonedata = self.tonedata
+		self.tonedata = _pd.DataFrame(newdf)
+
+	def save_tonedata_tofile(self, filename=""):
+		# create filename (no checks for overwriting existing file)
+		filename = filename if filename else _dt.datetime.strftime(_dt.datetime.now(), self._DTFMT) + ".txt"
+		filename = _os.path.join(self.TONELISTDIR, filename)
+
+		self.tonedata.to_csv(filename, index=False,  sep='\t')
+
+	def list_tonelistdir(self, full_path = True):
+		"""
+		Utility function to return a list of all the files contained in a directory.
+		Optionally allow full path to be returned (default).
+		"""
+		assert _os.path.exists(self.TONELISTDIR)
+		tonefilelist = _os.listdir(self.TONELISTDIR)
+
+		return map( lambda x: _os.path.join(self.TONELISTDIR, x), tonefilelist ) if full_path else tonefilelist
+
+	def set_phases(self, how = 'random'):
+		"""Function to calculate a set of set of phases to be used for the writing of the tones"""
+
+		valid_how =  ['random', 'opposite', 'none']
+
+		assert how in valid_how, "given 'which' parameter not recognised -- currently implemented = {0}".format(valid_how)
+		assert isinstance(self.bb_freqs, (_np.ndarray)), "no tonelist loaded. load and try again"
+
+		if how == "random":
+			_np.random.seed()
+			self.phases = _np.random.uniform(0., 2.*_np.pi, len(self.bb_freqs))
+
+		elif how == "none":
+			self.phases = _np.zeros_like(self.bb_freqs)
+
+		elif how == "opposite":
+			_logger.warning("opposite not currently implmented. defaulting to zeros")
+			self.phases = _np.zeros_like(self.bb_freqs) # <-- need to implement opposite phase for improved sideband leakage
 
 	def find_optimum_lo(self):
 		"""For a given set of tones, this function will find the optimum LO frequency to
@@ -531,14 +689,18 @@ class Toneslist(object):
 		# TODO: could try to make this more interactive to include optimisation of lo-placement to
 		# keep tones too close to band edge... etc
 		# = need to take into account the resolution of the lo-frequency
-
-		data_range = self.data["freq"].max()/1.e6 - self.data["freq"].min()/1.e6
+		# check that rf_freqs exists
+		if not isinstance(self.rf_freqs, _np.ndarray):
+			_logger.info("no rf freqs given. load tonelist and retry.")
+			return
+		#data_range = self.tonedata["freq"].max()/1.e6 - self.tonedata["freq"].min()/1.e6
+		data_range = self.rf_freqs.max()/1.e6 - self.rf_freqs.min()/1.e6
 
 		#lo_placement_resolution = 10.
 		#npoints = int( _np.ceil( data_range / lo_placement_resolution) ) + 1
 		npoints = 101
 
-		lo_freqs = _np.linspace(self.data["freq"].min(), self.data["freq"].max(), npoints)/1.e6
+		lo_freqs = _np.linspace(self.rf_freqs.min(), self.rf_freqs.max(), npoints)/1.e6
 
 		self._lo_freqs = lo_freqs * 1.e6 # save this for plotting
 		startvals = lo_freqs - self._bandwidth/2./1.e6
@@ -546,7 +708,7 @@ class Toneslist(object):
 
 		counts = []
 		for startval, stopval in zip(startvals, stopvals):
-			counts.append(_np.histogram(self.data["freq"]/1.e6, bins=(startval, stopval))[0])
+			counts.append(_np.histogram(self.rf_freqs/1.e6, bins=(startval, stopval))[0])
 		self._counts = _np.array(counts).flatten()
 
 		# find maximum of values where
@@ -554,7 +716,7 @@ class Toneslist(object):
 
 		if all(_np.diff(maxvals) == 1):
 			# all values are consecutive, so, try to choose the one that is furthest away from tones
-			lo_optimum_idx = maxvals[ _np.argmax([abs(self.data['freq']/1.e6 - v).min() for v in lo_freqs[maxvals]]) ]
+			lo_optimum_idx = maxvals[ _np.argmax([abs(self.rf_freqs/1.e6 - v).min() for v in lo_freqs[maxvals]]) ]
 
 		else:
 			# there appears to be multiple 'optimum' locations
@@ -626,7 +788,7 @@ class Toneslist(object):
 		fig, ax = _plt.subplots(numplots,1, figsize = [6.5, 3], sharex=True, gridspec_kw = {'height_ratios':[3, 1]} )
 		ax = _np.atleast_1d(ax)
 
-		plots = [ ax[0].axvline(l) for l in self.data['freq']/multiplier ]
+		plots = [ ax[0].axvline(l) for l in self.rf_freqs/multiplier ]
 		ax[0].axvline(self.lo_freq/multiplier, color = 'r', lw=2)
 		ax[0].axvspan(self.lo_freq/multiplier - self._bandwidth/2./multiplier, self.lo_freq/multiplier + self._bandwidth/2/multiplier, color = 'b', alpha=0.25)
 		if len(ax) > 1:

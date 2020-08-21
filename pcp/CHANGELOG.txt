@@ -3,6 +3,20 @@ This file will document and keep track of changes with each push to the master b
 
 Put most recent commits at the top please!
 
+2020-08-20 ================
+ - updates to the tonelist object:
+    - updated how the tonelist updates, so now bb_freqs is purely a derived quantity and is modified correctly whenever rf_freqs or lo_freq is changed
+    the same is also now true for amps and phases, with the correct behaviour if any bb_freqs get clipped due to being outside the IF bandwidth
+    - you can now add/remove an rf_freq, and it will update all the lists correctly (currently when adding, default amp = 1 and random phase are assumed)
+    - implemented the ability to have multiple frequency lists in a single tone lists - for these additional lists to be useful, they need to include a
+    tag in the column header (format "freq [XXXX] xyz" where the XXXX parameter is extracted and converted to a float. There is a function
+    'tonesList.load_freqs_from_param' that allows you load a set of frequencies (rf_freqs, bb_freqs...etc) from a given parameter, orl interpolate between
+    values if required.
+    - included some convenience functions to modify and save toneslist files for later use
+
+2020-07-25 ================
+- modified symlink-ing of sweep to a relative path - fixes issues when copying data to external machines for offline analysis
+
 2020-06-30 ================
 - added input and output attenuations and lofreq to tonehistory files
 

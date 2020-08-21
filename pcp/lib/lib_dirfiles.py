@@ -550,6 +550,7 @@ def add_subdirfile_to_existing_dirfile(subdirfile, dirfile, namespace = "", fiel
 
     # check that the destination doesn't exist and ask the user for permission to overwrite -maybe this should be removed
     new_subdirfile_path = os.path.join(dirfile.name, os.path.basename(subdirfile.name))
+
     if os.path.exists(new_subdirfile_path):
         if overwrite:
             # delete old path and continue
@@ -563,8 +564,10 @@ def add_subdirfile_to_existing_dirfile(subdirfile, dirfile, namespace = "", fiel
     try:
         # copy the subdirfile to the maindirfile using the same base name
         if symlink:
-            os.symlink(subdirfile.name, new_subdirfile_path)
+            # symlink the relative path
+            os.symlink(os.path.relpath(subdirfile.name, dirfile.name), new_subdirfile_path)
         else:
+            # copy the full sweep file
             shutil.copytree(subdirfile.name, new_subdirfile_path)
 
     except OSError as err:

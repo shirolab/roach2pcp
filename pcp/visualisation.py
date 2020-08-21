@@ -683,7 +683,8 @@ class pcpInteractivePlot(object):
         Simple sweep visualizer. Possible options:
             - Use left/right arrow keys to browse through tones.
             - Shift + click to add a tone to the re-analyze list.
-            - Double click on the IQ plot to manually reposition the tone.
+            - Double left click on the IQ plot to manually reposition the tone.
+            - Double right click on the IQ plot to add a new tone at that position
 
         """)
     @property
@@ -876,16 +877,16 @@ class pcpInteractivePlot(object):
         self.fig.set_facecolor( self._color_dict['picked'] ) if self.idx in self._picked \
                                                             else self.fig.set_facecolor( self._color_dict['default'] )
         self.fig.canvas.draw()
-        #plt.draw()
 
+        #plt.draw()
         #plt.show(block=self.block)
 
-    def get_picked_f0s(self):
+    def get_picked_f0s(self, swpidx = 0):
         """Get the current list of resonant frequencies, including any manually modified ones. If none are modified,
         it returns calparams['f0s']. """
 
         #for sweep in self.sweeplist:
-        sweep = self.sweeplist[0]
+        sweep = self.sweeplist[ swpidx ]
         # generate an index and bool mask to set only the frequencies that have been manually picked
         idxmask  = range(len(self._pkdidxs)), self._pkdidxs
         boolmask = self._pkdidxs.astype('bool')
@@ -895,7 +896,6 @@ class pcpInteractivePlot(object):
         _np.putmask(newf0s, boolmask, sweep.rf_freqs[idxmask])
 
         return newf0s
-
 
     def _on_key_press(self, event):
         if event.key == 'right':
@@ -928,10 +928,20 @@ class pcpInteractivePlot(object):
             # handle multiple indicies returned by picked event correctly
             idx = _np.atleast_1d(event.ind).mean()
 
+            if event.mouseevent.button == 1:
             # if a particular idx already exists, then set back to zero to clear
-            self._pkdidxs[self.idx] = idx if self._pkdidxs[self.idx] != idx else 0
+                self._pkdidxs[self.idx] = idx if self._pkdidxs[self.idx] != idx else 0
+
+            elif event.mouseevent.button == 3:
+                print 'new frequency added '
+                # need to add a new point
+                # 
+                # add a new index to the array
+
             # redraw plot
             self.refresh_plot()
+
+
 
 
 
