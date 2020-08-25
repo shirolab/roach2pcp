@@ -81,9 +81,9 @@ class muxChannel(object):
         self.writer_daemon = self._initialise_daemon_writer()
 
         # configure the tonelist - added functionality to modify datapacket_dict when the toneslist changes
-        self.toneslist = toneslist.Toneslist(roachid, loader_function = _pd.read_csv)
-        self.writer_daemon.initialise_datapacket_dict( self.toneslist )
-        self.toneslist.load_tonelist = self._decorate_tonelist_loader( self.toneslist.load_tonelist )
+        self.tl = toneslist.Toneslist(roachid, loader_function = _pd.read_csv)
+        self.writer_daemon.initialise_datapacket_dict( self.tl.tonenames_sorted )
+        self.tl.load_tonelist = self._decorate_tonelist_loader( self.tl.load_tonelist )
 
         # set up the sweep object (used for storing saved data)
         self.sweep = sweep.pcpSweep(outputdir = os.path.join( self.TUNINGDIR, 'sweeps') )
@@ -114,7 +114,7 @@ class muxChannel(object):
         def load_and_update_datapacket_dict(*args, **kwargs):
             original_loader_function(*args, **kwargs)
             #self._refresh_datapacket_dict()
-            self.writer_daemon.initialise_datapacket_dict( self.toneslist )
+            self.writer_daemon.initialise_datapacket_dict( self.tl.sorted_tonenames )
         return load_and_update_datapacket_dict
 
     def _initialise_folders(self):
@@ -199,7 +199,7 @@ class muxChannel(object):
 
         try:
             self.synth_lo = pcp.SYNTHS_IN_USE[synthid_lo].synthobj
-            self.synth_lo.frequency = self.toneslist.lo_freq
+            self.synth_lo.frequency = self.tl.lo_freq
         except KeyError:
             logger.warning("synthid = {0} not recognised. Check configuration file".format(synthid_lo))
 
@@ -265,37 +265,37 @@ class muxChannel(object):
             return
         # check if new tones equal old tones, return if True
         if check:
-            if all(self.toneslist.bb_freqs == self._last_written_bb_freqs):
+            if all(self.tl.bb_freqs == self._last_written_bb_freqs):
                 _logger.info("It looks like this set of tones has already been uploaded. Nothing done.")
                 return
 
         # check that toneslist LO and synth LO match - if not yell and or ask to change the LO
-        assert self.toneslist.lo_freq == self.synth_lo.frequency, "synth frequency doesn't match toneslist.lo_freq"
+        assert self.tl.lo_freq == self.synth_lo.frequency, "synth frequency doesn't match toneslist.lo_freq"
 
         # If requested, use amplitude correction
         if corrtouse is not None:
             if corrtouse == 'total':
-                self.toneslist.amps = self.toneslist.ampcorr[corrtouse]()
+                self.tl.amps = self.tl.ampcorr[corrtouse]()
             else:
-                self.toneslist.amps = self.toneslist.ampcorr[corrtouse] # should be a timestamp
+                self.tl.amps = self.tl.ampcorr[corrtouse] # should be a timestamp
 
         # write_freqs_to_qdr
         if auto_write or raw_input("Write new tones to qdr? [y/n]").lower() == 'y':
-            self.ri.write_freqs_to_qdr(self.toneslist.bb_freqs, self.toneslist.amps, self.toneslist.phases)
+            self.ri.write_freqs_to_qdr(self.tl.bb_freqs, self.tl.amps, self.tl.phases)
         else:
             _logger.info("new tones loaded but not written to qdr.")
 
         # write newly written tones to hidden variable for future checks
-        self._last_written_bb_freqs = self.toneslist.bb_freqs
+        self._last_written_bb_freqs = self.tl.bb_freqs
 
         # lofreq, atten_in, atten_out, amps, phases, bb_freqs
-        self.toneslist.write_tonehistfile(self.synth_lo.frequency,  \
+        self.tl.write_tonehistfile(self.synth_lo.frequency,  \
                                         self.atten_in.attenuation,  \
                                         self.atten_out.attenuation, \
-                                        self.toneslist.bb_freqs.tolist(),\
-                                        self.toneslist.amps.tolist(),\
-                                        self.toneslist.phases.tolist(),
-                                        self.toneslist.tonelistfile )
+                                        self.tl._bb_freqs.tolist(),\
+                                        self.tl._amps.tolist(),\
+                                        self.tl._phases.tolist(),
+                                        self.tl.tonelistfile )
 
     def set_active_dirfile(self, dirfile_name = "", filename_suffix = "", inc_derived_fields = False, **kwargs ):
         # if an empty string is given (default), then we pass the DIRFILE_SAVEDIR as the filename to lib_dirfile.create_dirfile,
@@ -319,7 +319,7 @@ class muxChannel(object):
             _logger.info( "filename given: {0}".format(dirfile_name) )
             dirfile_name = _lib_dirfiles.create_pcp_dirfile( self.roachid, \
                                                             dfname          = dirfile_name,    \
-                                                            tonenames       = self.toneslist.tonenames, \
+                                                            tonenames       = self.tl.tonenames, \
                                                             filename_suffix = filename_suffix,
                                                             **kwargs )
             # close previous dirfile
@@ -339,9 +339,9 @@ class muxChannel(object):
         time.sleep(0.1)
 
         # add tone information to the dirfile
-        self.current_dirfile.put_carray(   "bbfreqs", self.toneslist.bb_freqs)
-        self.current_dirfile.put_constant( "lofreq",  self.toneslist.lo_freq )
-        self.current_dirfile.put_sarray(   "tonenames", list(self.toneslist.tonenames) )
+        self.current_dirfile.put_carray(   "bbfreqs", self.tl.bb_freqs)
+        self.current_dirfile.put_constant( "lofreq",  self.tl.lo_freq )
+        self.current_dirfile.put_sarray(   "tonenames", list(self.tl.tonenames) )
         self.current_dirfile.flush()
         # add the file to the source file
         _lib_dirfiles.append_dirfile_to_sourcefile(self._srcfile,
@@ -399,11 +399,11 @@ class muxChannel(object):
 
         # acutally do the sweep - loop over LO frequencies, while saving time at lo_step
         try:
-            sweepdirection = np.sign( np.diff(self.toneslist.sweep_lo_freqs) )[0] # +/- 1 for forward/backward - not used right now
-            _logger.info('Sweeping LO %3.1f kHz around %3.3f MHz in %1.1f kHz steps' % (np.ptp(self.toneslist.sweep_lo_freqs/1.e3),
-                                                                                        np.mean(self.toneslist.sweep_lo_freqs/1.e6),
-                                                                                        np.median(np.diff(self.toneslist.sweep_lo_freqs)) / 1.e3))
-            for ix, lo_freq in enumerate(self.toneslist.sweep_lo_freqs):
+            sweepdirection = np.sign( np.diff(self.tl.sweep_lo_freqs) )[0] # +/- 1 for forward/backward - not used right now
+            _logger.info('Sweeping LO %3.1f kHz around %3.3f MHz in %1.1f kHz steps' % (np.ptp(self.tl.sweep_lo_freqs/1.e3),
+                                                                                        np.mean(self.tl.sweep_lo_freqs/1.e6),
+                                                                                        np.median(np.diff(self.tl.sweep_lo_freqs)) / 1.e3))
+            for ix, lo_freq in enumerate(self.tl.sweep_lo_freqs):
 
                 if self.loswitch == True: # only switch if the muxchannel is configured to do so
                     self.synth_lo.frequency = lo_freq
@@ -436,11 +436,11 @@ class muxChannel(object):
         self.writer_daemon.pause_writing()
 
         #  get only the indexes that were swept
-        lofreqs_that_were_swept = self.toneslist.sweep_lo_freqs[np.arange(ix+1)]
-        #lofreqs_that_were_swept = self.toneslist.sweep_lo_freqs
+        lofreqs_that_were_swept = self.tl.sweep_lo_freqs[np.arange(ix+1)]
+        #lofreqs_that_were_swept = self.tl.sweep_lo_freqs
         # Back to the central frequency
         if self.loswitch == True:
-            self.synth_lo.frequency = self.toneslist.lo_freq
+            self.synth_lo.frequency = self.tl.lo_freq
 
         # save lostep_times to current timestream dirfile (why are these not arrays?)
         self.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lo_freqs"    , 0, (_gd.FLOAT64, 1) ) )
@@ -470,7 +470,7 @@ class muxChannel(object):
         sweep_avgs = np.int32  ( sweep_kwargs.pop("sweep_avgs", self.ROACH_CFG["sweep_avgs"]) )
 
         # configure the lo_frequencies for the sweep. Assumes the central LO frequency give in mc.tonelist.lo_freq
-        self.toneslist.calc_sweep_lo_freqs(sweep_span, sweep_step)
+        self.tl.calc_sweep_lo_freqs(sweep_span, sweep_step)
 
         # add an additional filename suffix if neccessary
         filename_suffix = sweep_kwargs.pop("filename_suffix", "")
@@ -496,7 +496,7 @@ class muxChannel(object):
         self.current_dirfile = self.writer_daemon.current_dirfile
 
         # Set LO to first freq
-        self.synth_lo.frequency = self.toneslist.sweep_lo_freqs[0]
+        self.synth_lo.frequency = self.tl.sweep_lo_freqs[0]
 
         # start writing data to file...
         _logger.debug( "starting to write data" )
@@ -546,7 +546,7 @@ class muxChannel(object):
         swpdfname = os.path.join( os.path.dirname(rawsweep_dirfile.name), dt.strftime( timestr_fmt ) )
 
         # create new sweep dirfile and keep hold of it
-        swpdf = _lib_dirfiles.generate_sweep_dirfile( self.roachid, swpdfname, self.toneslist.tonenames, numpoints = len(lotimes))
+        swpdf = _lib_dirfiles.generate_sweep_dirfile( self.roachid, swpdfname, self.tl.tonenames, numpoints = len(lotimes))
 
         #print lotimes, lofreqs
         # read in IQ data and split up according to LO steps and store in a dictionary
@@ -581,9 +581,9 @@ class muxChannel(object):
                     continue
 
         # save the data to the new sweep dirfile
-        swpdf = _lib_dirfiles.write_sweepdata_to_sweepdirfile(swpdf, self.toneslist.bb_freqs, \
+        swpdf = _lib_dirfiles.write_sweepdata_to_sweepdirfile(swpdf, self.tl.bb_freqs, \
                                                             lofreqs,
-                                                            self.toneslist.tonenames,\
+                                                            self.tl.tonenames,\
                                                             sweep_data_dict)
         # add metadata
         _lib_dirfiles.add_metadata_to_dirfile(swpdf, {"raw_sweep_filename": self.current_dirfile.name})
@@ -597,7 +597,7 @@ class muxChannel(object):
     #     #self.set_active_dirfile()
     #     #self.writer_daemon.start_writing()
     #     try:
-    #         for lo_freq in self.toneslist.sweep_lo_freqs:
+    #         for lo_freq in self.tl.sweep_lo_freqs:
     #             self.synth_lo.frequency = lo_freq
     #             step_times.append( time.time() )
     #             time.sleep(sleeptime)
@@ -619,14 +619,14 @@ class muxChannel(object):
         # analyse sweep - tone_freqs = None returns parameters at that F0, and can be used to find F0s
         self.sweep.calc_sweep_cal_params( tonefreqs      = None, \
                                             method       = findf0_method, \
-                                            exclude_idxs = self.toneslist.blindidxs )
+                                            exclude_idxs = self.tl.blindidxs )
         # write the cal parameters to file - is this ever used?
         self.sweep.write_sweep_cal_params(overwrite = True)
         # use method to find F0s from KID rountines
         _logger.debug( "new f0s found- {0}".format(self.sweep.calparams['f0s']) )
 
-        # change frequencies in self.toneslist
-        self.toneslist.bb_freqs = self.sweep.calparams['f0s'] - self.toneslist.lo_freq
+        # change frequencies in self.tl
+        self.tl.bb_freqs = self.sweep.calparams['f0s'] - self.tl.lo_freq
 
         # write to qdr (optional)
         self.write_freqs_to_fpga( auto_write = True )
@@ -635,9 +635,9 @@ class muxChannel(object):
         self.sweep_lo(**swpkwargs)
 
         # recalculate sweep cal params, this time with the written tones
-        self.sweep.calc_sweep_cal_params( tonefreqs      = self.toneslist.rf_freqs, \
+        self.sweep.calc_sweep_cal_params( tonefreqs      = self.tl.rf_freqs, \
                                             method       = findf0_method, \
-                                            exclude_idxs = self.toneslist.blindidxs )
+                                            exclude_idxs = self.tl.blindidxs )
         # write these to the new sweep file
         self.sweep.write_sweep_cal_params(overwrite = True)
 

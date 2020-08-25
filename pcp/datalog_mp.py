@@ -111,7 +111,7 @@ class dataLogger(object):
     - move socket initialisation into daemon process (remove duplicate socket defs)
     - implement a close dirfile option
     - implement a more robust method to check if _eventqueue has been read
-    
+
     """
 
     def __init__(self, roachid):
@@ -518,24 +518,25 @@ class dataLogger(object):
 
         return
 
-    def initialise_datapacket_dict(self, tones):
+    def initialise_datapacket_dict(self, tonenames):
         """
         (Re)initialise the datapacket dictionary according to the given list of tones. Passes new datapacket_dict
         to writer process.
 
         Parameters
         ----------
-        tones : toneslist.Toneslist
+        tonenames : array_like
 
-            A pcp.tonelist.Toneslist object that is used to generate the correct field names that will be
-            used to parse datapackets and write to disk.
+            A list/array of tonenames that are used to generate the correct field names that will be
+            used to parse datapackets and write to disk. IMPORTANT - the order of the tones *must* be
+            sorted into ascending frequency. 
         """
 
         if self.is_writing.value:
             _logger.warning (" it appears a dirfile is currently being written. Stop and retry." )
             return
 
-        self._datapacket_dict = lib_datapackets.generate_datapacket_dict( self.roachid, tones )
+        self._datapacket_dict = lib_datapackets.generate_datapacket_dict( self.roachid, tonenames )
 
         command_to_send = ("SET_DATAPACKET_DICT", self._datapacket_dict)
         self._add_to_queue_and_wait( command_to_send )

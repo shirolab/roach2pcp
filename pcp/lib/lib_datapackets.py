@@ -16,7 +16,7 @@ import pcp
 from .. import toneslist
 from ..configuration.lib_config import get_firmware_register_dict
 
-def generate_datapacket_dict( roachid, tones ):
+def generate_datapacket_dict( roachid, tonenames ):
     """
     Function to generate the datapacket dictionary. This function should be run everytime a new tonelist is loaded
     in order to update the field names appropriately.
@@ -33,14 +33,15 @@ def generate_datapacket_dict( roachid, tones ):
     """
     assert isinstance(roachid, str) and roachid in pcp.ROACH_CONFIG.keys(), "roachid is string {0}, roachid in config.keys() {1}".format(isinstance(roachid, str), roachid in pcp.ROACH_CONFIG.keys())
 
-    if not isinstance(tones, toneslist.Toneslist):
-        raise TypeError("Input toneslist does not appear to be a pcp.tonelist.Tonelist object. To ensure that data is correctly mapped to disk, a Tonelist is required.")
+    # if not isinstance(tones, toneslist.Toneslist):
+    #     raise TypeError("Input toneslist does not appear to be a pcp.tonelist.Tonelist object. To ensure that data is correctly mapped to disk, a Tonelist is required.")
 
     # get firmware registers for the given roachid
     firmware_dict = get_firmware_register_dict( pcp.FIRMWARE_REGS, pcp.ROACH_CONFIG[roachid]["firmware_file"] )
 
     # number of tones in tonelist
-    ntones = len(tones.data)
+    #ntones = len(tones.tonedata)
+    ntones = len(tonenames)
 
     datapacket_dict = {}
 
@@ -65,7 +66,8 @@ def generate_datapacket_dict( roachid, tones ):
     kid_datatype        = kid_field_cfg["datatype"]
 
     # sort the tonelist by increasing frequency to ensure that data is parsed in the correct order
-    kid_fields_I, kid_fields_Q = toneslist.gen_tone_iq_fields( tones.data.sort_values('freq', ascending=True)['name'] )
+    #kid_fields_I, kid_fields_Q = toneslist.gen_tone_iq_fields( tones.tonedata.sort_values('freq', ascending=True)['name'] )
+    kid_fields_I, kid_fields_Q = toneslist.gen_tone_iq_fields( tonenames )
 
     # configure the datatype and indicies that are used to index the packet data.
     kid_fields_Ieven = {fn: [kidentry_type, kid_field_datatype, 0   + i ] for i,fn in enumerate(kid_fields_I[::2]) }
