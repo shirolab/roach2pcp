@@ -82,7 +82,7 @@ class muxChannel(object):
 
         # configure the tonelist - added functionality to modify datapacket_dict when the toneslist changes
         self.tl = toneslist.Toneslist(roachid, loader_function = _pd.read_csv)
-        self.writer_daemon.initialise_datapacket_dict( self.tl.tonenames_sorted )
+        self.writer_daemon.initialise_datapacket_dict( self.tl.tonenames_sorted  )
         self.tl.load_tonelist = self._decorate_tonelist_loader( self.tl.load_tonelist )
 
         # set up the sweep object (used for storing saved data)
@@ -114,7 +114,7 @@ class muxChannel(object):
         def load_and_update_datapacket_dict(*args, **kwargs):
             original_loader_function(*args, **kwargs)
             #self._refresh_datapacket_dict()
-            self.writer_daemon.initialise_datapacket_dict( self.tl.sorted_tonenames )
+            self.writer_daemon.initialise_datapacket_dict( self.tl.tonenames_sorted )
         return load_and_update_datapacket_dict
 
     def _initialise_folders(self):
