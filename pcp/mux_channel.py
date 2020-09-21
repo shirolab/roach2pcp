@@ -752,15 +752,17 @@ class muxChannel(object):
 
 class muxChannelList(object):
 
-    def __init__(self, channel_list):
+    def __init__(self, channel_list,channel_nums=None):
 
+        self.channel_nums = channel_nums
+        
         channel_list = list(np.atleast_1d(channel_list))
         _logger.debug("initialising muxChannelList with channel list {0}".format( channel_list ) )
 
         assert isinstance(channel_list, (list, tuple)) and len(channel_list) > 0 , "input {0} not recognised".format( type(channel_list) )
 
         self.channels = channel_list
-
+        
         # determine if the elements of the list are instantiated muxChannel objects
         if all( [isinstance(el, muxChannel) for el in channel_list]):
             _logger.debug("found a list of existing muxchannels with roachids: {0}".format( [el.roachid for el in channel_list] ) )
@@ -770,6 +772,15 @@ class muxChannelList(object):
             for roachid in channel_list:
                 _logger.info("initialising mux channel - {roachid} ".format( roachid=roachid ) )
                 setattr( self, roachid, muxChannel(roachid) )
+
+    def __getitem__(self,channel):
+        if self.channel_nums is None:
+            pass
+        else:
+            if type(channel)==int:
+                return getattr(self, self.channels[self.channel_nums.index(channel)])
+            elif type(channel)==str:
+                return getattr(self, self.channels[self.channel_list.index(channel)])
 
     def _verify_channel_list_valid(self, channel_list):
         assert set(channel_list).issubset(self.channels), "channels given are not valid {0}".format(set(channel_list).difference(self.channels))
