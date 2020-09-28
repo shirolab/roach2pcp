@@ -61,7 +61,7 @@ import multiprocessing as mp
 from multiprocessing.managers import SyncManager as _syncmanager
 
 #access module wide variables
-import pcp
+import pcp, pcp.configuration.color_msg as cm
 from .lib import lib_dirfiles, lib_datapackets, lib_network
 
 #create logger
@@ -293,7 +293,12 @@ class dataLogger(object):
                     newcnt = np.frombuffer(packet[-9:-5],">u4")
                     if newcnt - prevcnt > 1:
                         #print self.roachid," -> PACKET LOST, HELP", c, "  ", count - c - 1, "Packets lost"
-                        _logger.warning( "!! Dropped packets !! - {0} packets lost at packet number {1}".format( newcnt - prevcnt , prevcnt)  )
+                        if prevcnt == 0:
+                            pass
+                        else:
+                            _logger.warning( cm.WARNING+"!!{0} Dropped packets !! - {1} packets lost at packet number {2}".format(self.roachid+'_data_logger_main',
+                                                      newcnt - prevcnt ,
+                                                      prevcnt)+cm.ENDC  )
 
                     prevcnt = newcnt
                     # append (packet, time.time()) to queue which passes to packet to _writer_thread_function
@@ -430,8 +435,13 @@ class dataLogger(object):
                     for packet in datatowrite:
                         newcnt = np.frombuffer(packet[0][-9:-5],">u4")
                         if newcnt - prevcnt > 1:
-                            _logger.warning( "!! Dropped packets !! - {0} packets lost at packet number {1}".format( newcnt - prevcnt , prevcnt)  )
-                        prevcnt = newcnt
+                            #print self.roachid," -> PACKET LOST, HELP", c, "  ", count - c - 1, "Packets lost"
+                            if prevcnt == 0:
+                                pass
+                            else:
+                                _logger.warning( cm.WARNING+"!!{0} Dropped packets !! - {1} packets lost at packet number {2}".format(self.roachid+'_writer_thread_function',
+                                                        newcnt - prevcnt ,
+                                                        prevcnt)+cm.ENDC  )
 
                     retcode = self._parse_packet_and_append_to_dirfile(datatowrite) # parse the packet using the datapacket_dict and append ot the dirfile
                     datatowrite = []
