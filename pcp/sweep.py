@@ -144,7 +144,7 @@ class pcpSweep(object):
 
 
 
-    def calc_sweep_cal_params(self, tonefreqs = None, method = "maxspeed", exclude_idxs=[], exclude_endpoints=False, choose_range=False):
+    def calc_sweep_cal_params(self, tonefreqs = None, method = "maxspeed", exclude_idxs=[], exclude_endpoints=2, choose_range=False):
         """
         Function to calculate the calibration parameters from the currently loaded sweep data and filter parameters.
 
@@ -177,6 +177,7 @@ class pcpSweep(object):
         calparams, caldata = _resonator_routines.calc_sweep_cal_params(self.rf_freqs, \
                                                                                 self.data.real, \
                                                                                 self.data.imag, \
+                                                                                tonefreqs, \
                                                                                 nanmask = nan_mask)
         # get the indexes of the data we want to analyse (default all of them )
         allidxs = _np.arange( len(self.data), dtype=_np.int )
