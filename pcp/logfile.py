@@ -139,3 +139,18 @@ def set_log_level(level, which = 'screen'):
 
         logger.info("{handlertype} now logging with level: {level}".format( handlertype = type(handler.sub_handler),\
                                                                             level = logging.getLevelName(handler.level)) )
+def set_log_level_debug(which = 'all'):
+    set_log_level(pcp._logging.DEBUG, which=which)
+
+def set_log_level_info(which = 'all'):
+    set_log_level(pcp._logging.INFO, which=which)
+
+def set_log_level_warning(which = 'all'):
+    set_log_level(pcp._logging.WARNING, which=which)
+
+def set_log_level_critical(which = 'all'):
+    set_log_level(pcp._logging.CRITICAL, which=which)
+
+def set_log_level_error(which = 'all'):
+    set_log_level(pcp._logging.ERROR, which=which)
+    
