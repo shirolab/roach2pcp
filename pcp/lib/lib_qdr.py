@@ -168,8 +168,8 @@ class Qdr(object):
 
     @classmethod
     def from_qdr(cls, qdr):
-        print cls
-        print qdr.parent
+        #print cls
+        #print qdr.parent
         return cls(qdr.parent,qdr.which_qdr)
 
     def from_device_info(cls, parent, device_name, device_info, memorymap_dict):
