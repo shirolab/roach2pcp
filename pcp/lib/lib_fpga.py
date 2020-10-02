@@ -97,7 +97,7 @@ def get_fpga_instance(ipaddress):
         #This worked in casperfpga==0.0.1 but failed after pip upgrade to 0.1.1 
         
         #Replacing with up-to-date call from casperfpga==0.1.1
-        return _casperfpga.CasperFpga( ipaddress, timeout = 10. )
+        return _casperfpga.CasperFpga( ipaddress, timeout = 20. )
     except RuntimeError:
         # bad things have happened, and nothing else should proceed
         _logger.exception( "Error, fpga not connected." )
