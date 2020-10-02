@@ -197,7 +197,8 @@ class roachInterface(object):
     """
 
     def __init__(self, roachid):
-
+        self.roachid = roachid
+        
         # get configuration from file for given roachid
         self.NETWORK_CFG     = pcp.NETWORK_CONFIG[roachid]
         self.ROACH_CFG       = pcp.ROACH_CONFIG[roachid]
@@ -331,7 +332,7 @@ class roachInterface(object):
             raise RuntimeError("Firmware upload failed.")
 
     # ---------------------------------------------------------------------------------------------------------
-    @progress_wrapped(description=cm.BOLD+"QDR Calibration"+cm.ENDC, estimated_time=5.7)
+    @progress_wrapped(description=cm.BOLD+"QDR Calibration"+cm.ENDC, estimated_time=7)
     def calibrate_qdr(self):
     # Calibrates the QDRs. Run after loading firmware
         write_to_fpga_register(self.fpga, { 'dac_reset_reg': 1 }, self.FIRMWARE_REG_DICT )
@@ -347,14 +348,19 @@ class roachInterface(object):
         self.fpga.get_system_information()
         results = {}
         for qdr in self.fpga.qdrs:
-            print qdr, qdr.name
+            #print qdr, qdr.name
             mqdr = _lib_qdr.Qdr.from_qdr(qdr)
             results[qdr.name] = mqdr.qdr_cal2(fail_hard=bFailHard)
-        print 'qdr cal results:',results
-        for qdr in self.fpga.qdrs:
-            if not results[qdr.name]:
-                print cm.ERROR + '\n************ QDR Calibration FAILED ************' + cm.ENDC
-                return -1
+        if all(results.values()):
+            pass
+        else:
+            print cm.ERROR+self.roachid+' QDR Calibration FAILED'+str(results)+cm.ENDC
+            raise RuntimeError, self.roachid+' QDR Calibration FAILED '+str(results)
+        
+        #for qdr in self.fpga.qdrs:
+            #if not results[qdr.name]:
+                #print cm.ERROR + '\n************ QDR Calibration FAILED ************' + cm.ENDC
+                #return -1
         print cm.OKGREEN + 'QDR Calibrated' + cm.ENDC
         return 0
 
