@@ -676,8 +676,17 @@ def append_to_dirfile(dirfile, datapacket_dict): #, datatag=""):
         else:
             raise TypeError, "warning, unknown field name {0}".format(field_name)
 
-    dirfile.flush()
-
+    #Flushing is required on macOS but sometimes not in linux.
+    #It causes chronic delays on the muscat linux machine, possibly because we have HDD not SSD
+    if sys.platform == 'linux2':
+        pass
+    elif sys.platform == 'darwin':
+        dirfile.flush()
+    else:
+        print 'Unsupported OS: %s. Don\'t know if we should flush or not.'%(sys.platform)
+        raise OSError, 'Unsupported OS: %s. Don\'t know if we should flush or not.'%(sys.platform)
+        
+    
 def generate_sweep_dirfile( roachid, dirfilename, tonenames, numpoints = 501 ):
     """
     Generate a sweep dirfile from arrays of F, I, Q. In addition, add constants from
