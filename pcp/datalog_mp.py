@@ -69,7 +69,8 @@ _logger = _logging.getLogger(__name__)
 
 # configure a deque shared memory object that will be used for the queue
 _syncmanager.register('deque', deque, exposed = [d for d in dir(deque) if not d.startswith("__") or d == "__len__"] )
-_deque_manager = _syncmanager(); _deque_manager.start(signal.signal, (signal.SIGINT, signal.SIG_IGN) )
+_deque_manager = _syncmanager();
+_deque_manager.start(signal.signal, (signal.SIGINT, signal.SIG_IGN) )
 
 
 class dataLogger(object):
@@ -169,6 +170,8 @@ class dataLogger(object):
         # initialise status flag(s). Upon starting, the writer is initially paused.
         self.is_writing = mp.Value(ctypes.c_bool, False)
         self.pytime     = mp.Value(ctypes.c_double, time.time())
+        self.LMT_PGM_START = mp.Value(ctypes.c_uint8, 0)
+
         #self.is_writing = False
 
     # -----------------------------------------------------------------------------
@@ -303,7 +306,10 @@ class dataLogger(object):
                     prevcnt = newcnt
                     # append (packet, time.time()) to queue which passes to packet to _writer_thread_function
                     self.pytime.value = time.time()
-                    self._writer_queue.appendleft( ( packet, self.pytime.value ) )
+                    #self.LMT_PGM_START.value = 0# set this externally
+                    
+                    self._writer_queue.appendleft( ( packet, 
+                                                    self.pytime.value, self.LMT_PGM_START.value ) )
 
                     #print "sending packet to pipe", packet[:10]
                     #datapipe_in.send( ( packet, time.time() ) )
@@ -487,7 +493,7 @@ class dataLogger(object):
 
         _logger.debug(self.roachid+' '+"waiting for queue to empty\r")
         while not self._cmdevent.is_set():
-            sys.stdout.write("waiting for queue to empty\r")
+            sys.stdout.write(self.roachid+"waiting for queue to empty, "+str(initial_command)+'\n')
             time.sleep(0.1)
             continue
 
@@ -496,7 +502,8 @@ class dataLogger(object):
         self._cmdevent.clear()
 
         try:
-            value_from_queue = self._eventqueue.get( timeout=.1 )
+            #value_from_queue = self._eventqueue.get( timeout=.1 )
+            value_from_queue = self._eventqueue.get( timeout=30.0 )
             return value_from_queue if value_from_queue != initial_command else "error"
 
         except mp.queues.Empty:
@@ -513,7 +520,7 @@ class dataLogger(object):
         #return len( field_name_set.difference( self._datapacket_dict.keys() ) ) == 0
         return len( field_name_set.difference( self._datapacket_dict["tone_fields"].keys() + \
                                                self._datapacket_dict["aux_fields"].keys()  + \
-                                                ["python_timestamp"] ) ) == 0
+                                                ["python_timestamp"] +["LMT_PGM_START"]) ) == 0
 
     def start_daemon(self):
         # check process isn't already running
@@ -700,7 +707,12 @@ class dataLogger(object):
         self._add_to_queue_and_wait ( command_to_send )
 
         self.current_filename = self._read_response_from_eventqueue(command_to_send)
-        self.current_dirfile = new_dirfile if self.current_filename == new_dirfile.name else None
+        
+        if self.current_filename == new_dirfile.name:
+            self.current_dirfile = new_dirfile
+        else:
+            print 'WARNING expected ',self.current_dirfile,'got',new_dirfile
+            self.current_dirfile = None
 
     def print_status(self):
         """

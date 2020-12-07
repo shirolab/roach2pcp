@@ -381,6 +381,10 @@ def generate_main_rawfields(dirfile, roachid, tonenames, fragnum=0 ):#, field_su
     aux_entries_to_write = [ _gd.entry( _GDENTRYMAP[ firmware_dict["packet_structure"]['python_timestamp'][0] ], namespace + 'python_timestamp', \
                                             fragnum, \
                                             (_GDDATAMAP[ firmware_dict["packet_structure"]['python_timestamp'][1] ], 1) ) ]
+    # write the LMT_PGM_START field manually
+    aux_entries_to_write.append( _gd.entry( _GDENTRYMAP[ firmware_dict["packet_structure"]['LMT_PGM_START'][0] ], namespace + 'LMT_PGM_START', \
+                                            fragnum, \
+                                            (_GDDATAMAP[ firmware_dict["packet_structure"]['LMT_PGM_START'][1] ], 1) ) )
 
     for field_name, (entry_type, field_datatype, __, __, __, __) in aux_fields.items():
         #print eval(entry_type), eval(field_datatype)
@@ -525,7 +529,7 @@ def generate_sweep_fragment(dirfile, tones, array_size = 501, datatag=""):
 
 
 
-def add_subdirfile_to_existing_dirfile(subdirfile, dirfile, namespace = "", field_suffix = "", overwrite=False, symlink=True):
+def add_subdirfile_to_existing_dirfile(subdirfile, dirfile, namespace = "", field_suffix = "", overwrite=False, symlink=False):
     """
     Function to add a subdirfile to an existing dirfile and include the subdirfile as a new fragment
     of the main dirfile - i.e. all of the fields of the subdirfile will be avaialble to the main dirfile.
@@ -670,6 +674,11 @@ def append_to_dirfile(dirfile, datapacket_dict): #, datatag=""):
         elif field_name in ['python_timestamp']:
             data = datapacket_dict[field_name][-1]
             dirfile.putdata( 'python_timestamp',
+                            np.ascontiguousarray( [data.pop(0) for i in range(len(data))] ).flatten(),
+                            first_sample = currentsize )
+        elif field_name in ['LMT_PGM_START']:
+            data = datapacket_dict[field_name][-1]
+            dirfile.putdata( 'LMT_PGM_START',
                             np.ascontiguousarray( [data.pop(0) for i in range(len(data))] ).flatten(),
                             first_sample = currentsize )
 

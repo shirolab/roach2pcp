@@ -83,6 +83,7 @@ def generate_datapacket_dict( roachid, tonenames ):
         datapacket_dict["aux_fields"].update( {field_name:[str(entry_type), str(field_datatype), datatype, slice(startidx, stopidx, stepidx), []] } )
 
     datapacket_dict.update( {"python_timestamp": firmware_dict["packet_structure"]["python_timestamp"] + [[]] } )
+    datapacket_dict.update( {"LMT_PGM_START": firmware_dict["packet_structure"]["LMT_PGM_START"] + [[]] } )
 
     return datapacket_dict
 
@@ -117,6 +118,10 @@ def parse_datapacket_dict(packets, datapacket_dict):
     #datapacket_dict["raw_packet"][-1].append(packet)
     datapacket_dict["python_timestamp"][-1].append( np.array( [pi[1] for pi in packets] ).flatten() )
 
+    datapacket_dict["LMT_PGM_START"][-1].append( np.array( [pi[2] for pi in packets] ).flatten() )
+
+
+
     # fill in the aux_fields dictionary
     for field_name, item in datapacket_dict['aux_fields'].items():
         # converts data from binary to the specified dtype
@@ -142,8 +147,8 @@ def parse_datapacket_dict_old(packets, datapacket_dict):
     #x =  np.array ([np.frombuffer(pi, offset=42, count=1001, dtype = datapacket_dict["_kiddatatype"]) for pi in ])
 
     for pkt in packets:
-        assert len(pkt) == 2 #and type(pkt) == tuple
-        packet, python_time = pkt
+        assert len(pkt) == 2 +1 #and type(pkt) == tuple
+        packet, python_time, lmt_pgm_start = pkt
 
         for field_name, item in datapacket_dict['aux_fields'].iteritems():
             # "item" is a list containing [entry_type, field_datatype, datatype, slice(startidx,stopidx,stepidx), DATA]
@@ -156,6 +161,7 @@ def parse_datapacket_dict_old(packets, datapacket_dict):
         # write python_timestamp and raw_packet manually
         #datapacket_dict["raw_packet"][-1].append(packet)
         datapacket_dict["python_timestamp"][-1].append(python_time)
+        datapacket_dict["LMT_PGM_START"][-1].append(python_time)
 
         #print python_time
     #print "length of datapacket dict", len(datapacket_dict["packet_count"][-1])
