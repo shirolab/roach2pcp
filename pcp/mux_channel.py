@@ -22,12 +22,13 @@ import os, sys, time, logging as _logging, numpy as np, dateutil as _dateutil, w
 import multiprocessing as _multiprocessing
 import multiprocessing.pool as _multiprocessing_pool
 
-import pcp, pcp.configuration.color_msg as cm
+import pcp, pcp.configuration.color_msg as cm, pcp.drivers.synthesizer
 
 import atexit as _atexit
 from functools import wraps as _wraps
 from tqdm import tqdm as _tqdm
 import pandas as _pd, pygetdata as _gd
+import traceback
 
 _logger = _logging.getLogger(__name__)
 
@@ -97,12 +98,17 @@ class muxChannel(object):
 
         self.atten_in     = None
         self.atten_out    = None
+        
+        self.dacwavemax = 0. # if this is >0 then set_tones will use this vale.
 
         self.current_dirfile = None
 
         # get configuration for specific roach
         self.ROACH_CFG = pcp.ROACH_CONFIG[self.roachid]
-        self.sample_rate = self.ROACH_CFG["dac_bandwidth"] / ( 2**self.ROACH_CFG["roach_accum_len"] + 1 )
+        
+        #this is wrong:
+        #self.sample_rate = self.ROACH_CFG["dac_bandwidth"] / ( 2**self.ROACH_CFG["roach_accum_len"] + 1 )
+        self.sample_rate = 0.5*(self.ROACH_CFG["dac_bandwidth"]) / ( 2**self.ROACH_CFG["roach_accum_len"] )
 
         # initialise the various pieces of hardware
         self.initialise_hardware()
@@ -204,7 +210,7 @@ class muxChannel(object):
             self.synth_lo = pcp.SYNTHS_IN_USE[synthid_lo].synthobj
             self.synth_lo.frequency = self.tl.lo_freq
         except KeyError:
-            logger.warning("synthid = {0} not recognised. Check configuration file".format(synthid_lo))
+            logger.warning(self.roachid+": synthid = {0} not recognised. Check configuration file".format(synthid_lo))
 
     def _initialise_synth_clk(self):
 
@@ -217,6 +223,9 @@ class muxChannel(object):
             #set the clk frequency
             self.synth_clk.clk_or_lo = 'clk'
             self.synth_clk.frequency = 512.0e6
+            if isinstance(self.synth_clk, pcp.drivers.synthesizer.synthclasses.pcp_windfreaksynthSource):
+                self.synth_clk.power = 12.5
+            
 
         else:
             self.synth_clk = None
@@ -257,23 +266,44 @@ class muxChannel(object):
         """ r0.read_int('GbE_packet_info')"""
         self.ri.fpga.read_int(register)
 
-    def write_freqs_to_fpga(self, auto_write = False, corrtouse = None, check = True):
+    def adc_levels(self,n=1):
+        """ read the ADC snap and return the max values for I and Q, over 'n' repetitions"""
+        adcmax =  np.amax(np.amax(np.absolute([self.ri.read_ADC() for j in range(n)]),axis=2),axis=0)
+        print '%s: ADCmax (I,Q) = '%(self.roachid),adcmax
+        return adcmax
+
+    def lmt_pgm_start(self):
+        self.writer_daemon.LMT_PGM_START.value=1
+        
+    def lmt_pgm_stop(self):
+        self.writer_daemon.LMT_PGM_START.value=0
+        
+    def set_fft_shift(self,fft_shift=0b1111111):
+        _lib_fpga.write_to_fpga_register(self.ri.fpga,
+                                                { "fft_shift_reg": fft_shift},
+                                                self.ri.FIRMWARE_REG_DICT,sleep_time=0.)
+
+
+    def write_freqs_to_fpga(self, auto_write = False, corrtouse = None, check = True,useoffsetatt=False,fft_shift=0b1111111):
         """High level function to write the current toneslist frequencies to the QDR
            To use an amplitude correction: corrtouse = 'total' or timestamp of requested"""
 
         # make sure fpga looks like its running
         if not ( self.ri.fpga and self.ri.fpga.is_connected() ):
-            _logger.warning("fpga instance appears to be broken. Returning.")
+            _logger.warning(self.roachid+": fpga instance appears to be broken. Returning.")
             self._last_written_bb_freqs = None
             return
         # check if new tones equal old tones, return if True
         if check:
             if all(self.tl.bb_freqs == self._last_written_bb_freqs):
-                _logger.info("It looks like this set of tones has already been uploaded. Nothing done.")
+                _logger.info(self.roachid+": It looks like this set of tones has already been uploaded. Nothing done.")
                 return
 
         # check that toneslist LO and synth LO match - if not yell and or ask to change the LO
-        assert self.tl.lo_freq == self.synth_lo.frequency, "synth frequency doesn't match toneslist.lo_freq"
+        assert self.tl.lo_freq == self.synth_lo.frequency, self.roachid+": synth frequency doesn't match toneslist.lo_freq"
+
+        if useoffsetatt:
+            self.tl.amps = 10**(-1*self.tl.tonedata['offset att'].get_values()/20.)
 
         # If requested, use amplitude correction
         if corrtouse is not None:
@@ -282,11 +312,26 @@ class muxChannel(object):
             else:
                 self.tl.amps = self.tl.ampcorr[corrtouse] # should be a timestamp
 
+        #Use autorescale unless a value for dacwavemax is present
+        if self.dacwavemax>0:
+            autoFullScale=False
+        else:
+            autoFullScale=True
+
         # write_freqs_to_qdr
         if auto_write or raw_input("Write new tones to qdr? [y/n]").lower() == 'y':
-            self.ri.write_freqs_to_qdr(self.tl.bb_freqs, self.tl.amps, self.tl.phases)
+            
+            
+            self.ri.write_freqs_to_qdr(self.tl.bb_freqs, self.tl.amps, self.tl.phases,
+                                       autoFullScale=autoFullScale,
+                                       dacWaveMax=self.dacwavemax)
+        
+        
+        
         else:
             _logger.info("new tones loaded but not written to qdr.")
+
+        self.set_fft_shift(fft_shift)
 
         # write newly written tones to hidden variable for future checks
         self._last_written_bb_freqs = self.tl.bb_freqs
@@ -295,6 +340,7 @@ class muxChannel(object):
         self.tl.write_tonehistfile(self.synth_lo.frequency,  \
                                         self.atten_in.attenuation,  \
                                         self.atten_out.attenuation, \
+                                        self.ri.dacWaveMax, \
                                         self.tl._bb_freqs.tolist(),\
                                         self.tl._amps.tolist(),\
                                         self.tl._phases.tolist(),
@@ -319,7 +365,7 @@ class muxChannel(object):
 
         elif type(dirfile_name) == str:
             # create a new dirfile with the field names taken from the currently loaded tones-list
-            _logger.info( "filename given: {0}".format(dirfile_name) )
+            _logger.info( self.roachid+": filename given: {0}".format(dirfile_name) )
             dirfile_name = _lib_dirfiles.create_pcp_dirfile( self.roachid, \
                                                             dfname          = dirfile_name,    \
                                                             tonenames       = self.tl.tonenames, \
@@ -329,14 +375,14 @@ class muxChannel(object):
             _lib_dirfiles.close_dirfile(self._last_closed_dirfile)
 
         else:
-            _logger.warning( "Unrecognised input - {0}. Try again.".format(dirfile_name) )
+            _logger.warning( self.roachid+": Unrecognised input - {0}. Try again.".format(dirfile_name) )
             return
 
         # now set active dirfile in writer daemon
         if self.writer_daemon.is_daemon_running():
             self.writer_daemon.set_active_dirfile( dirfile_name )
         else:
-            _logger.warning( "daemon writer doesn't appear to be running. Check and try again." )
+            _logger.warning( self.roachid+": daemon writer doesn't appear to be running. Check and try again." )
 
         self.current_dirfile = dirfile_name
         time.sleep(0.1)
@@ -345,7 +391,8 @@ class muxChannel(object):
         self.current_dirfile.put_carray(   "bbfreqs", self.tl.bb_freqs)
         self.current_dirfile.put_constant( "lofreq",  self.tl.lo_freq )
         self.current_dirfile.put_sarray(   "tonenames", list(self.tl.tonenames) )
-        self.current_dirfile.flush()
+        #self.current_dirfile.flush()
+
         # add the file to the source file
         _lib_dirfiles.append_dirfile_to_sourcefile(self._srcfile,
                                     self.current_dirfile.name,
@@ -388,80 +435,95 @@ class muxChannel(object):
         filename_suffix : str
             allows the user to append an additional string to the end of the filename
         """
-        # create the stop event for use when running all roaches at once through the muxChannelList
-        stop_event = _multiprocessing.Event() if not isinstance( stop_event, _multiprocessing.synchronize.Event ) else stop_event
-
-        # configure sweep parameters and start writing
-        sweep_params = self._configure_sweep_and_start_writing(**sweep_kwargs)
-
-        # # get time for avg factor + 10%
-        sleeptime = np.round( sweep_params["sweep_avgs"] / self.sample_rate * 1.1, decimals = 3 )
-        _logger.debug( "sleep time for sweep is {0}".format(sleeptime) )
-
-        step_times = []
-
-        # acutally do the sweep - loop over LO frequencies, while saving time at lo_step
         try:
-            sweepdirection = np.sign( np.diff(self.tl.sweep_lo_freqs) )[0] # +/- 1 for forward/backward - not used right now
-            _logger.info('Sweeping LO %3.1f kHz around %3.3f MHz in %1.1f kHz steps' % (np.ptp(self.tl.sweep_lo_freqs/1.e3),
-                                                                                        np.mean(self.tl.sweep_lo_freqs/1.e6),
-                                                                                        np.median(np.diff(self.tl.sweep_lo_freqs)) / 1.e3))
-            for ix, lo_freq in enumerate(self.tl.sweep_lo_freqs):
+            
+            startidx=sweep_kwargs.pop('startidx',0)
+            stopidx=sweep_kwargs.pop('stopidx',None)
+            
+            # create the stop event for use when running all roaches at once through the muxChannelList
+            stop_event = _multiprocessing.Event() if not isinstance( stop_event, _multiprocessing.synchronize.Event ) else stop_event
 
-                if self.loswitch == True: # only switch if the muxchannel is configured to do so
-                    self.synth_lo.frequency = lo_freq
-                else:
-                    # wait until synth_lo.frequency => lo_freq
-                    t0 = time.time()
-                    while self.synth_lo.frequency <= lo_freq and time.time() <= t0 + sleeptime :
-                        time.sleep(sleeptime / 100.)
-                pytime = self.writer_daemon.pytime.value
-                step_times.append( pytime )
-                #print "lo stepped at ", pytime
-                #_logger.info('LO stepped to ' + str(lo_freq/1.e6))
-                # check the stop event to break out of the loop
-                if stop_event.is_set():
-                    break
-                #pbar.set_description(cm.BOLD + "LO: %i" % lo_freq + cm.ENDC)
-                time.sleep(sleeptime)
+            # configure sweep parameters and start writing
+            sweep_params = self._configure_sweep_and_start_writing(**sweep_kwargs)
 
-                # should we wait for a number of samples per frequency? can sample self.current_dirfile.nframes
+            # # get time for avg factor + 10%
+            sleeptime = np.round( sweep_params["sweep_avgs"] / self.sample_rate * 1.1, decimals = 3 )
+            _logger.debug( self.roachid+": sleep time for sweep is {0}".format(sleeptime) )
 
-            #pbar.close()
-            #print cm.OKGREEN + "Sweep done!" + cm.ENDC
-        except KeyboardInterrupt:
-            pass
+            step_times = []
 
-        # sweep has finished, pause the writing and continue to process the data
-        #time.sleep(2.5)
-        _logger.debug( "pausing writing at ", self.writer_daemon.pytime.value )
+            # acutally do the sweep - loop over LO frequencies, while saving time at lo_step
+            try:
+                sweepdirection = np.sign( np.diff(self.tl.sweep_lo_freqs) )[0] # +/- 1 for forward/backward - not used right now
+                _logger.info(self.roachid+': Sweeping LO %3.1f kHz around %3.3f MHz in %1.2f kHz steps' % (np.ptp(self.tl.sweep_lo_freqs/1.e3),
+                            np.mean(self.tl.sweep_lo_freqs/1.e6),
+                            np.median(np.diff(self.tl.sweep_lo_freqs)) / 1.e3))
+                
+                
+                for ix, lo_freq in _tqdm(enumerate(self.tl.sweep_lo_freqs), desc=cm.BOLD+self.roachid+": Sweeping LO"+cm.ENDC, ncols=75,total=len(self.tl.sweep_lo_freqs)):
+                #for ix, lo_freq in enumerate(self.tl.sweep_lo_freqs):
 
-        self.writer_daemon.pause_writing()
+                    if self.loswitch == True: # only switch if the muxchannel is configured to do so
+                        self.synth_lo.frequency = lo_freq
+                    else:
+                        # wait until synth_lo.frequency => lo_freq
+                        t0 = time.time()
+                        while self.synth_lo.frequency <= lo_freq and time.time() <= t0 + sleeptime :
+                            time.sleep(sleeptime / 100.)
+                    pytime = self.writer_daemon.pytime.value
+                    step_times.append( pytime )
+                    #print "lo stepped at ", pytime
+                    #_logger.info('LO stepped to ' + str(lo_freq/1.e6))
+                    # check the stop event to break out of the loop
+                    if stop_event.is_set():
+                        break
+                    #pbar.set_description(cm.BOLD + "LO: %i" % lo_freq + cm.ENDC)
+                    time.sleep(sleeptime)
 
-        #  get only the indexes that were swept
-        lofreqs_that_were_swept = self.tl.sweep_lo_freqs[np.arange(ix+1)]
-        #lofreqs_that_were_swept = self.tl.sweep_lo_freqs
-        # Back to the central frequency
-        if self.loswitch == True:
-            self.synth_lo.frequency = self.tl.lo_freq
+                    # should we wait for a number of samples per frequency? can sample self.current_dirfile.nframes
 
-        # save lostep_times to current timestream dirfile (why are these not arrays?)
-        self.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lo_freqs"    , 0, (_gd.FLOAT64, 1) ) )
-        self.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lostep_times", 0, (_gd.FLOAT64, 1) ) )
+                #pbar.close()
+                #print cm.OKGREEN + "Sweep done!" + cm.ENDC
+            except KeyboardInterrupt:
+                pass
 
-        self.current_dirfile.putdata("lo_freqs"    , np.ascontiguousarray( lofreqs_that_were_swept, dtype = np.float64 ))
-        self.current_dirfile.putdata("lostep_times", np.ascontiguousarray( step_times,              dtype = np.float64 ))
+            # sweep has finished, pause the writing and continue to process the data
+            #time.sleep(2.5)
+            _logger.debug( self.roachid+": pausing writing at ", self.writer_daemon.pytime.value )
 
-        # on mac, we need to close and reopen the dirfile to flush the data before reading back in the data
-        # - not sure why, or if this is a problem on linux - it doesn't hurt too much though
-        self.current_dirfile.close()
-        self.current_dirfile = _gd.dirfile(self.writer_daemon.current_filename, _gd.RDWR)
+            self.writer_daemon.pause_writing()
 
-        #delay appears to be required to finish write/open operations before continuing
-        time.sleep(0.5)
-        # analyse the raw sweep dirfile and write to disk
-        self.reduce_and_write_sweep_data(self.current_dirfile)
+            #  get only the indexes that were swept
+            lofreqs_that_were_swept = self.tl.sweep_lo_freqs[np.arange(ix+1)]
+            #lofreqs_that_were_swept = self.tl.sweep_lo_freqs
+            # Back to the central frequency
+            if self.loswitch == True:
+                self.synth_lo.frequency = self.tl.lo_freq
 
+            # save lostep_times to current timestream dirfile (why are these not arrays?)
+            self.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lo_freqs"    , 0, (_gd.FLOAT64, 1) ) )
+            self.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lostep_times", 0, (_gd.FLOAT64, 1) ) )
+
+            self.current_dirfile.putdata("lo_freqs"    , np.ascontiguousarray( lofreqs_that_were_swept, dtype = np.float64 ))
+            self.current_dirfile.putdata("lostep_times", np.ascontiguousarray( step_times,              dtype = np.float64 ))
+
+            # on mac, we need to close and reopen the dirfile to flush the data before reading back in the data
+            # - not sure why, or if this is a problem on linux - it doesn't hurt too much though
+            print self.roachid, 'current_dirfile.close()'
+            self.current_dirfile.close()
+            self.current_dirfile = _gd.dirfile(self.writer_daemon.current_filename, _gd.RDWR)
+
+            #delay appears to be required to finish write/open operations before continuing
+            time.sleep(0.5)
+            # analyse the raw sweep dirfile and write to disk
+            print self.roachid, 'reduce_and_write_sweep_data'
+            self.reduce_and_write_sweep_data(self.current_dirfile,startidx=startidx,stopidx=stopidx)
+        except:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                traceback.print_tb(exc_traceback, file=sys.stdout)
+                traceback.print_exc(file=sys.stdout)
+            
+                
     def _configure_sweep_and_start_writing(self, **sweep_kwargs):
 
         valid_kwargs = ["sweep_span", "sweep_step", "sweep_avgs", "save_data"]
@@ -487,22 +549,31 @@ class muxChannel(object):
 
         # check that daemonwriter is not currently writing, return if not as something has probably gone wrong
         if self.writer_daemon.is_writing == True:
-            _logger.info( "Writer is already running. Aborting sweep. Stop current file and retry." )
+            _logger.info( self.roachid+": Writer is already running. Aborting sweep. Stop current file and retry." )
             return
 
         # perform a quick check that packets are being streamed to the roach
-        assert self.synth_lo is not None, "synthesiser doesn't appear to be initialised. "
+        assert self.synth_lo is not None, self.roachid+": synthesiser doesn't appear to be initialised. "
 
         # create new dirfile and set it as the active file. Note that data writing is off by default.
         self.set_active_dirfile( filename_suffix = "sweep" + filename_suffix )
         # alias to current dirfile for convenience
+        xxx=0
+        while not self.writer_daemon.current_dirfile:
+            xxx+=1
+            time.sleep(1)
+            print self.roachid+": current dirfile is None, waiting..."
+            if xxx >5:
+                raise Exception, 'Failed'
+            
         self.current_dirfile = self.writer_daemon.current_dirfile
-
+        print self.roachid+": configure sweep: new current dirfile name:"+ self.current_dirfile.name
         # Set LO to first freq
         self.synth_lo.frequency = self.tl.sweep_lo_freqs[0]
 
         # start writing data to file...
-        _logger.debug( "starting to write data" )
+        #_logger.debug( self.roachid+": starting to write data" )
+        print self.roachid+": starting to write data, sleeping 2 secs after writing starts" 
         self.writer_daemon.start_writing()
 
         # and wait until writing starts
@@ -510,7 +581,7 @@ class muxChannel(object):
         while not self.writer_daemon.is_writing:
             time.sleep(0.01)
             if time.time() >= t0 + timeout : # wait for 2 seconds
-                _logger.error( "timeout waiting for writer daemon to start writing. check to see if something went wrong." )
+                _logger.error( self.roachid+": timeout waiting for writer daemon to start writing. check to see if something went wrong." )
                 return
             else:
                 continue
@@ -518,6 +589,7 @@ class muxChannel(object):
         return {'sweep_span': sweep_span,
                 'sweep_step': sweep_step,
                 'sweep_avgs': sweep_avgs}
+        
 
     def reduce_and_write_sweep_data(self, rawsweep_dirfile, startidx = 0, stopidx = None, save_data = True):
         """Function to read a raw sweep file (i.e. a timestream of I and Q), reduce the data and create an analyzed sweep dirfile.
@@ -532,8 +604,10 @@ class muxChannel(object):
         """
 
         # Check that the dirfile is open, and that the fields are present
+        if rawsweep_dirfile is None:
+            rawsweep_dirfile = self.current_dirfile
         reqfields = {"lostep_times", "python_timestamp"}
-        assert reqfields.issubset( set( rawsweep_dirfile.field_list() ) ) , "it doesn't look like that {0} is a raw sweep file".format(rawsweep_dirfile.name)
+        assert reqfields.issubset( set( rawsweep_dirfile.field_list() ) ) , self.roachid+": it doesn't look like that {0} is a raw sweep file".format(rawsweep_dirfile.name)
 
         # with the raw sweep data available, create the derived sweep file and save to the current dirfile (from lib_dirfiles)
         lotimes = self.current_dirfile.getdata( "lostep_times" )
@@ -557,19 +631,29 @@ class muxChannel(object):
 
         startidx = np.int32(startidx)
         stopidx  = np.int32(stopidx) if stopidx is not None else stopidx
-
-        for field in _tqdm(self.current_dirfile.field_list( _gd.RAW_ENTRY ), desc=cm.BOLD+"Writing data"+cm.ENDC, ncols=75):
+        
+        if stopidx is None:
+            stopidx = np.min(np.diff(idxs))
+        
+        takeidxs = np.array([np.arange(i+startidx,i+stopidx) for i in np.concatenate([[0],idxs])])
+        
+        t0=time.time()
+        for field in _tqdm(self.current_dirfile.field_list( _gd.RAW_ENTRY ), desc=cm.BOLD+self.roachid+": Writing data"+cm.ENDC, ncols=75):
 
             if ("_I" in field) or ("_Q" in field): #field.startswith("K"):
 
                 # get the field data, split and average the lo switch indexes, taking data between startidx and stopidx, and pass to an array
-                data = np.array([np.mean(l[startidx:stopidx]) for l in np.split(self.current_dirfile.getdata(field), idxs)])
+                #data = np.array([np.mean(l[startidx:stopidx]) for l in np.split(self.current_dirfile.getdata(field), idxs)])
+
+                #this is much faster... 18-21s before, <1s after, for 200khz sweep, 250hz step
+                dfdata = self.current_dirfile.getdata(field)
+                data = np.mean(np.take(dfdata,takeidxs),axis=1)
 
                 # split the field to get the tone name, and I or Q
                 try:
                     tonenum, i_or_q = field.split('_')
                 except ValueError:
-                    _logger.warning ( "the field name {0} doesn't appear to be of the correct format".format(field) )
+                    _logger.warning ( self.roachid+": the field name {0} doesn't appear to be of the correct format".format(field) )
                     continue # continue to next iteration
 
                 # add new key to dictionary if data doesn't already exist
@@ -580,14 +664,16 @@ class muxChannel(object):
                 elif i_or_q.lower() == "q":
                     sweep_data_dict[tonenum].imag = data
                 else:
-                    _logger.error( "unknown field name - something went wrong. " )
+                    _logger.error( self.roachid+": unknown field name - something went wrong. " )
                     continue
-
+        print self.roachid, 'processed sweep data:',time.time()-t0
+        t0=time.time()
         # save the data to the new sweep dirfile
         swpdf = _lib_dirfiles.write_sweepdata_to_sweepdirfile(swpdf, self.tl.bb_freqs, \
                                                             lofreqs,
                                                             self.tl.tonenames,\
                                                             sweep_data_dict)
+        print self.roachid, 'write sweep_data:',time.time()-t0
         # add metadata
         _lib_dirfiles.add_metadata_to_dirfile(swpdf, {"raw_sweep_filename": self.current_dirfile.name})
         #
@@ -992,15 +1078,11 @@ def _worker(arg):
 
 
 
-
-
-
-
 class test_mclist(object):
     """
     NOT FULLY TESTED
 
-    An adaption of the muxChannelList class above.
+    An adaptation of the muxChannelList class above.
 
     Trying to run muxChannels in parallel.
 
@@ -1077,7 +1159,11 @@ class test_mclist(object):
             try:
                 mux_channels.append(res[r].get())
             except Exception as e:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                traceback.print_tb(exc_traceback, file=sys.stdout)
                 print "EXCEPTION IN THREAD:",self.channel_names[r],'\n',e.__repr__()
+                traceback.print_exc(file=sys.stdout)
+                
                 mux_channels.append(e)
         
         self._mclist = []
@@ -1121,7 +1207,11 @@ class test_mclist(object):
             try:
                 ret.append(res[r].get())
             except Exception as e:
-                print "EXCEPTION IN THREAD:",self.channel_names[r],':\n',e.__repr__()
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                traceback.print_tb(exc_traceback, file=sys.stdout)
+                print "EXCEPTION IN THREAD:",self.channel_names[r],'\n',e.__repr__()
+                traceback.print_exc(file=sys.stdout)
+                
                 ret.append(e)
         print ret
         for r in ret:
@@ -1137,8 +1227,229 @@ class test_mclist(object):
         methods = [getattr(self._mclist[j],methodname) for j in range(self.num_channels)]
         return self.do_in_parallel(methods,[args]*len(methods),[kwargs]*len(methods))
     
-    
-    
-    
-    
+    def pps_timestamp_start(self):
+        methods = [self._mclist[j].ri.active_pps for j in range(self.num_channels)]
+        self.do_in_parallel(methods,[(True,)]*len(methods),[{}]*len(methods))
+        #[j.ri.active_pps(True) for j in self]   
+        return
         
+    def pps_timestamp_stop(self):
+        methods = [self._mclist[j].ri.active_pps for j in range(self.num_channels)]
+        self.do_in_parallel(methods,[(False,)]*len(methods),[{}]*len(methods))
+        #[j.ri.active_pps(False) for j in self]
+        return
+    
+    def set_tones(self):
+        pass
+    
+    def check_dac_level(self):
+        return [np.amax(np.absolute([j.ri._I_dac,j.ri._Q_dac]))/32767. for j in self]
+
+    def check_adc_level(self,n=3):
+        return self.call_mc_method_in_parallel('adc_levels',n=n)
+
+
+    
+    def init_toneslists(self,tl_files,lo_files,attin_files,dacwavemax_files,extra_attin=0,diff_attinout=14.0):
+
+        if np.size(extra_attin) == 1:
+            extra_attin = extra_attin*np.ones(len(tl_files))
+            
+        if np.size(diff_attinout) == 1:
+            diff_attinout = diff_attinout*np.ones(len(tl_files))
+            
+
+        lo_freqs = []
+        for j in range(len(lo_files)):
+            with open(lo_files[j],'r') as file:
+                lo_freqs.append(int(file.read()))
+        #print lo_freqs
+        
+        attins = []
+        for j in range(len(attin_files)):
+            with open(attin_files[j],'r') as file:
+                attin = float(file.read()) 
+                print attin
+                attin += extra_attin[j]
+                attins.append(attin)
+                
+        dacWaveMaxs = []
+        for j in range(len(dacwavemax_files)):
+            with open(dacwavemax_files[j],'r') as file:
+                dacwavemax = float(file.read()) 
+                print dacwavemax
+                dacWaveMaxs.append(dacwavemax)
+        
+            
+        for ch, tl_file,lo_freq,attin,dwm in zip(self,tl_files,lo_freqs,attins,dacWaveMaxs):
+            ch.tl.fft_binwidth = 0
+            ch.tl.load_tonelist(tl_file,lo_freq=lo_freq)
+            ch.synth_lo.frequency = ch.tl.lo_freq
+            ch.atten_in.set_atten(attin)
+            ch.atten_out.set_atten(max([0,diff_attinout[j]-attin]))
+            ch.dacwavemax = dwm
+
+        return
+    
+    def stream_for_duration(self,duration):
+            #self.pps_timestamp_start()
+
+            self.call_mc_method_in_parallel('start_stream',
+                                               stream_time=duration,
+                                               dont_ask=True)
+            #self.pps_timestamp_stop()
+    
+    def stream_start(self):
+            #self.pps_timestamp_start()
+            self.call_mc_method_in_parallel('start_stream',dont_ask=True)
+    
+    def stream_stop(self):
+            self.call_mc_method_in_parallel('stop_stream',dont_ask=True)
+            #self.pps_timestamp_stop()
+            
+    
+
+    
+    
+    def sweep_lo(self, stop_event = None, **sweep_kwargs):
+        """
+        Function to sweep the LO. Takes in a number of optional keyword arugments. If not given,
+        defaults from the configuration files are assumed.
+
+        Keyword Arguments
+        -----------------
+
+        sweep_span : float
+            Frequency span, in Hz, about which to sweep the LO around its currently set value.
+
+        sweep_step : float
+            Frequency step, in Hz, in which to sweep the LO around its currently set value. Note that some
+            synthesiers have a minimum step size. Every attempt has been made to try to make the user know
+            if the hardware is limiting the step, but care should still be taken.
+
+        sweep_avgs : int
+            Number of packets to average per LO frequency. This is used to calculate an approximate integration
+            time to collect sweep_avgs. There is a 5% time addition to ensure that at least this many packets are
+            collected.
+
+        startidx : int
+            user defined number of samples to skip after lo switch (to be read from config, or set at run time)
+
+        stopidx : int
+            same as startidx, but for the other end (None reads all samples up to lo_switch)
+        save_data : bool
+            Flag to turn off data writing. Mainly for testing purposes. Default is, of course, True.
+
+        filename_suffix : str
+            allows the user to append an additional string to the end of the filename
+        """
+        
+        startidx=sweep_kwargs.pop('startidx',0)
+        stopidx=sweep_kwargs.pop('stopidx',None)
+        
+        # create the stop event for use when running all roaches at once through the muxChannelList
+        stop_event = _multiprocessing.Event() if not isinstance( stop_event, _multiprocessing.synchronize.Event ) else stop_event
+
+        # configure sweep parameters and start writing
+        #sweep_params = self._configure_sweep_and_start_writing(**sweep_kwargs)
+        sweep_params = self.call_mc_method_in_parallel('_configure_sweep_and_start_writing',**sweep_kwargs)[0]
+
+        # # get time for avg factor + 10%
+        sleeptime = np.round( sweep_params["sweep_avgs"] / min([j.sample_rate for j in self]) * 1.1, decimals = 3 )
+        #_logger.debug( self.roachid+": sleep time for sweep is {0}".format(sleeptime) )
+
+        step_times = []
+        #step_times = [[] for j in self]
+
+        # acutally do the sweep - loop over LO frequencies, while saving time at lo_step
+        try:
+            sweepdirection = [np.sign( np.diff(j.tl.sweep_lo_freqs) )[0] for j in self]# +/- 1 for forward/backward - not used right now
+            #_logger.info(self.roachid+': Sweeping LO %3.1f kHz around %3.3f MHz in %1.2f kHz steps' % (np.ptp(self.tl.sweep_lo_freqs/1.e3),
+                        #np.mean(self.tl.sweep_lo_freqs/1.e6),
+                        #np.median(np.diff(self.tl.sweep_lo_freqs)) / 1.e3))
+            
+            lo_freqs = [j.tl.sweep_lo_freqs for j in self]
+            
+            #for ix, lo_freq in _tqdm(enumerate(self.tl.sweep_lo_freqs), desc=cm.BOLD+self.roachid+": Sweeping LO"+cm.ENDC, ncols=75,total=len(self.tl.sweep_lo_freqs)):
+            #for ix, lo_freq in enumerate(self.tl.sweep_lo_freqs):
+            for i in _tqdm(range (max([len(l) for l in lo_freqs])) , desc=cm.BOLD+"Sweeping LO"+cm.ENDC, ncols=75,total=len(lo_freqs[0])):
+                t1=time.time()
+                for chidx,j in enumerate(self):
+                    try:
+                        lo_f = lo_freqs[chidx][i]
+                    except IndexError:
+                        continue
+                    if j.loswitch == True: # only switch if the muxchannel is configured to do so
+                        j.synth_lo.frequency = lo_f
+                    else:
+                        #Don't think we have to do anything here
+                        pass
+                        ## wait until synth_lo.frequency => lo_freq
+                        #t0 = time.time()
+                        #while self.synth_lo.frequency <= lo_f and time.time() <= t0 + sleeptime :
+                            #time.sleep(sleeptime / 100.)
+                            
+                pytime = np.mean([j.writer_daemon.pytime.value for j in self])
+                step_times.append( pytime )
+                #print "lo stepped at ", pytime
+                #_logger.info('LO stepped to ' + str(lo_freq/1.e6))
+                # check the stop event to break out of the loop
+                if stop_event.is_set():
+                    break
+                #pbar.set_description(cm.BOLD + "LO: %i" % lo_freq + cm.ENDC)
+                t2=time.time()
+                time.sleep(sleeptime-(t2-t1))
+
+                # should we wait for a number of samples per frequency? can sample self.current_dirfile.nframes
+
+            #pbar.close()
+            #print cm.OKGREEN + "Sweep done!" + cm.ENDC
+        except KeyboardInterrupt:
+            pass
+
+        # sweep has finished, pause the writing and continue to process the data
+        #time.sleep(2.5)
+        #_logger.debug( self.roachid+": pausing writing at ", self.writer_daemon.pytime.value )
+
+        #self.writer_daemon.pause_writing()
+        [j.writer_daemon.pause_writing() for j in self]
+
+        #  get only the indexes that were swept
+        lofreqs_that_were_swept = [j.tl.sweep_lo_freqs[np.arange(i+1)] for j in self]
+        #lofreqs_that_were_swept = self.tl.sweep_lo_freqs
+        # Back to the central frequency
+        for j in self:
+            if j.loswitch == True:
+                j.synth_lo.frequency = j.tl.lo_freq
+
+        # save lostep_times to current timestream dirfile (why are these not arrays?)
+        [j.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lo_freqs"    , 0, (_gd.FLOAT64, 1) ) ) for j in self]
+        
+        [j.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lostep_times", 0, (_gd.FLOAT64, 1) ) ) for j in self]
+
+        [j.current_dirfile.putdata("lo_freqs"    , np.ascontiguousarray( fff, dtype = np.float64 )) for j,fff in zip(self,lofreqs_that_were_swept)]
+        
+        [j.current_dirfile.putdata("lostep_times", np.ascontiguousarray( step_times,              dtype = np.float64 )) for j in self]
+
+        # on mac, we need to close and reopen the dirfile to flush the data before reading back in the data
+        # - not sure why, or if this is a problem on linux - it doesn't hurt too much though
+        #print self.roachid, 'current_dirfile.close()'
+        [j.current_dirfile.close() for j in self]
+        for j in self:
+            j.current_dirfile = _gd.dirfile(j.writer_daemon.current_filename, _gd.RDWR)
+
+        #delay appears to be required to finish write/open operations before continuing
+        time.sleep(0.5)
+        # analyse the raw sweep dirfile and write to disk
+        #self.reduce_and_write_sweep_data(self.current_dirfile,startidx=startidx,stopidx=stopidx)
+        self.call_mc_method_in_parallel('reduce_and_write_sweep_data',None,startidx,stopidx)
+
+
+
+
+
+
+
+
+
+
