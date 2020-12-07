@@ -230,7 +230,7 @@ class SynthHDSource(object):
 
     def getFrequency(self):
         self._checkSource()
-        return float(self.SynthHDDevice.sendCommand('f?'))*1e6
+        return round(float(self.SynthHDDevice.sendCommand('f?'))*1e6,2)
 
     def setFrequency(self,value):
         assert value>=self.SynthHDDevice.FREQMIN, 'value too low'

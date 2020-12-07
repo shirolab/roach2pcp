@@ -83,7 +83,7 @@ class SynthHDDevice(object):
 		return self.sendCommand('C%d'%value)
 
 	def getFrequency(self):
-		return float(self.sendCommand('f?'))*1e6
+                return round(float(self.SynthHDDevice.sendCommand('f?'))*1e6,2)
 	def setFrequency(self,value):
 		assert value>=self.FREQMIN, 'value too low'
 		assert value<=self.FREQMAX, 'value too high'
