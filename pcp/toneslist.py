@@ -10,7 +10,7 @@ import scipy.interpolate as spint
 
 _logger = _logging.getLogger(__name__)
 
-import pcp
+import pcp, pcp.configuration.color_msg as cm
 #from .configuration import ROOTDIR, AMPCORRDIR, TONELISTDIR, TONEHISTDIR, filesys_config, roach_config
 
 def load_pcp_tonelist(tonelist_file):
@@ -341,12 +341,13 @@ class Toneslist(object):
 
 			# maintain backward comptability
 			try:
-				atten_in  = _np.float32(tonedict['atten_in'])
-				atten_out = _np.float32(tonedict['atten_out'])
-				lofreq    = _np.float32(tonedict['lofreq'])
-				tl_file   = tonedict['tl_file']
+				atten_in   = _np.float32(tonedict['atten_in'])
+				atten_out  = _np.float32(tonedict['atten_out'])
+				dacwavemax = _np.double(tonedict['dacwavemax'])
+				lofreq     = _np.float32(tonedict['lofreq'])
+				tl_file    = tonedict['tl_file']
 			except KeyError:
-				atten_in = atten_out = lofreq = tl_file = None
+				atten_in = atten_out = dacwavemax = lofreq = tl_file = None
 
 		ask = False
 		# check to see if current tonelist matches new tones by comparing number of tones and fractional shift in bb_freqs
@@ -366,9 +367,9 @@ class Toneslist(object):
 		#self.amps = amps; self.phases = phases; self.bb_freqs = bb_freqs
 		_logger.info("tones loaded {0}".format( _os.path.basename( self.tonehistory[datetime_tag])) )
 		#_time.sleep(0.1)
-		return lofreq, atten_in, atten_out, bb_freqs, amps, phases, tl_file
+		return lofreq, atten_in, atten_out, dacwavemax, bb_freqs, amps, phases, tl_file
 
-	def write_tonehistfile(self, lofreq, atten_in, atten_out, bb_freqs, amps, phases, tl_file):
+	def write_tonehistfile(self, lofreq, atten_in, atten_out, dacwavemax,bb_freqs, amps, phases, tl_file):
 		""" Write the current tone parameters to a timestamped .tone file in the tonehistdir for the given
 		roachid. """
 
@@ -381,13 +382,14 @@ class Toneslist(object):
 
 		data = {'date'     : _dt.datetime.strftime(timenow, '%Y%m%d'),\
 				'time'     : _dt.datetime.strftime(timenow, '%H%m%S'),\
-				'freqs'    : bb_freqs,\
-				'amps'     : amps,\
-				'phases'   : phases, \
-				'atten_in' : atten_in,\
-				'atten_out': atten_out,\
-				'lofreq'   : lofreq,\
-				'tl_file'  : tl_file }
+				'freqs'     : bb_freqs,\
+				'amps'      : amps,\
+				'phases'    : phases, \
+				'atten_in'  : atten_in,\
+				'atten_out' : atten_out,\
+				'dacwavemax': dacwavemax,\
+				'lofreq'    : lofreq,\
+				'tl_file'   : tl_file }
 
 		outfname = _os.path.join( self.TONEHISTDIR, datetag )
 		with open(outfname, 'w') as outfile:
@@ -431,12 +433,14 @@ class Toneslist(object):
 
 	@bb_freqs.setter
 	def bb_freqs(self, bb_freqs):
-
+                print self.roachid,'bb_freqs setter:',bb_freqs
 		# before setting the bb_freqs, check that they fit within the available bandwidth
 		#if isinstance(bb_freqs, (_np.ndarray, _pd.Series) ) :
 		if bb_freqs.size > 0 :
 			valid_idxs = self._get_valid_tone_idxs( bb_freqs )
 			if len(valid_idxs) != len( bb_freqs ) :
+                                print cm.FAIL+'ERROR cannot clip tonelists frequencies, please adjust tonelist file'+cm.ENDC
+				#raise Exception,'cannot clip tonelists frequencies'
 				clipped_idxs = list( set( _np.arange( len(bb_freqs) ) ).difference(valid_idxs) )
 
 				if not self._init == True:
