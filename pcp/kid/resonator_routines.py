@@ -7,6 +7,9 @@
 import logging as _logging, numpy as _np
 from ..lib.lib_dirfiles import SWEEP_CALPARAM_FIELDS
 
+import scipy.ndimage as _snd
+
+
 _logger = _logging.getLogger(__name__)
 
 def calc_sweep_cal_params(sweep_f, sweep_i, sweep_q, tone_freqs = None , nanmask = None, **kwargs):
@@ -16,7 +19,9 @@ def calc_sweep_cal_params(sweep_f, sweep_i, sweep_q, tone_freqs = None , nanmask
     then the function returns calibration parameters at that frequency, otherwise the maximum values are calculated.
 
     """
-
+    despike_window = kwargs.pop('despike_window',1)
+    if despike_window is None: despike_window = 1
+    
     assert sweep_i.shape[-1] == sweep_q.shape[-1] == sweep_f.shape[-1], "data does not appear to be in the correct shape"
 
     # convert to at least 2d to vectorise processing for multiple resonators at once
@@ -47,9 +52,10 @@ def calc_sweep_cal_params(sweep_f, sweep_i, sweep_q, tone_freqs = None , nanmask
         if nanmask is not None:
             dum = didq2
             dum[nanmask] = _np.nan
-            idxs = _np.nanargmax(dum, axis=1)
+            idxs = _np.nanargmax(_snd.median_filter(dum,(1,despike_window)), axis=1)
         else:
-            idxs = _np.argmax( didq2, axis=1 )
+            idxs = _np.argmax(_snd.median_filter(didq2,(1,despike_window)), axis=1 )
+
 
     # set up a 2D array to index along the second dimension all at once
     idxs = ( _np.arange(len(idxs)), idxs )
