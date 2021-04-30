@@ -170,7 +170,7 @@ class dataLogger(object):
         # initialise status flag(s). Upon starting, the writer is initially paused.
         self.is_writing = mp.Value(ctypes.c_bool, False)
         self.pytime     = mp.Value(ctypes.c_double, time.time())
-        self.LMT_PGM_START = mp.Value(ctypes.c_uint8, 0)
+        #self.LMT_PGM_START = mp.Value(ctypes.c_uint8, 0)
 
         #self.is_writing = False
 
@@ -309,7 +309,7 @@ class dataLogger(object):
                     #self.LMT_PGM_START.value = 0# set this externally
                     
                     self._writer_queue.appendleft( ( packet, 
-                                                    self.pytime.value, self.LMT_PGM_START.value ) )
+                                                    self.pytime.value ) )
 
                     #print "sending packet to pipe", packet[:10]
                     #datapipe_in.send( ( packet, time.time() ) )
@@ -520,7 +520,7 @@ class dataLogger(object):
         #return len( field_name_set.difference( self._datapacket_dict.keys() ) ) == 0
         return len( field_name_set.difference( self._datapacket_dict["tone_fields"].keys() + \
                                                self._datapacket_dict["aux_fields"].keys()  + \
-                                                ["python_timestamp"] +["LMT_PGM_START"]) ) == 0
+                                                ["python_timestamp"] ) ) == 0
 
     def start_daemon(self):
         # check process isn't already running

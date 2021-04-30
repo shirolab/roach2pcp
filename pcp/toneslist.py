@@ -131,7 +131,7 @@ def check_for_overlap_freqs(freqlist, minspacing, silent = False):
 	"""
 
 	freqlist = _np.atleast_2d(freqlist)
-	diff =  _np.diff(_np.sort(_np.abs(freqlist)))
+	diff =  _np.diff(_np.sort(freqlist))
 	r,c = _np.where(diff < minspacing)
 
 	isbad   = _np.any( diff < minspacing, axis=1)

@@ -382,9 +382,9 @@ def generate_main_rawfields(dirfile, roachid, tonenames, fragnum=0 ):#, field_su
                                             fragnum, \
                                             (_GDDATAMAP[ firmware_dict["packet_structure"]['python_timestamp'][1] ], 1) ) ]
     # write the LMT_PGM_START field manually
-    aux_entries_to_write.append( _gd.entry( _GDENTRYMAP[ firmware_dict["packet_structure"]['LMT_PGM_START'][0] ], namespace + 'LMT_PGM_START', \
-                                            fragnum, \
-                                            (_GDDATAMAP[ firmware_dict["packet_structure"]['LMT_PGM_START'][1] ], 1) ) )
+    #aux_entries_to_write.append( _gd.entry( _GDENTRYMAP[ firmware_dict["packet_structure"]['LMT_PGM_START'][0] ], namespace + 'LMT_PGM_START', \
+    #                                        fragnum, \
+    #                                        (_GDDATAMAP[ firmware_dict["packet_structure"]['LMT_PGM_START'][1] ], 1) ) )
 
     for field_name, (entry_type, field_datatype, __, __, __, __) in aux_fields.items():
         #print eval(entry_type), eval(field_datatype)
