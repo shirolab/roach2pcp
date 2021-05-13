@@ -208,7 +208,14 @@ class muxChannel(object):
 
         try:
             self.synth_lo = pcp.SYNTHS_IN_USE[synthid_lo].synthobj
+            
             self.synth_lo.frequency = self.tl.lo_freq
+            self.synth_lo.setAMRunContinuously(0)
+            self.synth_lo.frequency = self.tl.lo_freq
+            self.synth_lo.setPLLPowerOn(0)
+            time.sleep(0.1)
+            self.synth_lo.setPLLPowerOn(1)  
+            
         except KeyError:
             logger.warning(self.roachid+": synthid = {0} not recognised. Check configuration file".format(synthid_lo))
 
@@ -225,6 +232,12 @@ class muxChannel(object):
             self.synth_clk.frequency = 512.0e6
             if isinstance(self.synth_clk, pcp.drivers.synthesizer.synthclasses.pcp_windfreaksynthSource):
                 self.synth_clk.power = 12.5
+                self.synth_clk.SynthHDDevice.setReferenceSelect(0) 
+                self.synth_clk.SynthHDDevice.setPLLReferenceFrequency(10e6)
+                self.synth_clk.setPLLPowerOn(0)
+                time.sleep(0.1)
+                self.synth_clk.setPLLPowerOn(1)
+                
             
 
         else:

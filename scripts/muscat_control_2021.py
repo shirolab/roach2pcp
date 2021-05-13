@@ -25,13 +25,14 @@ ALLNAMES  = ['phantom','clones','sith','hope','empire','jedi']
 
 #The ones we are going to use:
 CHNUMS    = [1,2,3,4,5,6]
+#CHNUMS    = [1]
 CHNAMES   = [ALLNAMES[n-1] for n in CHNUMS]
 NCHANS    = len(CHNUMS)
 
 
 #The initial tonelist files:
 TL_HALF   = 'a'
-TL_DIR    = '/home/muscat/toneslists/tones_20201016/run7_subset/'
+TL_DIR    = '/home/muscat/toneslists/tones_20210330/run6_atts/'
 TL_FILES    = [TL_DIR+'t%d%c_20201016-130mk-300k.txt'%(ch,TL_HALF) for ch in CHNUMS]
 LO_FILES    = [TL_DIR+'lo%d%c.txt'%(ch,TL_HALF) for ch in CHNUMS]
 ATTIN_FILES    = [TL_DIR+'attin%d%c_20201016-130mk-300k.txt'%(ch,TL_HALF) for ch in CHNUMS]
@@ -61,7 +62,7 @@ RSYNC_BACKUP_FILENAME  = '/home/muscat/rsync_log.txt'
 
 #Data backup: copies dirfiles from data dir to backupdir after observations:
 OBS_DATA_DIR            = '/data/muscat/'
-OBS_BACKUP_DIR          = '/data2/muscat/'
+#OBS_BACKUP_DIR          = '/data2/muscat/'
 
 #Timestamp,LogAction,ObsProgram,ObsNum,SubObsNum,ScanNum,SourceName,Dirfiles  
 OBS_DTYPE   = np.dtype([('Timestamp'  ,'|S64'),
@@ -75,7 +76,7 @@ OBS_DTYPE   = np.dtype([('Timestamp'  ,'|S64'),
 
 
 #Highest  temperature in Kelvin before issuing warnings
-CRYO_WARNING_TEMP = 0.140
+CRYO_WARNING_TEMP = 0.15
 RED = '\033[31m'
 RBG = '\033[41m'
 END = '\033[0m'
@@ -88,27 +89,24 @@ LOCATION  = 'CARDIFF_LAB'
 #LOCATION  = 'LMT_L29'
 
 
-class fucking_awesome(object):
-    pass
 
 
-class MuxController(fucking_awesome):
+
+class MuxController(object):
     """
     High level code to perform observations with MUSCAT.
     
     Can be run in an interactive interpreter (eg lab testing),
     or as a part client/server system (eg at telescope)
     """
-    def __init__(shit, 
+    def __init__(self, 
                  cryo      =True,
-                 bb =True,
-                 xyz       =True,
+                 bb        =False,
+                 xyz       =False,
                  pcp       =True,
                  clfn      =CONTROL_LOGFILENAME,
                  olfn      =OBSLOG_FILENAME):
         
-        super(fucking_awesome,shit).__init__()
-        self                = shit
         self.olfn           = olfn
         self.clfn           = clfn
         self.cryo           = None
@@ -120,7 +118,7 @@ class MuxController(fucking_awesome):
         
         
         """The muscat controller is starting..."""
-        print '\nMae\'r rheolwr MUSCAT yn dechrau...\n'
+        print '\nYma mae dreigiau...\n'
         
         self.write_conlog_entry('MuxController')
         self.write_conlog_entry('Observation log file location: %s'%self.clfn)
@@ -263,28 +261,28 @@ class MuxController(fucking_awesome):
     
     
     
-    def backup_obs(self, dirfiles,obspgm,obsnum,subobsnum,scannum,sourcename,datadir=None, backupdir=None):
-        if datadir is None:
-            datadir = OBS_DATA_DIR
-        if backupdir is None:
-            backupdir = OBS_BACKUP_DIR
+    #def backup_obs(self, dirfiles,obspgm,obsnum,subobsnum,scannum,sourcename,datadir=None, backupdir=None):
+        #if datadir is None:
+            #datadir = OBS_DATA_DIR
+        #if backupdir is None:
+            #backupdir = OBS_BACKUP_DIR
         
-        sources     = [f.replace(datadir,'') for f in dirfiles]
-        destination = backupdir 
+        #sources     = [f.replace(datadir,'') for f in dirfiles]
+        #destination = backupdir 
         
-        echo1 = 'echo "RSYNC STARTING IN BACKGROUND"'
-        cd    = 'cd %s'%datadir
-        rsync = 'rsync -RKLrptgoDz %s %s'%(' '.join(sources),destination)
-        echo2 = 'echo "RSYNC FINISHED. "'
-        done1  = 'echo "%s %d %d %d %s" > %s'%(
-            obspgm,obsnum,subobsnum,scannum,sourcename,RSYNC_FILENAME)
-        done2  = 'echo "%s %d %d %d %s" > %s'%(
-            obspgm,obsnum,subobsnum,scannum,sourcename,RSYNC_BACKUP_FILENAME)
+        #echo1 = 'echo "RSYNC STARTING IN BACKGROUND"'
+        #cd    = 'cd %s'%datadir
+        #rsync = 'rsync -RKLrptgoDz %s %s'%(' '.join(sources),destination)
+        #echo2 = 'echo "RSYNC FINISHED. "'
+        #done1  = 'echo "%s %d %d %d %s" > %s'%(
+            #obspgm,obsnum,subobsnum,scannum,sourcename,RSYNC_FILENAME)
+        #done2  = 'echo "%s %d %d %d %s" > %s'%(
+            #obspgm,obsnum,subobsnum,scannum,sourcename,RSYNC_BACKUP_FILENAME)
         
-        cmd = '%s && %s && %s && %s && %s && %s &'%(echo1,cd,rsync,echo2,done1, done2)
-        os.system(cmd)
-        self.write_conlog_entry('backup_obs: backup initiated, destinations: %s'%
-                                ([j.replace(datadir, backupdir) for j in dirfiles]))
+        #cmd = '%s && %s && %s && %s && %s && %s &'%(echo1,cd,rsync,echo2,done1, done2)
+        #os.system(cmd)
+        #self.write_conlog_entry('backup_obs: backup initiated, destinations: %s'%
+                                #([j.replace(datadir, backupdir) for j in dirfiles]))
 
     
     
@@ -541,7 +539,7 @@ class MuxController(fucking_awesome):
         
         if obs:
             self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
-            self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
+            #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
             
         return
     
@@ -602,7 +600,7 @@ class MuxController(fucking_awesome):
         if obs:
             dirfiles = [j.sweep.dirfile.name for j in self.mclist]
             self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
-            self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
+            #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
 
         return
        
@@ -639,7 +637,7 @@ class MuxController(fucking_awesome):
         if obs:
             dirfiles = [j.sweep.dirfile.name for j in self.mclist]
             self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
-            self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
+            #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
 
         return
 
@@ -665,7 +663,7 @@ class MuxController(fucking_awesome):
             self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
             self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_2_Cald'])
             if self.bb: self.add_bb_log_to_dirfiles(dirfiles)
-            self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
+            #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
         return
     
     def start_recording(self,
@@ -693,7 +691,7 @@ class MuxController(fucking_awesome):
             self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
             self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_2_Cald'])
             if self.bb: self.add_bb_log_to_dirfiles(dirfiles)
-            self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
+            #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
 
         
         
@@ -719,7 +717,7 @@ class MuxController(fucking_awesome):
             self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
             self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_2_Cald'])
             if self.bb: self.add_bb_log_to_dirfiles(dirfiles)
-            self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
+            #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
 
         return
 
@@ -775,7 +773,7 @@ class MuxController(fucking_awesome):
             self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
             self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_2_Cald'])
             if self.bb: self.add_bb_log_to_dirfiles(dirfiles)
-            self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
+            #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
 
         return
     
@@ -816,7 +814,7 @@ class MuxController(fucking_awesome):
             self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
             self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_2_Cald'])
             if self.bb: self.add_bb_log_to_dirfiles(dirfiles)
-            self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
+            #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
         return
     
     
@@ -846,7 +844,7 @@ class MuxController(fucking_awesome):
             self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
             self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_2_Cald'])
             if self.bb: self.add_bb_log_to_dirfiles(dirfiles)
-            self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
+            #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
         return
     
 
@@ -883,31 +881,23 @@ class MuxController(fucking_awesome):
 
     def PGMMap(self,obsnum,subobsnum,scannum,sourcename,obspgm):
         
-        obsdir = os.path.join('/data/obs/',str(obsnum),str(scannum))
-        if not os.path.exists(obsdir): os.makedirs(obsdir)
-        print '*********',obsdir
         
-        
-
-        self.write_obslog('OPEN %s %s %s %s\n'%(obspgm,obsnum,scannum,obsdir))
-        print '*********',t
-        
-        #add all metadata
-        
-        print 'obs dir:',obsdir
-        self.ch.start_stream(dont_ask=True)
+        self.start_recording(obsnum,subobsnum,scannum,sourcename,True)
         while self.stream_flag:
             time.sleep(1)
             
-        self.ch.stop_stream()
-        
+        self.stop_recording()
+        dirfiles = [j.current_dirfile.name for j in self.mclist]
+        self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
+        self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_2_Cald'])
+
         #print 'stream_flag=0: writing_data: %s %s'%(self.ch.current_dirfile.name,obsdir)
         
-        copycmd='cp -rL %s %s'%(self.ch.current_dirfile.name,obsdir)
-        print copycmd
-        os.system(copycmd)
+        #copycmd='cp -rL %s %s'%(self.ch.current_dirfile.name,obsdir)
+        #print copycmd
+        #os.system(copycmd)
         
-        self.write_obslog('CLOSED %s %s %s %s\n'%(obspgm,obsnum,scannum,obsdir))
+        #self.write_obslog('CLOSED %s %s %s %s\n'%(obspgm,obsnum,scannum,obsdir))
         
         
         print 'Done PGMMap'
@@ -993,17 +983,8 @@ class MuxController(fucking_awesome):
     
 
     def tune(self):
-        self.retune()
+        self.retune_only()
         
-        if not self.ch.current_dirfile is None:
-            self.ch.stop_stream()
-            time.sleep(1)
-            
-        
-        self.ch.sweep_lo(sweep_avgs=20,
-                               startidx=10,
-                               sweep_step = 2000,
-                               sweep_span = 450e3)
         print 'Done Tuning'
         time.sleep(1)
         return 0
@@ -1044,6 +1025,6 @@ def check_sweep_lo_steps(dirfile,kidnum,startidx=25,stopidx=35):
 
 
 if __name__=='__main__':
-    M = MuxController(xyz=False)
+    M = MuxController()
     
     
