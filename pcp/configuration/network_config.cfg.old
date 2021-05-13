@@ -1,0 +1,171 @@
+# Configuration file for network options (e.g. ipaddresses, port numbers...etc)
+
+awaken:
+  device_id: dummyroach
+  socket_type: "udp"
+  roach_ppc_ip: 192.168.40.64
+  udp_source_ip: 192.168.40.71
+  udp_source_port: 60002
+  udp_source_mac: 02440102110E
+  udp_dest_ip: localhost
+  udp_dest_port: 12348
+  udp_dest_device: ""
+  udp_dest_mac: 00E04CA041E2
+  buf_size: 9000
+  header_len: 42
+
+
+phantom:
+  device_id: roach2
+  socket_type: "udp"
+  roach_ppc_ip: 192.168.40.96
+  udp_source_ip: 192.168.41.61
+  udp_source_port: 60000
+  udp_source_mac: 02440102110B
+  udp_dest_ip: 192.168.41.1
+  udp_dest_port: 60000
+  udp_dest_device: enp4s0f1
+  udp_dest_mac: A0369F85ECD1
+  buf_size: 8234
+  header_len: 0
+
+clones:
+  device_id: roach2
+  socket_type: "udp"
+  roach_ppc_ip: 192.168.40.97
+  udp_source_ip: 192.168.41.62
+  udp_source_port: 60000
+  udp_source_mac: 02440102110C
+  udp_dest_ip: 192.168.41.1
+  udp_dest_port: 60001
+  udp_dest_device: enp4s0f1
+  udp_dest_mac: A0369F85ECD1
+  buf_size: 8234
+  header_len: 0
+
+sith:
+  device_id: roach2
+  socket_type: "udp"
+  roach_ppc_ip: 192.168.40.98
+  udp_source_ip: 192.168.41.63
+  udp_source_port: 60000
+  udp_source_mac: 02440102110D
+  udp_dest_ip: 192.168.41.1
+  udp_dest_port: 60002
+  udp_dest_device: enp4s0f1
+  udp_dest_mac: A0369F85ECD1
+  buf_size: 8234
+  header_len: 0
+
+hope:
+  device_id: roach2
+  socket_type: "udp"
+  roach_ppc_ip: 192.168.40.99
+  udp_source_ip: 192.168.41.64
+  udp_source_port: 60000
+  udp_source_mac: 02440102110E
+  udp_dest_ip: 192.168.41.1
+  udp_dest_port: 60004
+  udp_dest_device: enp4s0f1
+  udp_dest_mac: A0369F85ECD1
+  buf_size: 8234
+  header_len: 0
+
+empire:
+  device_id: roach2
+  socket_type: "udp"
+  roach_ppc_ip: 192.168.40.50
+  udp_source_ip: 192.168.41.65
+  udp_source_port: 60000
+  udp_source_mac: 02440102110F
+  udp_dest_ip: 192.168.41.1
+  udp_dest_port: 60005
+  udp_dest_device: enp4s0f1
+  udp_dest_mac: A0369F85ECD1
+  buf_size: 8234
+  header_len: 0
+
+jedi:
+  device_id: roach2
+  socket_type: "udp"
+  roach_ppc_ip: 192.168.40.76
+  udp_source_ip: 192.168.41.66
+  udp_source_port: 60000
+  udp_source_mac: "024401021110"
+  udp_dest_ip: 192.168.41.1
+  udp_dest_port: 60006
+  udp_dest_device: enp4s0f1
+  udp_dest_mac: A0369F85ECD1
+  buf_size: 8234
+  header_len: 0
+
+  # roach3:
+  #   roach_ppc_ip: 192.168.40.70
+  #   udp_source_ip: 192.168.40.71
+  #   udp_source_port: 60000
+  #   udp_source_mac: 2:44:2:2:b:3
+  #   udp_dest_ip: 192.168.41.2
+  #   udp_dest_port: 60000
+  #   udp_dest_device: eth2
+  #   buf_size: 8234
+  #   header_len: 42
+
+  
+#  
+#   # Configuration file for roach hardware options (e.g. dds_shifts, fft_bin size, accum, firmware registers)
+# 
+#   MAXCHANNELS: 1012
+# 
+#   totallen: 8234
+#   headerstart: 0
+#   headerlen: 42
+#   datalen: 8192
+#   datatype: signed long
+# 
+#   
+#   timingtype: unsigned long
+#   timingendian: big
+# 
+#   ctime:
+#   # attempt to write down the packet format, just in case it changes
+#   PACKETSTRUCT: # all numbers in bytes
+#     packetcount: 0
+#     coarsetimestamp: 1
+#     finetimestamp: 2
+#     checksum: 3
+#     packetinfo: 4
+# 
+# 
+#    #   69  * UDP packet structure:
+#    # 70  * -----------------------
+#    # 71  * Total length: 8234 bytes
+#    # 72  * Header: 42 bytes
+#    # 73  * Data + timing info: 8192 bytes
+#    # 74  * Data type: 32b signed integers
+#    # 75  *     - Data should be unpacked as little-endian
+#    # 76  * Number of channels: 1016
+#    # 77  *     - Each channel has a 32b I value, and a 32b Q value
+#    # 78  * Values:
+#    # 79  * 1 - 512: Channels 0 - 512, I values
+#    # 80  * 513 - 1024: Channels 0 - 512, Q values
+#    # 81  * 1025 - 1536: Channels 513 - 1024, I values
+#    # 82  * 1537 - 2048: Channels 513 - 1024, Q values
+#    # 83  *
+#    # 84  * Note: There are technically 1024 data channels,
+#    # 85  * but the last 20 bytes of the packet
+#    # 86  * are used to store timing information, limiting the number
+#    # 87  * of useable channels to 1012
+#    # 88  *
+#    # 89  * The information stored in the last 20 bytes:
+#    # 90  *     - Should be unpacked as BIG-endian, unsigned
+#    # 91  *     - Consists of five 32b unsigned ints
+#    # 92  *     - From end of packet, these are:
+#    #       * Packet info /* 32b register for arbitrary info to be saved into udp packet before transmission. */
+#    # 93  * Raw packet count /* Initialized to 0 with 'GbE_pps_start' */
+#    # 94  * Fine timestamp /* Clock cycles elapsed since last PPS pulse */
+#    # 95  * Course timestamp /* The number of PPS pulses elapsed since 'pps_start' */
+#    # 96  * Data checksum /* Currently a constant placeholder, 42 (in progress) */
+#    # 97  *
+#    # 98  **********************************************************************
+#  
+#   
