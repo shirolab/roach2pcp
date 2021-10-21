@@ -38,7 +38,7 @@ except ImportError:
     _logger.warning( "can't find casperfpga module - limited functionality available" )
     casperfpga = None
     pass
-
+ 
 
 # from .configuration import ROOTDIR, filesys_config, roach_config, network_config, hardware_config, general_config
 
@@ -1250,43 +1250,35 @@ class test_mclist(object):
 
 
     
-    def init_toneslists(self,tl_files,lo_files,attin_files,dacwavemax_files,extra_attin=0,diff_attinout=14.0):
-
-        if np.size(extra_attin) == 1:
-            extra_attin = extra_attin*np.ones(len(tl_files))
-            
-        if np.size(diff_attinout) == 1:
-            diff_attinout = diff_attinout*np.ones(len(tl_files))
-            
-
+    def init_toneslists(self,tl_files,lo_files,attin_files,attout_files, dacwavemax_files):
+	#read in LO frequencies, attin, attout, dacwavemax for each roach
         lo_freqs = []
         for j in range(len(lo_files)):
             with open(lo_files[j],'r') as file:
                 lo_freqs.append(int(file.read()))
-        #print lo_freqs
         
         attins = []
         for j in range(len(attin_files)):
             with open(attin_files[j],'r') as file:
-                attin = float(file.read()) 
-                print attin
-                attin += extra_attin[j]
-                attins.append(attin)
+                attins.append(float(file.read()))
+
+	attouts = []
+        for j in range(len(attout_files)):
+            with open(attout_files[j],'r') as file:
+                attouts.append(float(file.read()))
                 
         dacWaveMaxs = []
         for j in range(len(dacwavemax_files)):
             with open(dacwavemax_files[j],'r') as file:
-                dacwavemax = float(file.read()) 
-                print dacwavemax
-                dacWaveMaxs.append(dacwavemax)
+                dacWaveMaxs.append(float(file.read()))
         
-            
-        for ch, tl_file,lo_freq,attin,dwm in zip(self,tl_files,lo_freqs,attins,dacWaveMaxs):
+
+        for ch, tl_file,lo_freq,attin,attout,dwm in zip(self,tl_files,lo_freqs,attins,attouts,dacWaveMaxs):
             ch.tl.fft_binwidth = 0
             ch.tl.load_tonelist(tl_file,lo_freq=lo_freq)
             ch.synth_lo.frequency = ch.tl.lo_freq
             ch.atten_in.set_atten(attin)
-            ch.atten_out.set_atten(max([0,diff_attinout[j]-attin]))
+            ch.atten_out.set_atten(attout)
             ch.dacwavemax = dwm
 
         return
