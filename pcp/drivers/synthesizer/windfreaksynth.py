@@ -12,7 +12,7 @@ MODELNUMS = ["synthhd"]
 
 #serial port snrs for device identification
 hwid_snrs = ['4294967295']
-dev_snrs = ['656']
+dev_snrs = ['1592']
 
 
 class SynthHDDevice(object):
