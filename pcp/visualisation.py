@@ -744,16 +744,20 @@ class pcpInteractivePlot(object):
 
     def _configure_axes(self):
 
+        do_figsum=False
+
         if self.usepyplot == False:
             fig = matplotlib.figure.Figure(figsize=(13.5,  7))
             canvas = matplotlib.backends.backend_qt5agg.FigureCanvasQTAgg(fig)
-            figsum = matplotlib.figure.Figure(figsize=(13.5,  7))
-            cansum = matplotlib.backends.backend_qt5agg.FigureCanvasQTAgg(figsum)
+            if do_figsum:
+                figsum = matplotlib.figure.Figure(figsize=(13.5,  7))
+                cansum = matplotlib.backends.backend_qt5agg.FigureCanvasQTAgg(figsum)
         else:
             fig = plt.figure(figsize=(13.5,  7))
             canvas = fig.canvas
-            figsum = plt.figure(figsize=(13.5,  7))
-            cansum = figsum.canvas
+            if do_figsum:
+                figsum = plt.figure(figsize=(13.5,  7))
+                cansum = figsum.canvas
 
         axiq  = fig.add_subplot(122)
         axmag = fig.add_subplot(321)
@@ -779,11 +783,12 @@ class pcpInteractivePlot(object):
         self.axiq = axiq; self.axmag = axmag; self.axphi = axphi; self.axcal = axcal
 
         # --- do stuff with summary figure here ---
-        ax1  = figsum.add_subplot(122)
-        ax2  = figsum.add_subplot(222)
+        if do_figsum:
+            ax1  = figsum.add_subplot(122)
+            ax2  = figsum.add_subplot(222)
 
-        self.figsum = figsum
-        self.ax1 = ax1; self.ax2 = ax2
+            self.figsum = figsum
+            self.ax1 = ax1; self.ax2 = ax2
 
 
     def _configure_plots(self):

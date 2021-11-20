@@ -185,6 +185,9 @@ class muxChannel(object):
         self._initialise_atten_in()
         self._initialise_atten_out()
 
+    def initialise_fpga(self,*args,**kwargs):
+        self.ri.initialise_fpga(*args,**kwargs)
+
     # def shutdown_hardware(self):
     #     #close connections to hardware
     #     self._shutdown_synth_connections()
@@ -752,15 +755,17 @@ class muxChannel(object):
 
 class muxChannelList(object):
 
-    def __init__(self, channel_list):
+    def __init__(self, channel_list,channel_nums=None):
 
+        
         channel_list = list(np.atleast_1d(channel_list))
         _logger.debug("initialising muxChannelList with channel list {0}".format( channel_list ) )
 
         assert isinstance(channel_list, (list, tuple)) and len(channel_list) > 0 , "input {0} not recognised".format( type(channel_list) )
 
         self.channels = channel_list
-
+        
+        num_chans = 0
         # determine if the elements of the list are instantiated muxChannel objects
         if all( [isinstance(el, muxChannel) for el in channel_list]):
             _logger.debug("found a list of existing muxchannels with roachids: {0}".format( [el.roachid for el in channel_list] ) )
@@ -770,6 +775,26 @@ class muxChannelList(object):
             for roachid in channel_list:
                 _logger.info("initialising mux channel - {roachid} ".format( roachid=roachid ) )
                 setattr( self, roachid, muxChannel(roachid) )
+                num_chans+=1
+        
+        self.channel_nums = channel_nums
+        if channel_nums is None:
+            self.channel_nums = range(num_chans)
+
+    def __getitem__(self,channel):
+        if self.channel_nums is None:
+            pass
+        else:
+            if type(channel)==int:
+                return getattr(self, self.channels[self.channel_nums.index(channel)])
+            elif type(channel)==str:
+                return getattr(self, self.channels[self.channels.index(channel)])
+    
+    def __iter__(self):
+        if self.channel_nums is None:
+            return (getattr(self,roachid) for roachid in self.channels)
+        else:
+            return (self[chnum] for chnum in self.channel_nums)
 
     def _verify_channel_list_valid(self, channel_list):
         assert set(channel_list).issubset(self.channels), "channels given are not valid {0}".format(set(channel_list).difference(self.channels))
@@ -942,3 +967,178 @@ def _worker(arg):
 
 
 # logging
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class test_mclist(object):
+    """
+    NOT FULLY TESTED
+
+    An adaption of the muxChannelList class above.
+
+    Trying to run muxChannels in parallel.
+
+    Constructed with a list of muxChannel.roachid strings.
+
+    Does not inherit from list, but has __iter__ and __getitem__ for list-like behaviour.
+
+    Holds a 'list' of muxChannels, indexable by name or number.
+
+    Channel number can be set arbitrarily on construction, does not have to be 0,1,2,3...
+
+    Pass the name of a muxChannel.method as a string to self.call_mc_method_in_parallell to run that method on all muxChannels in the list in a thread pool.
+
+    Any args and/or kwargs are forwarded to the all of the muxChannel.method
+
+    Currently only able to pass the same args/kwargs to all muxChannels
+
+    muxChannel dependent args will need to passed in and run in serially in a loop.
+
+    Tested so far:
+        test_mclist.call_mc_method_in_parallel('initialise_hardware')
+        test_mclist.call_mc_method_in_parallel('initialise_fpga',force_reupload=True)
+        test_mclist.call_mc_method_in_parallel('write_freqs_to_fpga',auto_write=True)
+        test_mclist.call_mc_method_in_parallel('sweep_lo')
+        test_mclist.call_mc_method_in_parallel('sweep_lo')
+        test_mclist.call_mc_method_in_parallel('start_stream',dont_ask=True,stream_time=duration) 
+        test_mclist.call_mc_method_in_parallel('start_stream',dont_ask=True) 
+        test_mclist.call_mc_method_in_parallel('stop_stream',dont_ask=True) 
+
+    Probably going to have to whitelist desired methods as not all should be allowed to be called.
+
+    Also, cannot access methods of attributes eg muxChannel.sweep.plot_sweep etc...
+
+    """
+    def __init__(self, channel_list,channel_nums=None):
+
+        
+        channel_list = list(np.atleast_1d(channel_list))
+        _logger.debug("initialising muxChannelList with channel list {0}".format( channel_list ) )
+
+        assert isinstance(channel_list, (list, tuple)) and len(channel_list) > 0 , "input {0} not recognised".format( type(channel_list) )
+
+        self.channel_names = channel_list
+        self.num_channels  = len(channel_list)
+        
+        self.channel_nums  = channel_nums
+        if self.channel_nums is None:
+            self.channel_nums = range(self.num_channels)
+        
+        #################################################################################
+        ##start the muxChannels in serial
+        
+        #self._mclist = []
+        #for ch in self.channel_names:
+            #mc=muxChannel(ch)
+            #self._mclist.append(mc)
+            #setattr( self, ch, mc )
+        
+        #################################################################################
+        ##start the mux channels in parallel:
+        
+        mp_pool = _multiprocessing_pool.ThreadPool( processes = self.num_channels )
+        res=[]
+        for ch in self.channel_names:
+            _logger.info("initialising mux channel - {roachid} ".format( roachid=ch ) )
+            res.append(mp_pool.apply_async(muxChannel, (ch,) ) )
+        
+        while not all([r.ready() for r in res]): time.sleep(0.1)
+        mp_pool.close()
+        mp_pool.join()
+        
+        mux_channels = []
+        for r in range(len(res)):
+            try:
+                mux_channels.append(res[r].get())
+            except Exception as e:
+                print "EXCEPTION IN THREAD:",self.channel_names[r],'\n',e.__repr__()
+                mux_channels.append(e)
+        
+        self._mclist = []
+        for ch, mc in zip(self.channel_names,mux_channels):
+            if isinstance(mc,Exception):
+                raise mc
+            setattr( self, ch, mc )
+            self._mclist.append(mc)
+        #################################################################################
+
+
+    def __getitem__(self,channel):
+        if type(channel)==int:
+            return getattr(self, self.channel_names[self.channel_nums.index(channel)])
+        elif type(channel)==str:
+            return getattr(self, self.channel_names[self.channel_names.index(channel)])
+    
+    def __iter__(self):
+        return (self[chnum] for chnum in self.channel_nums)
+
+    def _verify_channel_list_valid(self, channel_list):
+        assert set(channel_list).issubset(self.channel_names), "channels given are not valid {0}".format(set(channel_list).difference(self.channel_names))
+        return True
+
+    def do_in_parallel(self,methods,meth_args,meth_kwargs):
+        mp_pool = _multiprocessing_pool.ThreadPool( processes = len(self.channel_names) )
+        
+        res=[]
+        for method,args,kwargs in zip(methods,meth_args,meth_kwargs):
+            res.append(mp_pool.apply_async(method, args, kwargs) )
+
+        while not all([r.ready() for r in res]):
+            time.sleep(0.5)
+            #plt.pause(0.5)
+
+        mp_pool.close()
+        mp_pool.join()
+        
+        ret=[]
+        for r in range(len(res)):
+            try:
+                ret.append(res[r].get())
+            except Exception as e:
+                print "EXCEPTION IN THREAD:",self.channel_names[r],':\n',e.__repr__()
+                ret.append(e)
+        print ret
+        for r in ret:
+            if isinstance(r, Exception):
+                raise r
+        return ret
+
+    def call_mc_method(self,mc,method,*args,**kwargs):
+        m = getattr(self[mc],method)
+        return m(*args,**kwargs)
+
+    def call_mc_method_in_parallel(self, methodname, *args, **kwargs):
+        methods = [getattr(self._mclist[j],methodname) for j in range(self.num_channels)]
+        return self.do_in_parallel(methods,[args]*len(methods),[kwargs]*len(methods))
+    
+    
+    
+    
+    
+        
