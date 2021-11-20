@@ -940,7 +940,7 @@ class pcpInteractivePlot(object):
             elif event.mouseevent.button == 3:
                 print 'new frequency added '
                 # need to add a new point
-                # 
+                #
                 # add a new index to the array
 
             # redraw plot
@@ -950,7 +950,8 @@ class pcpInteractivePlot(object):
 
 
 
-
+#todo:
+# - add functionality for point and click
 
 
 #------------------------------------------------------------------------------------
