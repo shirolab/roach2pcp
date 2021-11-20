@@ -289,9 +289,8 @@ class Toneslist(object):
 		self._valid_idxs = None
 
 		# containers for tone data
-		self.tonedata 		 = None # full tonelist data, not intended to be modified
+		self.tonedata 	 = None # full tonelist data, not intended to be modified
 		self.blind_freqs = None # container for blind tones (if present)
-
 
 		self.lo_freq   = lo_freq if lo_freq is not None else None
 		self.tonenames = _np.empty(0)
@@ -445,7 +444,7 @@ class Toneslist(object):
 
 			# set only valid indices as bb_freqs
 			self._bb_freqs   = bb_freqs
-			self._valid_idxs = valid_idxs
+			self._valid_idxs = valid_idxs #if self._valid_idxs is None else self._valid_idxs[valid_idxs]
 			_,_ = check_for_overlap_freqs(self._bb_freqs[valid_idxs],  self.fft_binwidth, silent=False)
 
 		else:
@@ -597,6 +596,7 @@ class Toneslist(object):
 
 		# get number of tones in tonelist
 		self.ntones = self.tonedata.shape[0]
+
 		# create the rf_freqs (this will trigger other lists to update only if the LO is set)
 		self.rf_freqs = _np.array(self.tonedata['freq'])
 
@@ -673,8 +673,7 @@ class Toneslist(object):
 		if bb_freqs.size > 0:
 			# temporarily ignore the invalid warning if nans exist
 			with _np.errstate(invalid='ignore'):
- 				return _np.argwhere( _np.abs( bb_freqs ) <= self._bandwidth/2. ).flatten()
-
+ 				return _np.argwhere( _np.abs( self.bb_freqs ) <= self._bandwidth/2. ).flatten()
 
 	def load_freqs_from_param(self, param):
 
