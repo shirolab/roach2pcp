@@ -24,32 +24,32 @@ ALLNAMES  = ['phantom','clones','sith','hope','empire','jedi']
 
 
 #The ones we are going to use:
-CHNUMS    = [1,2,3,4,5,6]
-#CHNUMS    = [1]
+#CHNUMS    = [1,2,3,4,5,6]
+CHNUMS    = [2,3,4,5,6]
 CHNAMES   = [ALLNAMES[n-1] for n in CHNUMS]
 NCHANS    = len(CHNUMS)
 
 
 #The initial tonelist files:
-TL_HALF   = 'a'
-TL_DIR    = '/home/muscat/toneslists/tones_20210330/run6_atts/'
-TL_FILES    = [TL_DIR+'t%d%c_20201016-130mk-300k.txt'%(ch,TL_HALF) for ch in CHNUMS]
-LO_FILES    = [TL_DIR+'lo%d%c.txt'%(ch,TL_HALF) for ch in CHNUMS]
-ATTIN_FILES    = [TL_DIR+'attin%d%c_20201016-130mk-300k.txt'%(ch,TL_HALF) for ch in CHNUMS]
-DWM_FILES    = [TL_DIR+'dacwavemax%d%c_20201016-130mk-300k.txt'%(ch,TL_HALF) for ch in CHNUMS]
+#TL_HALF   = 'a'
+TL_DIR    = '/home/muscat/toneslists/lmt_20211207/'
+TL_FILES    = [TL_DIR+'t%d.txt'%(ch) for ch in CHNUMS]
+LO_FILES    = [TL_DIR+'lo%d.txt'%(ch) for ch in CHNUMS]
+ATTIN_FILES    = [TL_DIR+'attin%d.txt'%(ch) for ch in CHNUMS]
+DWM_FILES    = [TL_DIR+'dacwavemax%d.txt'%(ch) for ch in CHNUMS]
 
 
-TL_HALF_A   = 'a'
-TL_FILES_A    = [TL_DIR+'t%d%c_20201016-130mk-300k.txt'%(ch,TL_HALF_A) for ch in CHNUMS]
-LO_FILES_A    = [TL_DIR+'lo%d%c.txt'%(ch,TL_HALF_A) for ch in CHNUMS]
-ATTIN_FILES_A    = [TL_DIR+'attin%d%c_20201016-130mk-300k.txt'%(ch,TL_HALF_A) for ch in CHNUMS]
-DWM_FILES_A    = [TL_DIR+'dacwavemax%d%c_20201016-130mk-300k.txt'%(ch,TL_HALF_A) for ch in CHNUMS]
+#TL_HALF_A   = 'a'
+#TL_FILES_A    = [TL_DIR+'t%d%c_20201016-130mk-300k.txt'%(ch,TL_HALF_A) for ch in CHNUMS]
+#LO_FILES_A    = [TL_DIR+'lo%d%c.txt'%(ch,TL_HALF_A) for ch in CHNUMS]
+#ATTIN_FILES_A    = [TL_DIR+'attin%d%c_20201016-130mk-300k.txt'%(ch,TL_HALF_A) for ch in CHNUMS]
+#DWM_FILES_A    = [TL_DIR+'dacwavemax%d%c_20201016-130mk-300k.txt'%(ch,TL_HALF_A) for ch in CHNUMS]
 
-TL_HALF_B   = 'b'
-TL_FILES_B    = [TL_DIR+'t%d%c_20201016-130mk-300k.txt'%(ch,TL_HALF_B) for ch in CHNUMS]
-LO_FILES_B    = [TL_DIR+'lo%d%c.txt'%(ch,TL_HALF_B) for ch in CHNUMS]
-ATTIN_FILES_B    = [TL_DIR+'attin%d%c_20201016-130mk-300k.txt'%(ch,TL_HALF_B) for ch in CHNUMS]
-DWM_FILES_B   = [TL_DIR+'dacwavemax%d%c_20201016-130mk-300k.txt'%(ch,TL_HALF_B) for ch in CHNUMS]
+#TL_HALF_B   = 'b'
+#TL_FILES_B    = [TL_DIR+'t%d%c_20201016-130mk-300k.txt'%(ch,TL_HALF_B) for ch in CHNUMS]
+#LO_FILES_B    = [TL_DIR+'lo%d%c.txt'%(ch,TL_HALF_B) for ch in CHNUMS]
+#ATTIN_FILES_B    = [TL_DIR+'attin%d%c_20201016-130mk-300k.txt'%(ch,TL_HALF_B) for ch in CHNUMS]
+#DWM_FILES_B   = [TL_DIR+'dacwavemax%d%c_20201016-130mk-300k.txt'%(ch,TL_HALF_B) for ch in CHNUMS]
 
 
 #The log file names:
@@ -84,9 +84,9 @@ END = '\033[0m'
 
 #Miscellanea
 FFT_SHIFT = 0b1111111
-LOCATION  = 'CARDIFF_LAB'
+#LOCATION  = 'CARDIFF_LAB'
 #LOCATION  = 'LMT_LAB'
-#LOCATION  = 'LMT_L29'
+LOCATION  = 'LMT_CABIN'
 
 
 
