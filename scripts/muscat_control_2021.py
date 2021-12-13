@@ -249,6 +249,10 @@ class MuxController(object):
         if sourcename is None:
             sourcename is 'no_sourcename'
         self.write_obslog_entry('OPEN ',obspgm,obsnum,subobsnum,scannum,sourcename,',,,,,')
+        
+        obsdir = os.path.join('/data/obs/etc/',str(obsnum),str(subobsnum),str(scannum))
+        if not os.path.exists(obsdir): os.makedirs(obsdir,mode='0755')
+        
         return obspgm,obsnum,subobsnum,scannum,sourcename
             
     def obs_close(self, obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles):
@@ -895,6 +899,9 @@ class MuxController(object):
         dirfiles = [j.current_dirfile.name for j in self.mclist]
         self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
         self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_1_Built_In','MC_2_Cald'])
+        
+        #obsdir = os.path.join('/data/obs/etc/',str(obsnum),str(subobsnum),str(scannum))
+        #if not os.path.exists(obsdir): os.makedirs(obsdir,mode='0755')
 
         #print 'stream_flag=0: writing_data: %s %s'%(self.ch.current_dirfile.name,obsdir)
         
@@ -920,6 +927,9 @@ class MuxController(object):
         dirfiles = [j.current_dirfile.name for j in self.mclist]
         self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
         self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_1_Built_In','MC_2_Cald'])
+        
+        #obsdir = os.path.join('/data/obs/etc/',str(obsnum),str(subobsnum),str(scannum))
+        #if not os.path.exists(obsdir): os.makedirs(obsdir,mode='0755')
         
         print 'Done PGMLissajous'
         
@@ -954,6 +964,9 @@ class MuxController(object):
         dirfiles = [j.current_dirfile.name for j in self.mclist]
         self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
         self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_1_Built_In','MC_2_Cald'])
+        
+        #obsdir = os.path.join('/data/obs/etc/',str(obsnum),str(subobsnum),str(scannum))
+        #if not os.path.exists(obsdir): os.makedirs(obsdir,mode='0755')
         
         print 'Done PGMSkydip'
         
@@ -998,8 +1011,8 @@ class MuxController(object):
         
         print 'Done PGMOn'
         
-        obsdir = os.path.join('/data/obs/etc/',str(obsnum),str(scannum))
-        if not os.path.exists(obsdir): os.makedirs(obsdir)
+        #obsdir = os.path.join('/data/obs/etc/',str(obsnum),str(subobsnum),str(scannum))
+        #if not os.path.exists(obsdir): os.makedirs(obsdir,mode='0755')
 
         #self.write_obslog('OPEN %s %s %s %s\n'%(obspgm,obsnum,scannum,obsdir))
         
@@ -1026,6 +1039,10 @@ class MuxController(object):
         dirfiles = [j.current_dirfile.name for j in self.mclist]
         self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
         self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_1_Built_In','MC_2_Cald'])
+        
+        #obsdir = os.path.join('/data/obs/etc/',str(obsnum),str(subobsnum),str(scannum))
+        #if not os.path.exists(obsdir): os.makedirs(obsdir,mode='0755')
+        
         print 'Done Tuning'
         time.sleep(1)
         return 0
