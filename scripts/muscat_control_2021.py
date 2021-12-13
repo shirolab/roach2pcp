@@ -232,7 +232,7 @@ class MuxController(object):
             self.write_obslog_raw('')
         log = np.genfromtxt(self.olfn,unpack=True,dtype=OBS_DTYPE,skip_header=1)
         existing_subobsnums = log['SubObsNum'][log['ObsNum']==obsnum]
-        largest_subobsnum = np.append(existing_subobsnums,0).max()
+        largest_subobsnum = np.append(existing_subobsnums,-1).max()
         return largest_subobsnum + 1
         
 
@@ -245,7 +245,7 @@ class MuxController(object):
         if subobsnum is None:
             subobsnum = self.get_new_subobsnum(obsnum)
         if scannum is None:
-            scannum=-1
+            scannum=0
         if sourcename is None:
             sourcename is 'no_sourcename'
         self.write_obslog_entry('OPEN ',obspgm,obsnum,subobsnum,scannum,sourcename,',,,,,')
