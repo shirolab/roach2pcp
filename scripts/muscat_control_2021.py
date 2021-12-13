@@ -331,7 +331,7 @@ class MuxController(object):
         
     def add_cryo_log_to_dirfiles(self,
                                  dirfiles,
-                                 thermometers=['MC_2_Cald']):
+                                 thermometers=['MC1_Built_In','MC_2_Cald']):
         for d in dirfiles:
             df      = gd.dirfile(d,gd.RDWR)
             pyts    = df.getdata('python_timestamp')
@@ -530,7 +530,9 @@ class MuxController(object):
         self.write_conlog_entry('sweep_only: %s'%
             ','.join([j.sweep.dirfile.name for j in self.mclist]))
         
-        for j in self.mclist: j.sweep.calc_sweep_cal_params(despike_window=5)
+        for j in self.mclist: 
+            j.sweep.calc_sweep_cal_params(despike_window=5)
+            j.sweep.write_sweep_cal_params()
         self.write_conlog_entry('sweep_only: update_cal_params: %s'%
             ','.join([j.sweep.dirfile.name for j in self.mclist]))
         
@@ -539,6 +541,7 @@ class MuxController(object):
         
         if obs:
             self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
+            self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC1_Built_In','MC_2_Cald'])
             #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
             
         return
@@ -600,6 +603,7 @@ class MuxController(object):
         if obs:
             dirfiles = [j.sweep.dirfile.name for j in self.mclist]
             self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
+            self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC1_Built_In','MC_2_Cald'])
             #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
 
         return
@@ -637,6 +641,7 @@ class MuxController(object):
         if obs:
             dirfiles = [j.sweep.dirfile.name for j in self.mclist]
             self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
+            self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC1_Built_In','MC_2_Cald'])
             #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
 
         return
@@ -661,7 +666,7 @@ class MuxController(object):
         if obs:
             dirfiles = [j.current_dirfile.name for j in self.mclist]
             self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
-            self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_2_Cald'])
+            self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC1_Built_In','MC_2_Cald'])
             if self.bb: self.add_bb_log_to_dirfiles(dirfiles)
             #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
         return
@@ -689,7 +694,7 @@ class MuxController(object):
         if obs:
             dirfiles = [j.current_dirfile.name for j in self.mclist]
             self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
-            self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_2_Cald'])
+            self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC1_Built_In','MC_2_Cald'])
             if self.bb: self.add_bb_log_to_dirfiles(dirfiles)
             #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
 
@@ -715,7 +720,7 @@ class MuxController(object):
         if obs:
             dirfiles = [j.current_dirfile.name for j in self.mclist]
             self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
-            self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_2_Cald'])
+            self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC1_Built_In','MC_2_Cald'])
             if self.bb: self.add_bb_log_to_dirfiles(dirfiles)
             #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
 
@@ -771,7 +776,7 @@ class MuxController(object):
         if obs:
             dirfiles = [j.current_dirfile.name for j in self.mclist]
             self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
-            self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_2_Cald'])
+            self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC1_Built_In','MC_2_Cald'])
             if self.bb: self.add_bb_log_to_dirfiles(dirfiles)
             #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
 
@@ -812,7 +817,7 @@ class MuxController(object):
         if obs:
             dirfiles = [j.current_dirfile.name for j in self.mclist]
             self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
-            self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_2_Cald'])
+            self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC1_Built_In','MC_2_Cald'])
             if self.bb: self.add_bb_log_to_dirfiles(dirfiles)
             #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
         return
@@ -842,7 +847,7 @@ class MuxController(object):
         
         if obs:
             self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
-            self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_2_Cald'])
+            self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC1_Built_In','MC_2_Cald'])
             if self.bb: self.add_bb_log_to_dirfiles(dirfiles)
             #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
         return
@@ -889,7 +894,7 @@ class MuxController(object):
         self.stop_recording()
         dirfiles = [j.current_dirfile.name for j in self.mclist]
         self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
-        self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_2_Cald'])
+        self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC1_Built_In','MC_2_Cald'])
 
         #print 'stream_flag=0: writing_data: %s %s'%(self.ch.current_dirfile.name,obsdir)
         
@@ -906,23 +911,35 @@ class MuxController(object):
     
     
     def PGMLissajous(self,obsnum,subobsnum,scannum,sourcename,obspgm):
-        obsdir = os.path.join('/data/obs/',str(obsnum),str(scannum))
-        if not os.path.exists(obsdir): os.makedirs(obsdir)
-
-        self.write_obslog('OPEN %s %s %s %s\n'%(obspgm,obsnum,scannum,obsdir))
         
-        print 'obs dir:',obsdir
-
-        self.ch.start_stream(dont_ask=True)
+        self.start_recording(obsnum,subobsnum,scannum,sourcename,True)
         while self.stream_flag:
             time.sleep(1)
-        self.ch.stop_stream()
+            
+        self.stop_recording()
+        dirfiles = [j.current_dirfile.name for j in self.mclist]
+        self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
+        self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC1_Built_In','MC_2_Cald'])
         
-        copycmd='cp -rL %s %s'%(self.ch.current_dirfile.name,obsdir)
-        print copycmd
-        os.system(copycmd)        
+        print 'Done PGMLissajous'
+        
+        #obsdir = os.path.join('/data/obs/',str(obsnum),str(scannum))
+        #if not os.path.exists(obsdir): os.makedirs(obsdir)
 
-        self.write_obslog('CLOSED %s %s %s %s\n'%(obspgm,obsnum,scannum,obsdir))
+        #self.write_obslog('OPEN %s %s %s %s\n'%(obspgm,obsnum,scannum,obsdir))
+        
+        #print 'obs dir:',obsdir
+
+        #self.ch.start_stream(dont_ask=True)
+        #while self.stream_flag:
+            #time.sleep(1)
+        #self.ch.stop_stream()
+        
+        #copycmd='cp -rL %s %s'%(self.ch.current_dirfile.name,obsdir)
+        #print copycmd
+        #os.system(copycmd)        
+
+        #self.write_obslog('CLOSED %s %s %s %s\n'%(obspgm,obsnum,scannum,obsdir))
         
         return 0
 
@@ -931,28 +948,37 @@ class MuxController(object):
     def PGMSkydip(self,obsnum,subobsnum,scannum,sourcename,obspgm):
         """a skydip consists of a number of sweeps versus elevation.
         pgmskydip performs one sweep and closes, the tcs will request multiple pgmskydips and rsync the pointing file for each skydip"""
-        print '0000000 in skydip'
+        
+        self.sweep_only(obsnum,subobsnum,scannum,sourcename,True)
 
-        obsdir = os.path.join('/data/obs/',str(obsnum),str(scannum))
-        print '*****obsdir',obsdir
+        dirfiles = [j.current_dirfile.name for j in self.mclist]
+        self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
+        self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC1_Built_In','MC_2_Cald'])
         
-        if not os.path.exists(obsdir): os.makedirs(obsdir)
-        print '++++++obsdir',obsdir
-        self.write_obslog('%s OPEN %s %s %s %s\n'%(t,obspgm,obsnum,scannum,obsdir))    
+        print 'Done PGMSkydip'
+        
+        #print '0000000 in skydip'
 
-        print '------obs dir:',obsdir
+        #obsdir = os.path.join('/data/obs/',str(obsnum),str(scannum))
+        #print '*****obsdir',obsdir
+        
+        #if not os.path.exists(obsdir): os.makedirs(obsdir)
+        #print '++++++obsdir',obsdir
+        #self.write_obslog('%s OPEN %s %s %s %s\n'%(t,obspgm,obsnum,scannum,obsdir))    
 
-        self.ch.sweep_lo(sweep_avgs=20,
-                               startidx=10,
-                               sweep_step = 500,
-                               sweep_span = 45e3)
+        #print '------obs dir:',obsdir
+
+        #self.ch.sweep_lo(sweep_avgs=20,
+                               #startidx=10,
+                               #sweep_step = 500,
+                               #sweep_span = 45e3)
         
         
-        copycmd='cp -rL %s %s'%(self.ch.current_dirfile.name,obsdir)
-        print copycmd
-        os.system(copycmd)        
+        #copycmd='cp -rL %s %s'%(self.ch.current_dirfile.name,obsdir)
+        #print copycmd
+        #os.system(copycmd)        
         
-        self.write_obslog('CLOSED %s %s %s %s\n'%(obspgm,obsnum,scannum,obsdir))
+        #self.write_obslog('CLOSED %s %s %s %s\n'%(obspgm,obsnum,scannum,obsdir))
         
         return 0
     
@@ -960,31 +986,46 @@ class MuxController(object):
     
     
     def PGMOn(self,obsnum,subobsnum,scannum,sourcename,obspgm):
-        obsdir = os.path.join('/data/obs/',str(obsnum),str(scannum))
-        if not os.path.exists(obsdir): os.makedirs(obsdir)
-
-        self.write_obslog('OPEN %s %s %s %s\n'%(obspgm,obsnum,scannum,obsdir))
         
-        print 'obs dir:',obsdir
-
-        self.ch.start_stream(dont_ask=True)
+        self.start_recording(obsnum,subobsnum,scannum,sourcename,True)
         while self.stream_flag:
             time.sleep(1)
-        self.ch.stop_stream()
+            
+        self.stop_recording()
+        dirfiles = [j.current_dirfile.name for j in self.mclist]
+        self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
+        self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC1_Built_In','MC_2_Cald'])
         
-        copycmd='cp -rL %s %s'%(self.ch.current_dirfile.name,obsdir)
-        print copycmd
-        os.system(copycmd)        
+        print 'Done PGMOn'
         
-        self.write_obslog('CLOSED %s %s %s %s\n'%(obspgm,obsnum,scannum,obsdir))
+        obsdir = os.path.join('/data/obs/etc/',str(obsnum),str(scannum))
+        if not os.path.exists(obsdir): os.makedirs(obsdir)
+
+        #self.write_obslog('OPEN %s %s %s %s\n'%(obspgm,obsnum,scannum,obsdir))
+        
+        #print 'obs dir:',obsdir
+
+        #self.ch.start_stream(dont_ask=True)
+        #while self.stream_flag:
+            #time.sleep(1)
+        #self.ch.stop_stream()
+        
+        #copycmd='cp -rL %s %s'%(self.ch.current_dirfile.name,obsdir)
+        #print copycmd
+        #os.system(copycmd)        
+        
+        #self.write_obslog('CLOSED %s %s %s %s\n'%(obspgm,obsnum,scannum,obsdir))
         
         return 0
     
     
 
-    def tune(self):
-        self.retune_only()
+    def tune(self,obsnum,subobsnum,scannum,sourcename,obspgm):
+        self.retune_only(obsnum,subobsnum,scannum,sourcename,True)
         
+        dirfiles = [j.current_dirfile.name for j in self.mclist]
+        self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
+        self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC1_Built_In','MC_2_Cald'])
         print 'Done Tuning'
         time.sleep(1)
         return 0
