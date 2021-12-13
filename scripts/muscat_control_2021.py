@@ -251,7 +251,7 @@ class MuxController(object):
         self.write_obslog_entry('OPEN ',obspgm,obsnum,subobsnum,scannum,sourcename,',,,,,')
         
         obsdir = os.path.join('/data/obs/etc/',str(obsnum),str(subobsnum),str(scannum))
-        if not os.path.exists(obsdir): os.makedirs(obsdir,mode='0755')
+        if not os.path.exists(obsdir): os.makedirs(obsdir,mode=0755)
         
         return obspgm,obsnum,subobsnum,scannum,sourcename
             
@@ -870,10 +870,53 @@ class MuxController(object):
         return
     
     
-    
+    def power_sweep(self,attin_min,attin_max,attin_step,att_out=None,
+                    sweep_span = 100000.,
+                    sweep_step = 1000.,
+                    sweep_start = 25, sweep_stop = 10,sweep_avg  = 25,
+                    obsnum=None,subobsnum=None,sourcename=None,
+                    obs=False):
+        
+        if obsnum is None:
+            obsnum = self.get_new_obsnum()
+        if subobsnum is None:
+            subobsnum = self.get_new_subobsnum(obsnum)
+        if sourcename is None:
+            sourcename = 'power-sweep'
+        
+        atts      = np.arange(attin_min,attin_max+attin_step,attin_step)
+        scan_nums = range(len(atts))
+        src_names = [sourcename+'_%05.2fdBin_%05.2fdBout'%(a,att_out) for a in atts]
+        
+        print atts
+        
+        self.write_conlog_entry('power-sweep: attin_min, attin_max,  attin_step, att_out, atts, sweep_span, sweep_step, sweep_start, sweep_stop, sweep_avg:%s'%([attin_min,attin_max,attin_step,att_out, atts, sweep_span, sweep_step, sweep_start, sweep_stop, sweep_avg]))
+        
+        if att_out is not None:
+            [j.atten_out.set_atten(att_out) for j in self.mclist] 
+        
+        for a,s,n in zip(atts,scan_nums,src_names):
+            if obs:
+                obspgm,obsnum,subobsnum,scannum,sourcename = self.obs_open('power-sweep',obsnum,subobsnum,s,n)
+                
+            [j.atten_in.set_atten(a) for j in self.mclist] 
+            
+            time.sleep(1)
+            
+            self.sweep_only(sweep_span, sweep_step, sweep_start, 
+                            sweep_stop,sweep_avg)
+            print a,s,n
+            time.sleep(5)
+                                
+            dirfiles = [j.current_dirfile.name for j in self.mclist]
+            
+            if obs:
+                self.obs_close(obspgm, obsnum, subobsnum, s,n,dirfiles)
+                self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_1_Built_In','MC_2_Cald'])
+                if self.bb: self.add_bb_log_to_dirfiles(dirfiles)
+                #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
 
-    
-    
+        return
     
     
     def needs_tune(self):
@@ -901,7 +944,7 @@ class MuxController(object):
         self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_1_Built_In','MC_2_Cald'])
         
         #obsdir = os.path.join('/data/obs/etc/',str(obsnum),str(subobsnum),str(scannum))
-        #if not os.path.exists(obsdir): os.makedirs(obsdir,mode='0755')
+        #if not os.path.exists(obsdir): os.makedirs(obsdir,mode=0755)
 
         #print 'stream_flag=0: writing_data: %s %s'%(self.ch.current_dirfile.name,obsdir)
         
@@ -929,7 +972,7 @@ class MuxController(object):
         self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_1_Built_In','MC_2_Cald'])
         
         #obsdir = os.path.join('/data/obs/etc/',str(obsnum),str(subobsnum),str(scannum))
-        #if not os.path.exists(obsdir): os.makedirs(obsdir,mode='0755')
+        #if not os.path.exists(obsdir): os.makedirs(obsdir,mode=0755)
         
         print 'Done PGMLissajous'
         
@@ -966,7 +1009,7 @@ class MuxController(object):
         self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_1_Built_In','MC_2_Cald'])
         
         #obsdir = os.path.join('/data/obs/etc/',str(obsnum),str(subobsnum),str(scannum))
-        #if not os.path.exists(obsdir): os.makedirs(obsdir,mode='0755')
+        #if not os.path.exists(obsdir): os.makedirs(obsdir,mode=0755)
         
         print 'Done PGMSkydip'
         
@@ -1012,7 +1055,7 @@ class MuxController(object):
         print 'Done PGMOn'
         
         #obsdir = os.path.join('/data/obs/etc/',str(obsnum),str(subobsnum),str(scannum))
-        #if not os.path.exists(obsdir): os.makedirs(obsdir,mode='0755')
+        #if not os.path.exists(obsdir): os.makedirs(obsdir,mode=0755)
 
         #self.write_obslog('OPEN %s %s %s %s\n'%(obspgm,obsnum,scannum,obsdir))
         
@@ -1041,7 +1084,7 @@ class MuxController(object):
         self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_1_Built_In','MC_2_Cald'])
         
         #obsdir = os.path.join('/data/obs/etc/',str(obsnum),str(subobsnum),str(scannum))
-        #if not os.path.exists(obsdir): os.makedirs(obsdir,mode='0755')
+        #if not os.path.exists(obsdir): os.makedirs(obsdir,mode=0755)
         
         print 'Done Tuning'
         time.sleep(1)
