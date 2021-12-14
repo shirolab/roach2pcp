@@ -908,7 +908,7 @@ class MuxController(object):
             print a,s,n
             time.sleep(5)
                                 
-            dirfiles = [j.current_dirfile.name for j in self.mclist]
+            dirfiles = [j.sweep.current_dirfile.name for j in self.mclist]
             
             if obs:
                 self.obs_close(obspgm, obsnum, subobsnum, s,n,dirfiles)
