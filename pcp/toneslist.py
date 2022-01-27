@@ -127,7 +127,6 @@ def check_for_overlap_freqs(freqlist, minspacing, silent = False):
 	array([[ 0,  0,  0,  0,  0,  0,  1,  1,  3,  3],
        [29, 30, 38, 39, 59, 60, 43, 44, 27, 28]])
 
-
 	"""
 
 	freqlist = _np.atleast_2d(freqlist)
@@ -172,7 +171,12 @@ class Toneslist(object):
 	# have a "loader" that allows anyone to write a loader function and provide an interface to a custom tonesfile format
 
 	# -- sweep functionality --
-	#
+
+	# TODO:
+	# - fix issue with clipping idxs not being recoverable...
+	# - add remove tones easily
+	# - add blind tones
+
 	_DTFMT = "%Y%m%d_%H%M%S"
 	def __init__(self, roachid,
 						loader_function = _pd.read_csv,\
@@ -292,7 +296,6 @@ class Toneslist(object):
 		self.tonedata 		 = None # full tonelist data, not intended to be modified
 		self.blind_freqs = None # container for blind tones (if present)
 
-
 		self.lo_freq   = lo_freq if lo_freq is not None else None
 		self.tonenames = _np.empty(0)
 		self.rf_freqs  = _np.empty(0)
@@ -307,9 +310,11 @@ class Toneslist(object):
 		self.sweep_lo_freqs = None
 
 		# load automatically if auto_load flag is set (default behaviour)
+
 		if auto_load == True:
 			# load tonelist - also finds optimum lo frequency for the newly loaded tonelist
 			self.load_tonelist( self.tonelistfile, lo_freq = lo_freq, **loaderkwargs )
+			self.loaderkwargs = loaderkwargs
 		else:
 			_logger.info( """no data loaded. working in manual mode.
 					use self.load_tonelist( tonefilename, **loaderkwargs) to load tone list and find optimum lo freq
@@ -327,7 +332,10 @@ class Toneslist(object):
 			_logger.warning("no tonehistory directory given. limited functionality")
 
 	def load_tonehistfile(self, datetime_tag, dont_ask = False):
-		"""Load a file from the tonehistory directory. """
+		"""Load a file from the tonehistory directory.
+
+		NOTE - currently this function does not actually the current tonelist data,
+		only returns the saved data. """
 
 		# make sure datetime_tag exists
 		assert datetime_tag in self.tonehistory.keys(), "given datatime tag is not in the history. available keys are: {0}".format(self.tonehistory.keys())
@@ -398,6 +406,29 @@ class Toneslist(object):
 		_logger.info('Wrote toneslist file: ' + outfname )
 		self._load_tonehistdir() # reload the tonehistory directory to include the new file
 
+	def _update_frequencies(self):#, #reset_all = False):
+		"""
+		Hidden function to update the class variables that store the frequency lists "rf_freqs", "bb_freqs"...etc.
+		"""
+		# check that attributes exsist ( catches initialisation step )
+		if hasattr(self, '_lo_freq') and hasattr(self, '_rf_freqs'):
+
+			# if self.lo_freq is not None and isinstance(self.rf_freqs, _np.ndarray):
+			if self.lo_freq is not None and self._rf_freqs.size > 0:
+				# set the bb_freqs according to the given rf and lo_freqs
+				self.bb_freqs = self._rf_freqs - self.lo_freq#if     baseband else data['freq'] - self.lo_freq
+
+				# self.amps     = self.amps[self._valid_idxs] if self.amps.size > 0 else self.amps
+				# self.phases   = self.phases[self._valid_idxs] if self.phases.size > 0 else self.phases
+				# self.tonenames = self.tonenames[self._valid_idxs] if  self.tonenames.size > 0 else self.tonenames
+				# if reset_all == True:
+				# 	self.amps     = None
+				# 	self.phases   = None
+
+			else:
+				if not self._init==True:
+					_logger.warning( 'LO or RF frequencies must be set when loading RF frequencies.' )
+
 	@property
 	def lo_freq(self):
 		"""Get or set the frequency of the synthesizer. Units should all be in Hz."""
@@ -433,13 +464,15 @@ class Toneslist(object):
 
 	@bb_freqs.setter
 	def bb_freqs(self, bb_freqs):
-                print self.roachid,'bb_freqs setter:',bb_freqs
+		_logger.debug( self.roachid, 'bb_freqs setter:', bb_freqs )
 		# before setting the bb_freqs, check that they fit within the available bandwidth
 		#if isinstance(bb_freqs, (_np.ndarray, _pd.Series) ) :
 		if bb_freqs.size > 0 :
 			valid_idxs = self._get_valid_tone_idxs( bb_freqs )
+
+			# note that there is an error with how clipped indcidies are handled...
 			if len(valid_idxs) != len( bb_freqs ) :
-                                print cm.FAIL+'ERROR cannot clip tonelists frequencies, please adjust tonelist file'+cm.ENDC
+				print cm.FAIL+'ERROR cannot clip tonelist frequencies, please adjust tonelist file'+cm.ENDC
 				#raise Exception,'cannot clip tonelists frequencies'
 				clipped_idxs = list( set( _np.arange( len(bb_freqs) ) ).difference(valid_idxs) )
 
@@ -456,6 +489,7 @@ class Toneslist(object):
 			self._bb_freqs = bb_freqs
 			if not self._init == True:
 				_logger.warning ( "bb_freqs not in expected form = {0}".format(bb_freqs) )
+
 	@property
 	def amps(self):
 		return self._amps[self._valid_idxs]
@@ -475,32 +509,28 @@ class Toneslist(object):
 	def tonenames(self, tonenames):
 		self._tonenames = tonenames
 
-	def _update_frequencies(self):#, #reset_all = False):
+	def mod_list_elements(self, field, idxs, vals):
 		"""
-		Hidden function to update the class variables that store the frequency lists "rf_freqs", "bb_freqs"...etc.
+		Helper function to modify a subset of one of rf_freqs, amps, phases, or tonenames.
+
 		"""
-		# check that attributes exsist ( catches initialisation step )
-		if hasattr(self, '_lo_freq') and hasattr(self, '_rf_freqs'):
+		assert field in ["rf_freqs", "amps", "phases", "tonenames"], "field not recognised"
+		idxs, vals = _np.atleast_1d(idxs,vals)
+		assert len(idxs) == len(vals), "ambiguous input; indexs and values not the same shape"
 
-			# if self.lo_freq is not None and isinstance(self.rf_freqs, _np.ndarray):
-			if self.lo_freq is not None and self._rf_freqs.size > 0:
-				# set the bb_freqs according to the given rf and lo_freqs
-				self.bb_freqs = self._rf_freqs - self.lo_freq#if     baseband else data['freq'] - self.lo_freq
+		# create new array, and set array
+		oldarr = getattr(self, field)
+		oldarr[idxs] = vals
+		setattr( self, field, oldarr )
 
-				# self.amps     = self.amps[self._valid_idxs] if self.amps.size > 0 else self.amps
-				# self.phases   = self.phases[self._valid_idxs] if self.phases.size > 0 else self.phases
-				# self.tonenames = self.tonenames[self._valid_idxs] if  self.tonenames.size > 0 else self.tonenames
-				# if reset_all == True:
-				# 	self.amps     = None
-				# 	self.phases   = None
-
-			else:
-				if not self._init==True:
-					_logger.warning( 'LO or RF frequencies must be set when loading RF frequencies.' )
 	@property
 	def tonenames_sorted(self):
 		"""Get a list of tonenames sorted by rf_freqs. Units should all be in Hz."""
 		return self.tonenames[_np.argsort(self.rf_freqs)]
+
+	def reset(self):
+		"""Convenience function to reset values according to the loaded tonelist file """
+		self.load_tonelist( self.tonelistfile, lo_freq = self.lo_freq, **self.loaderkwargs )
 
 	def load_tonelist(self, tonelistfile = "", lo_freq = None, **loaderkwargs):
 		"""
@@ -678,7 +708,6 @@ class Toneslist(object):
 			# temporarily ignore the invalid warning if nans exist
 			with _np.errstate(invalid='ignore'):
  				return _np.argwhere( _np.abs( bb_freqs ) <= self._bandwidth/2. ).flatten()
-
 
 	def load_freqs_from_param(self, param):
 

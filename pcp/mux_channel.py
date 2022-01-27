@@ -38,7 +38,7 @@ except ImportError:
     _logger.warning( "can't find casperfpga module - limited functionality available" )
     casperfpga = None
     pass
- 
+
 
 # from .configuration import ROOTDIR, filesys_config, roach_config, network_config, hardware_config, general_config
 
@@ -98,14 +98,14 @@ class muxChannel(object):
 
         self.atten_in     = None
         self.atten_out    = None
-        
+
         self.dacwavemax = 0. # if this is >0 then set_tones will use this vale.
 
         self.current_dirfile = None
 
         # get configuration for specific roach
         self.ROACH_CFG = pcp.ROACH_CONFIG[self.roachid]
-        
+
         #this is wrong:
         #self.sample_rate = self.ROACH_CFG["dac_bandwidth"] / ( 2**self.ROACH_CFG["roach_accum_len"] + 1 )
         self.sample_rate = 0.5*(self.ROACH_CFG["dac_bandwidth"]) / ( 2**self.ROACH_CFG["roach_accum_len"] )
@@ -225,7 +225,7 @@ class muxChannel(object):
             self.synth_clk.frequency = 512.0e6
             if isinstance(self.synth_clk, pcp.drivers.synthesizer.synthclasses.pcp_windfreaksynthSource):
                 self.synth_clk.power = 12.5
-            
+
 
         else:
             self.synth_clk = None
@@ -274,10 +274,10 @@ class muxChannel(object):
 
     def lmt_pgm_start(self):
         self.writer_daemon.LMT_PGM_START.value=1
-        
+
     def lmt_pgm_stop(self):
         self.writer_daemon.LMT_PGM_START.value=0
-        
+
     def set_fft_shift(self,fft_shift=0b1111111):
         _lib_fpga.write_to_fpga_register(self.ri.fpga,
                                                 { "fft_shift_reg": fft_shift},
@@ -320,13 +320,11 @@ class muxChannel(object):
 
         # write_freqs_to_qdr
         if auto_write or raw_input("Write new tones to qdr? [y/n]").lower() == 'y':
-            
-            
+
+
             self.ri.write_freqs_to_qdr(self.tl.bb_freqs, self.tl.amps, self.tl.phases,
                                        autoFullScale=autoFullScale,
                                        dacWaveMax=self.dacwavemax)
-        
-        
         
         else:
             _logger.info("new tones loaded but not written to qdr.")
@@ -436,10 +434,10 @@ class muxChannel(object):
             allows the user to append an additional string to the end of the filename
         """
         try:
-            
+
             startidx=sweep_kwargs.pop('startidx',0)
             stopidx=sweep_kwargs.pop('stopidx',None)
-            
+
             # create the stop event for use when running all roaches at once through the muxChannelList
             stop_event = _multiprocessing.Event() if not isinstance( stop_event, _multiprocessing.synchronize.Event ) else stop_event
 
@@ -458,8 +456,8 @@ class muxChannel(object):
                 _logger.info(self.roachid+': Sweeping LO %3.1f kHz around %3.3f MHz in %1.2f kHz steps' % (np.ptp(self.tl.sweep_lo_freqs/1.e3),
                             np.mean(self.tl.sweep_lo_freqs/1.e6),
                             np.median(np.diff(self.tl.sweep_lo_freqs)) / 1.e3))
-                
-                
+
+
                 for ix, lo_freq in _tqdm(enumerate(self.tl.sweep_lo_freqs), desc=cm.BOLD+self.roachid+": Sweeping LO"+cm.ENDC, ncols=75,total=len(self.tl.sweep_lo_freqs)):
                 #for ix, lo_freq in enumerate(self.tl.sweep_lo_freqs):
 
@@ -522,8 +520,8 @@ class muxChannel(object):
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 traceback.print_tb(exc_traceback, file=sys.stdout)
                 traceback.print_exc(file=sys.stdout)
-            
-                
+
+
     def _configure_sweep_and_start_writing(self, **sweep_kwargs):
 
         valid_kwargs = ["sweep_span", "sweep_step", "sweep_avgs", "save_data"]
@@ -565,7 +563,7 @@ class muxChannel(object):
             print self.roachid+": current dirfile is None, waiting..."
             if xxx >5:
                 raise Exception, 'Failed'
-            
+
         self.current_dirfile = self.writer_daemon.current_dirfile
         print self.roachid+": configure sweep: new current dirfile name:"+ self.current_dirfile.name
         # Set LO to first freq
@@ -573,7 +571,7 @@ class muxChannel(object):
 
         # start writing data to file...
         #_logger.debug( self.roachid+": starting to write data" )
-        print self.roachid+": starting to write data, sleeping 2 secs after writing starts" 
+        print self.roachid+": starting to write data, sleeping 2 secs after writing starts"
         self.writer_daemon.start_writing()
 
         # and wait until writing starts
@@ -589,7 +587,7 @@ class muxChannel(object):
         return {'sweep_span': sweep_span,
                 'sweep_step': sweep_step,
                 'sweep_avgs': sweep_avgs}
-        
+
 
     def reduce_and_write_sweep_data(self, rawsweep_dirfile, startidx = 0, stopidx = None, save_data = True):
         """Function to read a raw sweep file (i.e. a timestream of I and Q), reduce the data and create an analyzed sweep dirfile.
@@ -631,12 +629,12 @@ class muxChannel(object):
 
         startidx = np.int32(startidx)
         stopidx  = np.int32(stopidx) if stopidx is not None else stopidx
-        
+
         if stopidx is None:
             stopidx = np.min(np.diff(idxs))
-        
+
         takeidxs = np.array([np.arange(i+startidx,i+stopidx) for i in np.concatenate([[0],idxs])])
-        
+
         t0=time.time()
         for field in _tqdm(self.current_dirfile.field_list( _gd.RAW_ENTRY ), desc=cm.BOLD+self.roachid+": Writing data"+cm.ENDC, ncols=75):
 
@@ -843,14 +841,14 @@ class muxChannelList(object):
 
     def __init__(self, channel_list,channel_nums=None):
 
-        
+
         channel_list = list(np.atleast_1d(channel_list))
         _logger.debug("initialising muxChannelList with channel list {0}".format( channel_list ) )
 
         assert isinstance(channel_list, (list, tuple)) and len(channel_list) > 0 , "input {0} not recognised".format( type(channel_list) )
 
         self.channels = channel_list
-        
+
         num_chans = 0
         # determine if the elements of the list are instantiated muxChannel objects
         if all( [isinstance(el, muxChannel) for el in channel_list]):
@@ -862,7 +860,7 @@ class muxChannelList(object):
                 _logger.info("initialising mux channel - {roachid} ".format( roachid=roachid ) )
                 setattr( self, roachid, muxChannel(roachid) )
                 num_chans+=1
-        
+
         self.channel_nums = channel_nums
         if channel_nums is None:
             self.channel_nums = range(num_chans)
@@ -875,7 +873,7 @@ class muxChannelList(object):
                 return getattr(self, self.channels[self.channel_nums.index(channel)])
             elif type(channel)==str:
                 return getattr(self, self.channels[self.channels.index(channel)])
-    
+
     def __iter__(self):
         if self.channel_nums is None:
             return (getattr(self,roachid) for roachid in self.channels)
@@ -1108,9 +1106,9 @@ class test_mclist(object):
         test_mclist.call_mc_method_in_parallel('write_freqs_to_fpga',auto_write=True)
         test_mclist.call_mc_method_in_parallel('sweep_lo')
         test_mclist.call_mc_method_in_parallel('sweep_lo')
-        test_mclist.call_mc_method_in_parallel('start_stream',dont_ask=True,stream_time=duration) 
-        test_mclist.call_mc_method_in_parallel('start_stream',dont_ask=True) 
-        test_mclist.call_mc_method_in_parallel('stop_stream',dont_ask=True) 
+        test_mclist.call_mc_method_in_parallel('start_stream',dont_ask=True,stream_time=duration)
+        test_mclist.call_mc_method_in_parallel('start_stream',dont_ask=True)
+        test_mclist.call_mc_method_in_parallel('stop_stream',dont_ask=True)
 
     Probably going to have to whitelist desired methods as not all should be allowed to be called.
 
@@ -1119,7 +1117,7 @@ class test_mclist(object):
     """
     def __init__(self, channel_list,channel_nums=None):
 
-        
+
         channel_list = list(np.atleast_1d(channel_list))
         _logger.debug("initialising muxChannelList with channel list {0}".format( channel_list ) )
 
@@ -1127,33 +1125,33 @@ class test_mclist(object):
 
         self.channel_names = channel_list
         self.num_channels  = len(channel_list)
-        
+
         self.channel_nums  = channel_nums
         if self.channel_nums is None:
             self.channel_nums = range(self.num_channels)
-        
+
         #################################################################################
         ##start the muxChannels in serial
-        
+
         #self._mclist = []
         #for ch in self.channel_names:
             #mc=muxChannel(ch)
             #self._mclist.append(mc)
             #setattr( self, ch, mc )
-        
+
         #################################################################################
         ##start the mux channels in parallel:
-        
+
         mp_pool = _multiprocessing_pool.ThreadPool( processes = self.num_channels )
         res=[]
         for ch in self.channel_names:
             _logger.info("initialising mux channel - {roachid} ".format( roachid=ch ) )
             res.append(mp_pool.apply_async(muxChannel, (ch,) ) )
-        
+
         while not all([r.ready() for r in res]): time.sleep(0.1)
         mp_pool.close()
         mp_pool.join()
-        
+
         mux_channels = []
         for r in range(len(res)):
             try:
@@ -1163,9 +1161,9 @@ class test_mclist(object):
                 traceback.print_tb(exc_traceback, file=sys.stdout)
                 print "EXCEPTION IN THREAD:",self.channel_names[r],'\n',e.__repr__()
                 traceback.print_exc(file=sys.stdout)
-                
+
                 mux_channels.append(e)
-        
+
         self._mclist = []
         for ch, mc in zip(self.channel_names,mux_channels):
             if isinstance(mc,Exception):
@@ -1180,7 +1178,7 @@ class test_mclist(object):
             return getattr(self, self.channel_names[self.channel_nums.index(channel)])
         elif type(channel)==str:
             return getattr(self, self.channel_names[self.channel_names.index(channel)])
-    
+
     def __iter__(self):
         return (self[chnum] for chnum in self.channel_nums)
 
@@ -1190,7 +1188,7 @@ class test_mclist(object):
 
     def do_in_parallel(self,methods,meth_args,meth_kwargs):
         mp_pool = _multiprocessing_pool.ThreadPool( processes = len(self.channel_names) )
-        
+
         res=[]
         for method,args,kwargs in zip(methods,meth_args,meth_kwargs):
             res.append(mp_pool.apply_async(method, args, kwargs) )
@@ -1201,7 +1199,7 @@ class test_mclist(object):
 
         mp_pool.close()
         mp_pool.join()
-        
+
         ret=[]
         for r in range(len(res)):
             try:
@@ -1211,7 +1209,7 @@ class test_mclist(object):
                 traceback.print_tb(exc_traceback, file=sys.stdout)
                 print "EXCEPTION IN THREAD:",self.channel_names[r],'\n',e.__repr__()
                 traceback.print_exc(file=sys.stdout)
-                
+
                 ret.append(e)
         print ret
         for r in ret:
@@ -1226,22 +1224,22 @@ class test_mclist(object):
     def call_mc_method_in_parallel(self, methodname, *args, **kwargs):
         methods = [getattr(self._mclist[j],methodname) for j in range(self.num_channels)]
         return self.do_in_parallel(methods,[args]*len(methods),[kwargs]*len(methods))
-    
+
     def pps_timestamp_start(self):
         methods = [self._mclist[j].ri.active_pps for j in range(self.num_channels)]
         self.do_in_parallel(methods,[(True,)]*len(methods),[{}]*len(methods))
-        #[j.ri.active_pps(True) for j in self]   
+        #[j.ri.active_pps(True) for j in self]
         return
-        
+
     def pps_timestamp_stop(self):
         methods = [self._mclist[j].ri.active_pps for j in range(self.num_channels)]
         self.do_in_parallel(methods,[(False,)]*len(methods),[{}]*len(methods))
         #[j.ri.active_pps(False) for j in self]
         return
-    
+
     def set_tones(self):
         pass
-    
+
     def check_dac_level(self):
         return [np.amax(np.absolute([j.ri._I_dac,j.ri._Q_dac]))/32767. for j in self]
 
@@ -1249,14 +1247,14 @@ class test_mclist(object):
         return self.call_mc_method_in_parallel('adc_levels',n=n)
 
 
-    
+
     def init_toneslists(self,tl_files,lo_files,attin_files,attout_files, dacwavemax_files):
 	#read in LO frequencies, attin, attout, dacwavemax for each roach
         lo_freqs = []
         for j in range(len(lo_files)):
             with open(lo_files[j],'r') as file:
                 lo_freqs.append(int(file.read()))
-        
+
         attins = []
         for j in range(len(attin_files)):
             with open(attin_files[j],'r') as file:
@@ -1266,12 +1264,12 @@ class test_mclist(object):
         for j in range(len(attout_files)):
             with open(attout_files[j],'r') as file:
                 attouts.append(float(file.read()))
-                
+
         dacWaveMaxs = []
         for j in range(len(dacwavemax_files)):
             with open(dacwavemax_files[j],'r') as file:
                 dacWaveMaxs.append(float(file.read()))
-        
+
 
         for ch, tl_file,lo_freq,attin,attout,dwm in zip(self,tl_files,lo_freqs,attins,attouts,dacWaveMaxs):
             ch.tl.fft_binwidth = 0
@@ -1282,7 +1280,7 @@ class test_mclist(object):
             ch.dacwavemax = dwm
 
         return
-    
+
     def stream_for_duration(self,duration):
             #self.pps_timestamp_start()
 
@@ -1290,19 +1288,19 @@ class test_mclist(object):
                                                stream_time=duration,
                                                dont_ask=True)
             #self.pps_timestamp_stop()
-    
+
     def stream_start(self):
             #self.pps_timestamp_start()
             self.call_mc_method_in_parallel('start_stream',dont_ask=True)
-    
+
     def stream_stop(self):
             self.call_mc_method_in_parallel('stop_stream',dont_ask=True)
             #self.pps_timestamp_stop()
-            
-    
 
-    
-    
+
+
+
+
     def sweep_lo(self, stop_event = None, **sweep_kwargs):
         """
         Function to sweep the LO. Takes in a number of optional keyword arugments. If not given,
@@ -1335,10 +1333,10 @@ class test_mclist(object):
         filename_suffix : str
             allows the user to append an additional string to the end of the filename
         """
-        
+
         startidx=sweep_kwargs.pop('startidx',0)
         stopidx=sweep_kwargs.pop('stopidx',None)
-        
+
         # create the stop event for use when running all roaches at once through the muxChannelList
         stop_event = _multiprocessing.Event() if not isinstance( stop_event, _multiprocessing.synchronize.Event ) else stop_event
 
@@ -1359,9 +1357,9 @@ class test_mclist(object):
             #_logger.info(self.roachid+': Sweeping LO %3.1f kHz around %3.3f MHz in %1.2f kHz steps' % (np.ptp(self.tl.sweep_lo_freqs/1.e3),
                         #np.mean(self.tl.sweep_lo_freqs/1.e6),
                         #np.median(np.diff(self.tl.sweep_lo_freqs)) / 1.e3))
-            
+
             lo_freqs = [j.tl.sweep_lo_freqs for j in self]
-            
+
             #for ix, lo_freq in _tqdm(enumerate(self.tl.sweep_lo_freqs), desc=cm.BOLD+self.roachid+": Sweeping LO"+cm.ENDC, ncols=75,total=len(self.tl.sweep_lo_freqs)):
             #for ix, lo_freq in enumerate(self.tl.sweep_lo_freqs):
             for i in _tqdm(range (max([len(l) for l in lo_freqs])) , desc=cm.BOLD+"Sweeping LO"+cm.ENDC, ncols=75,total=len(lo_freqs[0])):
@@ -1380,7 +1378,7 @@ class test_mclist(object):
                         #t0 = time.time()
                         #while self.synth_lo.frequency <= lo_f and time.time() <= t0 + sleeptime :
                             #time.sleep(sleeptime / 100.)
-                            
+
                 pytime = np.mean([j.writer_daemon.pytime.value for j in self])
                 step_times.append( pytime )
                 #print "lo stepped at ", pytime
@@ -1416,11 +1414,11 @@ class test_mclist(object):
 
         # save lostep_times to current timestream dirfile (why are these not arrays?)
         [j.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lo_freqs"    , 0, (_gd.FLOAT64, 1) ) ) for j in self]
-        
+
         [j.current_dirfile.add( _gd.entry(_gd.RAW_ENTRY, "lostep_times", 0, (_gd.FLOAT64, 1) ) ) for j in self]
 
         [j.current_dirfile.putdata("lo_freqs"    , np.ascontiguousarray( fff, dtype = np.float64 )) for j,fff in zip(self,lofreqs_that_were_swept)]
-        
+
         [j.current_dirfile.putdata("lostep_times", np.ascontiguousarray( step_times,              dtype = np.float64 )) for j in self]
 
         # on mac, we need to close and reopen the dirfile to flush the data before reading back in the data
@@ -1435,13 +1433,3 @@ class test_mclist(object):
         # analyse the raw sweep dirfile and write to disk
         #self.reduce_and_write_sweep_data(self.current_dirfile,startidx=startidx,stopidx=stopidx)
         self.call_mc_method_in_parallel('reduce_and_write_sweep_data',None,startidx,stopidx)
-
-
-
-
-
-
-
-
-
-

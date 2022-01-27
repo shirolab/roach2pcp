@@ -27,8 +27,10 @@ import pygetdata as _gd
 
 import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.widgets import MultiCursor
+import matplotlib.widgets as wig
+
 from matplotlib.ticker import FormatStrFormatter
+from PyQt5 import QtWidgets
 
 plt.ion()
 
@@ -663,6 +665,10 @@ class pcpInteractivePlot(object):
         self.sortidxs = _np.argsort(self.sweeplist[0].rf_freqs.T[0]) if sortfreqs else _np.arange(self.ntones) # sort on the first frequency element
         self.tonenames = _np.array(s.tonenames)[self.sortidxs].tolist()
 
+        self._newtonenames = _np.frompyfunc(list, 0, 1)(_np.empty((self.ntones), dtype=object))
+        self._newtoneidxs  = _np.frompyfunc(list, 0, 1)(_np.empty((self.ntones), dtype=object)) # create an aray of empty lists
+        #self.newtonefreqs = _np.frompyfunc(list, 0, 1)(_np.empty((self.ntones), dtype=object)) # create an aray of empty lists
+
         #
         self.idx = 0
         self._picked    = [] # empty list used to store which resonators have been picked
@@ -687,9 +693,24 @@ class pcpInteractivePlot(object):
             - Double right click on the IQ plot to add a new tone at that position
 
         """)
+
     @property
     def exclude_idxs(self):
-        return _np.array( list(set(_np.arange(self.ntones)).difference(self._picked)))
+#        return _np.array( list(set(_np.arange(self.ntones)).difference(self._picked)))
+        return _np.array( list(set(_np.arange(self.ntones)).intersection(self._picked)))
+
+    @property
+    def newtonenames(self):
+        return _np.hstack( self._newtonenames )
+
+    @property
+    def newtonefreqs(self):
+        newidxs, = self._newtoneidxs.nonzero()
+        fs = self.sweeplist[0].rf_freqs
+        if newidxs.size > 0:
+            return _np.hstack( [ arr[i] for arr,i in zip(fs[newidxs], self._newtoneidxs[newidxs]) ] )
+        else:
+            return newidxs
 
     def reshow(self):
         self._configure_axes()
@@ -782,6 +803,11 @@ class pcpInteractivePlot(object):
         self.fig = fig
         self.axiq = axiq; self.axmag = axmag; self.axphi = axphi; self.axcal = axcal
 
+        # # add button to calc sweep params
+        # ax_calparams  = plt.axes([0.8, 0.9, 0.15, 0.05]) # x,y,w,h
+        # b_calparams  = wig.Button(ax_calparams, "calc cal params")
+        # b_calparams.on_clicked( self.sweeplist[0].calc_sweep_cal_params() )
+
         # --- do stuff with summary figure here ---
         if do_figsum:
             ax1  = figsum.add_subplot(122)
@@ -800,6 +826,7 @@ class pcpInteractivePlot(object):
             self._linedict[sweep.name]['iqtone'],    = self.axiq.plot(1,1, 'rD', ms=10, label = 'tone')
             self._linedict[sweep.name]['iqf0'],      = self.axiq.plot(1,1, 'gD', ms=10, label = 'calcf0')
             self._linedict[sweep.name]['iqf0man'],   = self.axiq.plot(1,1, 'mD', ms=10, label = 'manf0')
+            self._linedict[sweep.name]['iqf0new'],   = self.axiq.plot(1,1, 'bD', ms=10, label = 'newf0')
 
             self._linedict[sweep.name]['magmain'], = self.axmag.plot(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, 20*_np.log10(_np.abs(sweep.data[self.sortidxs][self.idx])), c='C0')
             self._linedict[sweep.name]['magtone']  = self.axmag.axvline(sweep.tonefreqs[self.sortidxs][self.idx]/1.e6, c='r', ls='dashed')
@@ -834,7 +861,7 @@ class pcpInteractivePlot(object):
 
             toneidx = _np.where(sweep.lo_freqs==sweep._lo_freq)
             f0idx   = f0idxs[self.idx]
-            pkdidx = self._pkdidxs[self.idx]
+            pkdidx  = self._pkdidxs[self.idx]
 
             self._linedict[sweep.name]['iqmain'].set_data(sweep.data[self.sortidxs][self.idx].real, sweep.data[self.sortidxs][self.idx].imag)
             #self._linedict[sweep.name]['iqmain_freq'].set_data(sweep.data[self.sortidxs][self.idx].real, sweep.data[self.sortidxs][self.idx].imag)
@@ -842,6 +869,16 @@ class pcpInteractivePlot(object):
             self._linedict[sweep.name]['iqf0'  ].set_data(sweep.data[self.sortidxs][self.idx].real[f0idx],   sweep.data[self.sortidxs][self.idx].imag[f0idx])
             self._linedict[sweep.name]['iqf0man'].set_data(sweep.data[self.sortidxs][self.idx].real[pkdidx], sweep.data[self.sortidxs][self.idx].imag[pkdidx])
             self._linedict[sweep.name]['iqf0man'].set_visible(pkdidx) # <-- if not zero, shows the index, otherwise remains unset
+
+            newidxs = self._newtoneidxs[self.idx]
+            newtns  = self._newtonenames[self.idx]
+            newi, newq = sweep.data[self.sortidxs][self.idx].real[newidxs], \
+                        sweep.data[self.sortidxs][self.idx].imag[newidxs]
+            self._linedict[sweep.name]['iqf0new'].set_data(newi, newq)
+            self._linedict[sweep.name]['iqf0new'].set_visible(newidxs) # <-- if not zero/empty, shows the index, otherwise remains unset
+            self.axiq.texts = []
+            [self.axiq.annotate('(%s)' % tn, xy=(x,y), textcoords=('data'))\
+                                            for tn, x,y in zip(newtns, newi, newq)]
 
             self._linedict[sweep.name]['magmain'].set_data(sweep.rf_freqs[self.sortidxs][self.idx]/1.e6, 20*_np.log10( _np.abs(sweep.data[self.sortidxs][self.idx]) ) )
             self._linedict[sweep.name]['magtone'].set_data(sweep.tonefreqs[      self.sortidxs][self.idx]/1.e6, [0,1] )
@@ -886,12 +923,13 @@ class pcpInteractivePlot(object):
         #plt.draw()
         #plt.show(block=self.block)
 
-    def get_picked_f0s(self, swpidx = 0):
+    def get_updated_f0s(self, swpidx = 0):
         """Get the current list of resonant frequencies, including any manually modified ones. If none are modified,
         it returns calparams['f0s']. """
 
         #for sweep in self.sweeplist:
         sweep = self.sweeplist[ swpidx ]
+
         # generate an index and bool mask to set only the frequencies that have been manually picked
         idxmask  = range(len(self._pkdidxs)), self._pkdidxs
         boolmask = self._pkdidxs.astype('bool')
@@ -931,28 +969,85 @@ class pcpInteractivePlot(object):
         if event.mouseevent.dblclick:
 
             # handle multiple indicies returned by picked event correctly
-            idx = _np.atleast_1d(event.ind).mean()
+            idx = _np.atleast_1d(event.ind).mean(dtype= _np.int32)
+            self._pkdidx = idx
 
             if event.mouseevent.button == 1:
             # if a particular idx already exists, then set back to zero to clear
                 self._pkdidxs[self.idx] = idx if self._pkdidxs[self.idx] != idx else 0
+                # redraw plot
+                self.refresh_plot()
 
             elif event.mouseevent.button == 3:
-                print 'new frequency added '
-                # need to add a new point
-                #
-                # add a new index to the array
 
-            # redraw plot
-            self.refresh_plot()
+                # check for existing and add the index to a new array
+                # (should we be able to place a new tone on top of the old one? )
+                if idx in self._newtoneidxs[self.idx]: # remove idx if exists
+                    remidx = self._newtoneidxs[self.idx].index(idx)
+                    self._newtoneidxs[self.idx].pop(remidx)
+                    self._newtonenames[self.idx].pop(remidx)
+                    self.refresh_plot()
 
+                else: # create pop up window to request new tonename and add once completed
+                    self._show_popup()
 
+    def _show_popup(self):
+        """Function to generate, configure, and show the pop-up window for adding a new tone
+        after a double right-click event. """
+        popfig = plt.figure(num="popfig", figsize=(4,2))
+        popfig.text(0.5,0.9, "Enter a new tonename", ha='center')
 
+        toolbar = popfig.canvas.manager.window.findChild(QtWidgets.QToolBar)
+        toolbar.setVisible(False)
 
+        ax_tb  = plt.axes([0.25, 0.75, 0.5, 0.1]) #xposition, yposition, width, and height
+        self._ax_ok  = plt.axes([0.2, 0.4, 0.25, 0.1])
+        self._ax_can = plt.axes([0.55, 0.4, 0.25, 0.1])
 
+        self._tb   = wig.TextBox(ax_tb, "")
+        self._bok  = wig.Button(self._ax_ok, "OK")
+        self._bcan = wig.Button(self._ax_can, "Cancel")
+
+        self._bok.on_clicked(self._popup_handle_press)
+        self._bcan.on_clicked(self._popup_handle_press)
+
+        self._popfig = popfig
+        plt.show()
+
+    def _popup_handle_press(self, event):
+
+        # this just removes any previous message held in _popfig.texts
+        self._popfig.texts.pop(-1) if len(self._popfig.texts) > 1 else None
+
+        if event.inaxes == self._ax_ok:
+            # handle the OK event
+            if self._tb.text == "":
+                self._popfig.text(0.5,0.6, "error! need non-empty string", color='red', ha='center')
+                self._popfig.canvas.draw()
+                return
+            elif self._tb.text in self.tonenames + self.newtonenames.tolist() :
+                self._popfig.text(0.5,0.6, "error! need unique string", color='red', ha='center')
+                self._popfig.canvas.draw()
+                return
+
+            else: # add the data to the new
+                self._newtonenames[self.idx].append( self._tb.text )
+                # add idx to the list
+                self._newtoneidxs[self.idx].append( self._pkdidx )
+                # add log entry - try to add frequency?
+                # _logger.info("new tone added; name: {}, frequency: {} Hz".format(self._tb.text,
+                #                                                         self._newtonefreqs[self.idx][-1])
+                #                                                         )
+
+        elif event.inaxes == self._ax_can:
+            # cancel button pressed, this case not really needed - just to be explicit
+            pass
+
+        plt.close(self._popfig)
+        self.refresh_plot()
 #todo:
-# - add functionality for point and click
-
+# - add functionality for point and click and make work with tonelist
+# tabbed interface?
 
 #------------------------------------------------------------------------------------
 # playing aorund with embedding mpl figures into simple qt application

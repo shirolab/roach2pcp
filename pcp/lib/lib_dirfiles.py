@@ -98,11 +98,14 @@ def is_dirfile_valid(dirfile):
         True or False depending on whether the dirfile is open.
 
     """
-    assert isinstance(dirfile, _gd.dirfile), "'{0}' doesn't appear to be a dirfile ".format(dirfile)
+    if isinstance(dirfile, _gd.dirfile):
 
-    try:
-        return dirfile.name != "" # calling dirfile.name checks if the dirfile is valid
-    except _gd.BadDirfileError:
+        try:
+            return dirfile.name != "" # calling dirfile.name checks if the dirfile is valid
+        except _gd.BadDirfileError:
+            return False
+    else:
+        _logger.info("'{0}' of type {1} doesn't appear to be a dirfile object".format(dirfile, type(dirfile)))
         return False
 
 def check_valid_sweep_dirfile(dirfile):
@@ -110,10 +113,12 @@ def check_valid_sweep_dirfile(dirfile):
     Function to check if a given dirfile appears to be a valid pcp sweep file, by checking for the metadata.type
     field.
 
+    Now handles both dirfile and path/str inputs.
+
     Parameters
     ----------
-    dirfile : pygetdata.dirfile
-        Input dirfile to check. Must be a pygetdata dirfile.
+    dirfile : pygetdata.dirfile, str
+        Input dirfile to check. Must be either a pygetdata dirfile object, or a path.
 
     Returns
     -------
@@ -121,10 +126,24 @@ def check_valid_sweep_dirfile(dirfile):
         True or False depending on whether the dirfile looks like a pcp sweep dirfile.
 
     """
+    # handle a filename and open in read only
+    if isinstance(dirfile, str):
+        try:
+            dirfile = _gd.dirfile(dirfile, _gd.RDONLY)
+        except (IOError, _gd.IOError) as msg:
+            _logger.error( msg )
+            return False
+
     assert is_dirfile_valid(dirfile), "{0} doesn't appear to be a valid dirfile. Ensure the dirfile is open and try again.".format(dirfile)
 
     try:
-        return dirfile.get_string("metadata.type") == 'sweep'
+        stype = dirfile.get_string("metadata.type")
+        if  stype == 'sweep':
+            return True
+        else:
+            _logger.warning( "instead of a sweep, dirfile appears to be of type = {0}".format(stype) )
+            return False
+
     except _gd.BadCodeError:
         print "metadata fragment doesn't appear to exist"
         return False
@@ -331,12 +350,24 @@ def create_pcp_dirfile(roachid, dfname="", dftype = "stream", tonenames = [], *d
 
     return dirfile
 
-def open_dirfile(dirfilename, **dirfile_flags):
+def open_dirfile(dfin, *dfflags):
+    """
 
-    if is_path_a_dirfile(dirfilename):
-        return _gd.dirfile(dirfilename, **dirfile_flags)
+    Utility function to open an existing dirfile in a given mode
+    (e.g., RDONLY, RDWR) from a path. Default is RDONLY. Checks if the path
+    exists, opens the dirfile, and returns an open file handle.
+
+    Checks to see if a dirfile instance is given and returns if valid.
+
+    """
+    dfflags = np.bitwise_or.reduce(dfflags) if dfflags else _gd.RDONLY
+
+    if is_dirfile_valid(dfin): # check whether a valid dirfile and return
+        return dfin
+    elif is_path_a_dirfile(dfin): # check to see if its a path to an existing dirfile or
+        return _gd.dirfile(dfin, dfflags)
     else:
-        _logger.warning("can't open dirfile {0}".format(dirfilename))
+        _logger.warning("can't open dirfile {0}".format(dfin))
 
 def close_dirfile(dirfilename):
 
@@ -694,8 +725,8 @@ def append_to_dirfile(dirfile, datapacket_dict): #, datatag=""):
     else:
         print 'Unsupported OS: %s. Don\'t know if we should flush or not.'%(sys.platform)
         raise OSError, 'Unsupported OS: %s. Don\'t know if we should flush or not.'%(sys.platform)
-        
-    
+
+
 def generate_sweep_dirfile( roachid, dirfilename, tonenames, numpoints = 501 ):
     """
     Generate a sweep dirfile from arrays of F, I, Q. In addition, add constants from
@@ -795,7 +826,7 @@ def append_dirfile_to_sourcefile(srcfile, dirfilename, timespan = 120.):
 
     # choose only where last modified times are greater than timespan
     dirfilelist = dirfilelist[ modtimes > time.time() - timespan * 60. ]
-    
+
     # ignore entries that have been deleted from the filesystem
     dirfilelist = np.array([i for i in dirfilelist if os.path.exists(i)])
 

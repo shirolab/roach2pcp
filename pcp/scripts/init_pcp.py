@@ -52,8 +52,6 @@ def _config_filesystem():
     LOGFILEDIR  = logging_config['logfiledir'] if os.path.isabs(logging_config['logfiledir']) \
                                                 else os.path.join(ROOTDIR, logging_config['logfiledir'])
 
-
-
     # set up file system according to the configuration files - no checks on permissions...
     if not os.path.exists(ROOTDIR)    : os.makedirs(ROOTDIR)
     if not os.path.exists(PIDFILEDIR) : os.makedirs(PIDFILEDIR)
@@ -70,9 +68,8 @@ def _config_filesystem():
     for roachid in pcp.ROACH_CONFIG.keys():
         pcp.FIRMWARE_REG_DICT[roachid] = pcp.configuration.lib_config.get_firmware_register_dict(pcp.FIRMWARE_REGS, pcp.ROACH_CONFIG[roachid]["firmware_file"]) ["registers"]
 
-
     # if the firmware directory doesn't exist already, there will likely be a problem, so raise an exception
-    # (this should be moved to the filesys consistency checking code )
+    # ( this should be moved to the filesys consistency checking code )
 
     if not os.path.exists(FIRMWAREDIR):
         raise OSError("Firmware directory doesn't exist. Please point to a valid directory ")
@@ -94,7 +91,6 @@ def _config_filesystem():
     pcp.ROACH_LIST = pcp.ROACH_CONFIG.keys()
     pcp.SYNTH_LIST = pcp.HARDWARE_CONFIG['synth_config'].keys()
     pcp.ATTEN_LIST = pcp.HARDWARE_CONFIG['atten_config'].keys()
-    #
 
 def _config_logging(rootlogger, force = False):
     # load the logging config file
