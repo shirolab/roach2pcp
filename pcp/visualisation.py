@@ -877,7 +877,8 @@ class pcpInteractivePlot(object):
         self.axcal.relim(); self.axcal.autoscale()
 
         #self.fig.suptitle('res {0}'.format( _np.roll( _np.arange(self.ntones), -self.idx)[0] ), fontsize=16)
-        self.fig.suptitle(sweep.name[0:15] + ': Resonator {0}'.format( _np.roll( self.tonenames, -self.idx )[0] ), fontsize=16)
+        roachid = sweep.dirfile.name.split('/')[-2]
+        self.fig.suptitle(roachid+': '+sweep.name[0:15] + ': Resonator {0}'.format( _np.roll( self.tonenames, -self.idx )[0] ), fontsize=16)
 
         self.fig.set_facecolor( self._color_dict['picked'] ) if self.idx in self._picked \
                                                             else self.fig.set_facecolor( self._color_dict['default'] )
