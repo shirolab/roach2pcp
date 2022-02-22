@@ -30,7 +30,12 @@ import matplotlib.pyplot as plt
 import matplotlib.widgets as wig
 
 from matplotlib.ticker import FormatStrFormatter
-from PyQt5 import QtWidgets
+try:
+    from PyQt5 import QtWidgets
+except ImportError:
+    from PyQt4 import QtGui as QtWidgets
+except:
+    _logger.error("This module requires Qt (either 4 or 5) - install and try again.")
 
 plt.ion()
 

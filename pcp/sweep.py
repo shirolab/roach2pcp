@@ -89,6 +89,8 @@ class pcpSweep(object):
         self.name = os.path.basename(dirfile.name)
         self.get_data()
 
+        # reset plot object
+        self.ip = None
         if auto_analyse:
             self.calc_sweep_cal_params()
 
