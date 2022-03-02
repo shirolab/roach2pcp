@@ -102,6 +102,8 @@ class muxChannel(object):
         self.dacwavemax = 0. # if this is >0 then set_tones will use this vale.
 
         self.current_dirfile = None
+        
+        self.detune_hz = 0.0
 
         # get configuration for specific roach
         self.ROACH_CFG = pcp.ROACH_CONFIG[self.roachid]
@@ -297,7 +299,7 @@ class muxChannel(object):
                                                 self.ri.FIRMWARE_REG_DICT,sleep_time=0.)
 
 
-    def write_freqs_to_fpga(self, auto_write = False, corrtouse = None, check = True,useoffsetatt=False,fft_shift=0b1111111):
+    def write_freqs_to_fpga(self, auto_write = False, corrtouse = None, check = True,useoffsetatt=False,usephase=False,fft_shift=0b1111111):
         """High level function to write the current toneslist frequencies to the QDR
            To use an amplitude correction: corrtouse = 'total' or timestamp of requested"""
 
@@ -317,6 +319,10 @@ class muxChannel(object):
 
         if useoffsetatt:
             self.tl.amps = 10**(-1*self.tl.tonedata['offset att'].get_values()/20.)
+            
+        if usephase:
+            self.tl.phases = self.tl.tonedata['phase'].values
+
 
         # If requested, use amplitude correction
         if corrtouse is not None:
@@ -405,6 +411,7 @@ class muxChannel(object):
         self.current_dirfile.put_constant( "lofreq",  self.tl.lo_freq )
         self.current_dirfile.put_sarray(   "tonenames", list(self.tl.tonenames) )
         #self.current_dirfile.flush()
+
 
         # add the file to the source file
         _lib_dirfiles.append_dirfile_to_sourcefile(self._srcfile,
@@ -743,6 +750,12 @@ class muxChannel(object):
         # write these to the new sweep file
         self.sweep.write_sweep_cal_params(overwrite = True)
 
+    
+    def apply_detuning(self,detune_hz=0.0):
+        self.detune_hz = detune_hz
+        self.synth_lo.setFrequency(detune_hz + self.tl.lo_freq)
+        print '%s applied detuning: %.1f Hz'%(self.roachid,self.detune_hz)
+    
     #@profile
     def start_stream(self, **stream_kwargs):
         """
@@ -761,6 +774,10 @@ class muxChannel(object):
         save_data       = stream_kwargs.pop("save_data", True) # currently not used
         dont_ask        = stream_kwargs.pop("dont_ask", False)
         symlink         = stream_kwargs.pop("symlink_sweep", True)
+        
+        detune_hz = stream_kwargs.pop('detune_hz',None)
+        if detune_hz is None:
+            detune_hz=self.detune_hz
 
         dirfile_name = stream_kwargs.pop("dirfilename", "") # allow the user to pass in and append to an existing dirfile
 
@@ -787,6 +804,12 @@ class muxChannel(object):
         # alias to current dirfile for convenience
         self.current_dirfile = self.writer_daemon.current_dirfile
 
+        #apply any detuning
+        self.apply_detuning(detune_hz)
+        self.current_dirfile.put_constant( "detune_hz",  self.detune_hz )
+
+
+
         _logger.info( "starting to write data on {0}".format( self.roachid ))
         self.writer_daemon.start_writing()
 
@@ -809,6 +832,7 @@ class muxChannel(object):
                 continue
 
             self.stop_stream()
+        
 
     def stop_stream(self, **streamkwargs):
         """
@@ -1260,6 +1284,8 @@ class test_mclist(object):
 
     def check_adc_level(self,n=3):
         return self.call_mc_method_in_parallel('adc_levels',n=n)
+    
+    
 
 
     
@@ -1304,17 +1330,18 @@ class test_mclist(object):
 
         return
     
-    def stream_for_duration(self,duration):
+    def stream_for_duration(self,duration,detune_hz=None):
             #self.pps_timestamp_start()
 
             self.call_mc_method_in_parallel('start_stream',
                                                stream_time=duration,
+                                               detune_hz=detune_hz,
                                                dont_ask=True)
             #self.pps_timestamp_stop()
     
-    def stream_start(self):
+    def stream_start(self,detune_hz=None):
             #self.pps_timestamp_start()
-            self.call_mc_method_in_parallel('start_stream',dont_ask=True)
+            self.call_mc_method_in_parallel('start_stream',detune_hz=detune_hz,dont_ask=True)
     
     def stream_stop(self):
             self.call_mc_method_in_parallel('stop_stream',dont_ask=True)

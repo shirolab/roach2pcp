@@ -32,7 +32,8 @@ NCHANS    = len(CHNUMS)
 
 #The initial tonelist files:
 #TL_HALF   = 'a'
-TL_DIR    = '/home/muscat/toneslists/lmt_20211207/'
+#TL_DIR    = '/home/muscat/toneslists/lmt_20211207/'
+TL_DIR    = '/home/muscat/toneslists/initial_toneslist/'
 TL_FILES    = [TL_DIR+'t%d.txt'%(ch) for ch in CHNUMS]
 LO_FILES    = [TL_DIR+'lo%d.txt'%(ch) for ch in CHNUMS]
 ATTIN_FILES    = [TL_DIR+'attin%d.txt'%(ch) for ch in CHNUMS]
@@ -110,11 +111,13 @@ class MuxController(object):
         self.olfn           = olfn
         self.clfn           = clfn
         self.cryo           = None
-        self.bb      = None
+        self.bb             = None
         self.xyz            = None
         self.mclist         = None
+        self.init_flag      = 1
         self.stream_flag    = 0
         self.tune_flag      = 0
+        self.sweep_flag     = 0
         
         
         """The muscat controller is starting..."""
@@ -135,6 +138,9 @@ class MuxController(object):
             self.pcp_init_hw(CHNUMS, CHNAMES)
             self.pcp_init_tones(TL_FILES, LO_FILES, ATTIN_FILES, DWM_FILES,
                                 extra_attin=0, diff_attinout=14.0)
+        
+        self.init_flag = 0
+        
         return
 
     def shutdown(self):
@@ -247,7 +253,7 @@ class MuxController(object):
         if scannum is None:
             scannum=0
         if sourcename is None:
-            sourcename is 'no_sourcename'
+            sourcename is 'None'
         self.write_obslog_entry('OPEN ',obspgm,obsnum,subobsnum,scannum,sourcename,',,,,,')
         
         obsdir = os.path.join('/data/obs/etc/',str(obsnum),str(subobsnum),str(scannum))
@@ -506,6 +512,7 @@ class MuxController(object):
                                                 auto_write=True,
                                                 check=False,
                                                 useoffsetatt=True,
+                                                usephase=True,
                                                 fft_shift=FFT_SHIFT)
         self.write_conlog_entry('pcp_init_tones: waveforms written to roaches.')
                 
@@ -515,9 +522,11 @@ class MuxController(object):
         
     
     def sweep_only(self,span,step,start,stop,averaging,
-                   obsnum=None,subobsnum=None,scannum=None,sourcename=None, obs=False):
+                   obsnum=None,subobsnum=None,scannum=None,sourcename=None, obs=False,obspgm=None):
+        if obspgm is None:
+            obspgm = 'sweep_only'
         if obs:
-            obspgm,obsnum,subobsnum,scannum,sourcename = self.obs_open('sweep_only',
+            obspgm,obsnum,subobsnum,scannum,sourcename = self.obs_open(obspgm,
                 obsnum,subobsnum,scannum,sourcename)
             
 
@@ -540,11 +549,14 @@ class MuxController(object):
         self.write_conlog_entry('sweep_only: update_cal_params: %s'%
             ','.join([j.sweep.dirfile.name for j in self.mclist]))
         
-        dirfiles = [j.sweep.dirfile.name for j in self.mclist]
+        
+        dirfiles = [j.current_dirfile.name for j in self.mclist]
+        dirfiles_reduc = [j.sweep.dirfile.name for j in self.mclist]
+        
         if self.bb: self.add_bb_temperature_to_sweep_dir(dirfiles)
         
         if obs:
-            self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
+            self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles_reduc)
             self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_1_Built_In','MC_2_Cald'])
             #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
             
@@ -600,6 +612,7 @@ class MuxController(object):
                                           auto_write=True,
                                           check=False,
                                           useoffsetatt=True,
+                                          usephase=True,
                                           fft_shift=FFT_SHIFT)
         self.write_conlog_entry(
             'sweep_and_place_tones: waveforms written to roaches.')
@@ -620,10 +633,12 @@ class MuxController(object):
                     sweep_step = 1000.,
                     sweep_start = 25, sweep_stop = 10,sweep_avg  = 25,
                     obsnum=None,subobsnum=None,scannum=None,sourcename=None, 
-                    obs=False):
+                    obs=False,obspgm=None):
         """ Sweep, tune onto resonances, sweep again."""
+        if obspgm is None:
+            obspgm = 'retune_only'
         if obs:
-            obspgm,obsnum,subobsnum,scannum,sourcename = self.obs_open('retune_only',
+            obspgm,obsnum,subobsnum,scannum,sourcename = self.obs_open(obspgm,
                 obsnum,subobsnum,scannum,sourcename)
                 
         self.write_conlog_entry('retune:')
@@ -645,7 +660,7 @@ class MuxController(object):
         if obs:
             dirfiles = [j.sweep.dirfile.name for j in self.mclist]
             self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
-            self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_1_Built_In','MC_2_Cald'])
+            #self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_1_Built_In','MC_2_Cald'])
             #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
 
         return
@@ -656,16 +671,18 @@ class MuxController(object):
     
     def record_only(self,duration,
                     obsnum=None,subobsnum=None,scannum=None,sourcename=None,
-                    obs=False):
+                    obs=False,obspgm=None,detune_hz=0.0):
         """ Record a timestream."""
+        if obspgm is None:
+            obspgm='record_only'
         if obs:
-            obspgm,obsnum,subobsnum,scannum,sourcename = self.obs_open('record_only',
+            obspgm,obsnum,subobsnum,scannum,sourcename = self.obs_open(obspgm,
                 obsnum,subobsnum,scannum,sourcename)
 
         self.write_conlog_entry(
             'record_only: duration = %s'%duration)
         self.cryo_base_temperature()
-        self.mclist.stream_for_duration(duration)
+        self.mclist.stream_for_duration(duration,detune_hz=detune_hz)
 
         if obs:
             dirfiles = [j.current_dirfile.name for j in self.mclist]
@@ -677,15 +694,17 @@ class MuxController(object):
     
     def start_recording(self,
                         obsnum=None,subobsnum=None,scannum=None,sourcename=None,
-                        obs=False):
+                        obs=False, obspgm=None,detune_hz=0.0):
+        if obspgm is None:
+            obspgm='start_recording'
         if obs:
-            obspgm,obsnum,subobsnum,scannum,sourcename = self.obs_open('start_recording',
+            obspgm,obsnum,subobsnum,scannum,sourcename = self.obs_open(obspgm,
                 obsnum,subobsnum,scannum,sourcename)
 
         self.cryo_base_temperature()
-        self.mclist.stream_start()
-        self.write_conlog_entry('start_recording: %s'%
-                                (','.join([j.current_dirfile.name for j in self.mclist])))
+        self.mclist.stream_start(detune_hz=detune_hz)
+        self.write_conlog_entry('start_recording: %s: %s'%
+                                (obspgm,','.join([j.current_dirfile.name for j in self.mclist])))
         
     def stop_recording(self,
                        obsnum=None,subobsnum=None,scannum=None,sourcename=None,
@@ -708,7 +727,7 @@ class MuxController(object):
     
     def sweep_and_record(self,duration, span, step,start=25,stop=10, averaging=10,
                         obsnum=None,subobsnum=None,scannum=None,sourcename=None,
-                        obs=False):
+                        obs=False,detune_hz=0.0):
         if obs:
             obspgm,obsnum,subobsnum,scannum,sourcename = self.obs_open('sweep_and_record',
                 obsnum,subobsnum,scannum,sourcename)
@@ -718,7 +737,7 @@ class MuxController(object):
             'sweep_and_record: duration, span, step,start,stop, averaging = %s'%
             [duration, span, step,start,stop, averaging])
         self.sweep_only(span,step,start,stop,averaging)
-        self.record_only(duration)
+        self.record_only(duration,detune_hz=detune_hz)
         self.write_conlog_entry('sweep_and_record: done')
                 
         if obs:
@@ -732,7 +751,7 @@ class MuxController(object):
 
     def sweep_and_start_recording(self, span, step, start=25,stop=10, averaging=10,
                                   obsnum=None,subobsnum=None,scannum=None,sourcename=None,
-                                  obs=False):
+                                  obs=False,detune_hz=0.0):
         if obs:
             obspgm,obsnum,subobsnum,scannum,sourcename = self.obs_open('sweep_and_start_recording',
                 obsnum,subobsnum,scannum,sourcename)
@@ -743,8 +762,8 @@ class MuxController(object):
             [span, step,start,stop, averaging])
         self.sweep_only(span,step,start,stop,averaging)
         self.write_conlog_entry('sweep_and_start_recording: started')
+        self.start_recording(detune_hz=detune_hz)
         return
-        self.start_recording()
     
 
     def retune_and_record(self, 
@@ -756,10 +775,10 @@ class MuxController(object):
                         sweep_step = 1000.,
                         sweep_start = 25, sweep_stop = 10,sweep_avg  = 25,
                         obsnum=None,subobsnum=None,scannum=None,sourcename=None,
-                        obs=False):
+                        obs=False,detune_hz=0.0):
         """ Sweep, tune onto resonances, sweep again and record a timestream."""  
         if obs:
-            obspgm,obsnum,subobsnum,scannum,sourcename = self.obs_open('sweep_and_record',
+            obspgm,obsnum,subobsnum,scannum,sourcename = self.obs_open('retune_and_record',
                 obsnum,subobsnum,scannum,sourcename)
         
         self.write_conlog_entry('retune_and_record:')
@@ -775,7 +794,7 @@ class MuxController(object):
                     sweep_stop  = sweep_stop,
                     sweep_avg = sweep_avg)
         
-        self.record_only(duration)
+        self.record_only(duration,detune_hz=detune_hz)
         self.write_conlog_entry('retune_and_record: %s'%','.join([j.current_dirfile.name for j in self.mclist]))
         if obs:
             dirfiles = [j.current_dirfile.name for j in self.mclist]
@@ -794,7 +813,7 @@ class MuxController(object):
                         sweep_step = 1000.,
                         sweep_start = 25, sweep_stop = 10,sweep_avg  = 25,
                         obsnum=None,subobsnum=None,scannum=None,sourcename=None,
-                        obs=False):
+                        obs=False,detune_hz=0.0):
         """ Sweep, tune onto resonances, sweep again and 
         start recording a timestream, need to stop manually."""
         if obs:
@@ -816,7 +835,7 @@ class MuxController(object):
                     sweep_stop  = sweep_stop,
                     sweep_avg = sweep_avg)
         
-        self.start_recording()
+        self.start_recording(detune_hz=detune_hz)
         self.write_conlog_entry('retune_and_start_recording: started%s'%','.join([j.current_dirfile.name for j in self.mclist]))
         if obs:
             dirfiles = [j.current_dirfile.name for j in self.mclist]
@@ -907,11 +926,12 @@ class MuxController(object):
                             sweep_stop,sweep_avg)
             print a,s,n
             time.sleep(5)
-                                
-            dirfiles = [j.sweep.dirfile.name for j in self.mclist]
+                          
+            dirfiles = [j.current_dirfile.name for j in self.mclist]
+            dirfiles_reduc = [j.sweep.dirfile.name for j in self.mclist]
             
             if obs:
-                self.obs_close(obspgm, obsnum, subobsnum, s,n,dirfiles)
+                self.obs_close(obspgm, obsnum, subobsnum, s,n,dirfiles_reduc)
                 self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_1_Built_In','MC_2_Cald'])
                 if self.bb: self.add_bb_log_to_dirfiles(dirfiles)
                 #self.backup_obs(dirfiles,obspgm, obsnum,subobsnum,scannum,sourcename)
@@ -928,13 +948,30 @@ class MuxController(object):
         #even better, measure loss in NEP with detuning for each resonator
         #need responsivity of each detector and noise 
         return        
+    
+    
+    def PGM(self,obsnum,subobsnum,scannum,sourcename,obspgm,detune_hz=0.0):
         
+        
+        self.start_recording(obsnum,subobsnum,scannum,sourcename,True,obspgm=obspgm,detune_hz=detune_hz)
+        while self.stream_flag:
+            time.sleep(1)
+            
+        self.stop_recording()
+        dirfiles = [j.current_dirfile.name for j in self.mclist]
+        self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
+        self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_1_Built_In','MC_2_Cald'])
+        
+        print 'Done PGM: ',obspgm
+
+        return 0
+    
 
 
-    def PGMMap(self,obsnum,subobsnum,scannum,sourcename,obspgm):
+    def PGMMap(self,obsnum,subobsnum,scannum,sourcename,obspgm,detune_hz=0.0):
         
         
-        self.start_recording(obsnum,subobsnum,scannum,sourcename,True)
+        self.start_recording(obsnum,subobsnum,scannum,sourcename,True,obspgm='Map',detune_hz=detune_hz)
         while self.stream_flag:
             time.sleep(1)
             
@@ -960,9 +997,9 @@ class MuxController(object):
         return 0
     
     
-    def PGMLissajous(self,obsnum,subobsnum,scannum,sourcename,obspgm):
+    def PGMLissajous(self,obsnum,subobsnum,scannum,sourcename,obspgm,detune_hz=0.0):
         
-        self.start_recording(obsnum,subobsnum,scannum,sourcename,True)
+        self.start_recording(obsnum,subobsnum,scannum,sourcename,True,obspgm='Lissajous',detune_hz=detune_hz)
         while self.stream_flag:
             time.sleep(1)
             
@@ -998,52 +1035,31 @@ class MuxController(object):
 
     
     
-    def PGMSkydip(self,obsnum,subobsnum,scannum,sourcename,obspgm):
-        """a skydip consists of a number of sweeps versus elevation.
-        pgmskydip performs one sweep and closes, the tcs will request multiple pgmskydips and rsync the pointing file for each skydip"""
+    def PGMSkydip(self,obsnum,subobsnum,scannum,sourcename,obspgm,detune_hz=0.0):
+        """a skydip is either scan-and-integrate or step-and-integrate.
+        for sca-and-integrate with will be one timeline as the elevation is scanned
+        for step-and-integrate this function will called repeateedly at different elevations"""
         
-        self.sweep_only(obsnum,subobsnum,scannum,sourcename,True)
-
+        self.start_recording(obsnum,subobsnum,scannum,sourcename,True,obspgm='Skydip',detune_hz=detune_hz)
+        while self.stream_flag:
+            time.sleep(1)
+            
+        self.stop_recording()
         dirfiles = [j.current_dirfile.name for j in self.mclist]
         self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
         self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_1_Built_In','MC_2_Cald'])
         
-        #obsdir = os.path.join('/data/obs/etc/',str(obsnum),str(subobsnum),str(scannum))
-        #if not os.path.exists(obsdir): os.makedirs(obsdir,mode=0755)
         
         print 'Done PGMSkydip'
-        
-        #print '0000000 in skydip'
-
-        #obsdir = os.path.join('/data/obs/',str(obsnum),str(scannum))
-        #print '*****obsdir',obsdir
-        
-        #if not os.path.exists(obsdir): os.makedirs(obsdir)
-        #print '++++++obsdir',obsdir
-        #self.write_obslog('%s OPEN %s %s %s %s\n'%(t,obspgm,obsnum,scannum,obsdir))    
-
-        #print '------obs dir:',obsdir
-
-        #self.ch.sweep_lo(sweep_avgs=20,
-                               #startidx=10,
-                               #sweep_step = 500,
-                               #sweep_span = 45e3)
-        
-        
-        #copycmd='cp -rL %s %s'%(self.ch.current_dirfile.name,obsdir)
-        #print copycmd
-        #os.system(copycmd)        
-        
-        #self.write_obslog('CLOSED %s %s %s %s\n'%(obspgm,obsnum,scannum,obsdir))
         
         return 0
     
     
     
     
-    def PGMOn(self,obsnum,subobsnum,scannum,sourcename,obspgm):
+    def PGMOn(self,obsnum,subobsnum,scannum,sourcename,obspgm,detune_hz=0.0):
         
-        self.start_recording(obsnum,subobsnum,scannum,sourcename,True)
+        self.start_recording(obsnum,subobsnum,scannum,sourcename,True,obspgm='On',detune_hz=detune_hz)
         while self.stream_flag:
             time.sleep(1)
             
@@ -1054,45 +1070,84 @@ class MuxController(object):
         
         print 'Done PGMOn'
         
-        #obsdir = os.path.join('/data/obs/etc/',str(obsnum),str(subobsnum),str(scannum))
-        #if not os.path.exists(obsdir): os.makedirs(obsdir,mode=0755)
-
-        #self.write_obslog('OPEN %s %s %s %s\n'%(obspgm,obsnum,scannum,obsdir))
-        
-        #print 'obs dir:',obsdir
-
-        #self.ch.start_stream(dont_ask=True)
-        #while self.stream_flag:
-            #time.sleep(1)
-        #self.ch.stop_stream()
-        
-        #copycmd='cp -rL %s %s'%(self.ch.current_dirfile.name,obsdir)
-        #print copycmd
-        #os.system(copycmd)        
-        
-        #self.write_obslog('CLOSED %s %s %s %s\n'%(obspgm,obsnum,scannum,obsdir))
-        
         return 0
     
     
 
-    def tune(self,obsnum,subobsnum,scannum,sourcename,obspgm):
-        self.retune_only(obsnum,subobsnum,scannum,sourcename,True)
-        
-        dirfiles = [j.current_dirfile.name for j in self.mclist]
-        self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
-        self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_1_Built_In','MC_2_Cald'])
-        
-        #obsdir = os.path.join('/data/obs/etc/',str(obsnum),str(subobsnum),str(scannum))
-        #if not os.path.exists(obsdir): os.makedirs(obsdir,mode=0755)
+    def tune(self,obsnum,subobsnum,scannum,sourcename=None):
+        self.tune_flag = 1
+        self.retune_only(search_span = 200000.,
+                    search_step = 1000.,
+                    search_start = 25, search_stop  = 10,search_avg = 25, 
+                    sweep_span = 100000.,
+                    sweep_step = 1000.,
+                    sweep_start = 25, sweep_stop = 10,sweep_avg  = 25,
+                    obsnum=obsnum,subobsnum=subobsnum,scannum=scannum,sourcename=sourcename, 
+                    obs=True,obspgm='Tune')
         
         print 'Done Tuning'
         time.sleep(1)
+        self.tune_flag=0
         return 0
 
 
+    def sweep(self,obsnum,subobsnum,scannum,sourcename=None):
+        self.sweep_flag = 1
+        self.sweep_only(span = 200000.,
+                    step = 1000.,
+                    start = 25, stop = 10, averaging  = 25,
+                    obsnum=obsnum,subobsnum=subobsnum,scannum=scannum,sourcename=sourcename, 
+                    obs=True, obspgm='Sweep')
+        
+        #dirfiles = [j.current_dirfile.name for j in self.mclist]
+        #self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
+        #self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_1_Built_In','MC_2_Cald'])
+        
+        #obsdir = os.path.join('/data/obs/etc/',str(obsnum),str(subobsnum),str(scannum))
+        #if not os.path.exists(obsdir): os.makedirs(obsdir,mode=0755)
+        
+        print 'Done Sweeping'
+        time.sleep(1)
+        self.sweep_flag=0
+        return 0
 
 
+    #def PGMScanAndIntegrate(self,obsnum,subobsnum,scannum,sourcename,obspgm):
+        
+        #self.start_recording(obsnum,subobsnum,scannum,sourcename,True)
+        #while self.stream_flag:
+            #time.sleep(1)
+            
+        #self.stop_recording()
+        #dirfiles = [j.current_dirfile.name for j in self.mclist]
+        #self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
+        #self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_1_Built_In','MC_2_Cald'])
+        
+        #print 'Done PGMScanAndIntegrate'
+    
+    #def PGMStepAndIntegrate(self,obsnum,subobsnum,scannum,sourcename,obspgm):
+        
+        #self.start_recording(obsnum,subobsnum,scannum,sourcename,True)
+        #while self.stream_flag:
+            #time.sleep(1)
+            
+        #self.stop_recording()
+        #dirfiles = [j.current_dirfile.name for j in self.mclist]
+        #self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
+        #self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_1_Built_In','MC_2_Cald'])
+        
+        #print 'Done PGMStepAndIntegrate'
+    
+    #def PGMStepAndSweep(self,obsnum,subobsnum,scannum,sourcename,obspgm):
+        ##this is not called with an open command and is just a bunch of sweep commands
+        #dirfiles = [j.current_dirfile.name for j in self.mclist]
+        #self.obs_close(obspgm, obsnum, subobsnum, scannum,sourcename,dirfiles)
+        #self.add_cryo_log_to_dirfiles(dirfiles,thermometers=['MC_1_Built_In','MC_2_Cald'])
+        
+        #print 'Done PGMStepAndSweep'
+    
+
+    
 
 
 

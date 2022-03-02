@@ -385,7 +385,10 @@ def generate_main_rawfields(dirfile, roachid, tonenames, fragnum=0 ):#, field_su
     aux_entries_to_write.append( _gd.entry( _GDENTRYMAP[ firmware_dict["packet_structure"]['LMT_PGM_START'][0] ], namespace + 'LMT_PGM_START', \
                                             fragnum, \
                                             (_GDDATAMAP[ firmware_dict["packet_structure"]['LMT_PGM_START'][1] ], 1) ) )
-
+    
+    
+    
+    
     for field_name, (entry_type, field_datatype, __, __, __, __) in aux_fields.items():
         #print eval(entry_type), eval(field_datatype)
         #print _GDENTRYMAP[entry_type], _GDDATAMAP[field_datatype]
@@ -406,6 +409,10 @@ def generate_main_rawfields(dirfile, roachid, tonenames, fragnum=0 ):#, field_su
 
     for entry in aux_entries_to_write + kid_entries_to_write + [lofreq_entry, bbfreq_entry, tonename_entry]:
         dirfile.add(entry)
+    
+    # add contant for applied detuning in hz, default to 0.0 Hz (this is equal to the offset in lo frequency from nominal)
+    dirfile.add(_gd.entry(_gd.CONST_ENTRY,'detune_hz',0,(_gd.FLOAT64,)))
+    dirfile.put_constant('detune_hz',0.0)
 
     dirfile.sync()
     return dirfile
